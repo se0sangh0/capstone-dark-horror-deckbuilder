@@ -1,0 +1,9 @@
+.stfolder
+.stversions/
+.DS_Store
+Thumbs.db
+node_modules/
+.vscode/
+.idea/
+*.tmp
+*.log
