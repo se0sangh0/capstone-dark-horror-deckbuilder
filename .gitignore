@@ -1,18 +1,55 @@
-# macOS
+# ===== OS / Editor =====
 .DS_Store
 ._*
+*.swp
+*.tmp
+~$*
 
-# Syncthing
+# ===== Syncthing local artifacts =====
 .stfolder
 .stignore
 .stversions/
 .sync_probe_*.md
 
-# Obsidian (device-local UI state)
+# ===== Obsidian (device-local UI state only) =====
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 
-# Optional local editor/system files
-*.swp
+# ===== Unity (keep only source-of-truth files) =====
+# Ignore generated/local cache
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+
+# Visual Studio / Rider / VSCode generated
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
 *.tmp
-~$*
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Crash reports
+sysinfo.txt
+
+# If mobile build folders appear
+.gradle/
+*.apk
+*.aab
+*.ipa
