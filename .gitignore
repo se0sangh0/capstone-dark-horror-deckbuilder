@@ -1,9 +1,18 @@
-.stfolder
-.stversions/
+# macOS
 .DS_Store
-Thumbs.db
-node_modules/
-.vscode/
-.idea/
+._*
+
+# Syncthing
+.stfolder
+.stignore
+.stversions/
+.sync_probe_*.md
+
+# Obsidian (device-local UI state)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# Optional local editor/system files
+*.swp
 *.tmp
-*.log
+~$*
