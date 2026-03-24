@@ -27,6 +27,9 @@ public class NodeSystem : MonoBehaviour
     [SerializeField] private NodeVisualState passedState;
     [SerializeField] private NodeVisualState currentState;
     [SerializeField] private NodeVisualState lockedState;
+    
+    [SerializeField] public GameObject nodeDisplay;
+    [SerializeField] public GameObject actionDisplay;
 
     void Awake()
     {
@@ -98,7 +101,7 @@ public class NodeSystem : MonoBehaviour
             if (state.sprite != null) img.sprite = state.sprite;
         }
     }
-
+    // 노드 클릭 시 
     public void OnNodeClicked(int row, int col)
     {
         if (row == currentRowIndex)
@@ -106,9 +109,11 @@ public class NodeSystem : MonoBehaviour
             nodeRows[row].selectedButtonIndex = col;
             if (currentRowIndex < nodeRows.Count)
             {
-                currentRowIndex++;
+                currentRowIndex++;//싱글턴 패턴 사용
+                DisplayChange.instance.DisplayChanger(nodeDisplay,actionDisplay);
                 UpdateNodeStates();
             }
         }
     }
+
 }
