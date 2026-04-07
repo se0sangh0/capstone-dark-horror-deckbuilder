@@ -68,7 +68,7 @@ public static class DeckBuilder
     {
         return allCards
             .Where(c =>
-                (int)c.role == (int)companion.role &&
+                (int)c.type == (int)companion.role &&
                 (c.affinity == companion.affinity || c.affinity == CardAffinity.None))
             .ToList();
     }
@@ -106,7 +106,7 @@ public static class DeckBuilder
         foreach (var (card, owner) in deck)
         {
             Debug.Log($"  [{owner.displayName} / {AffinityHelper.GetLabel(owner.affinity)}] "
-                    + $"{card.displayName} | 역할:{card.role} | 성향:{AffinityHelper.GetLabel(card.affinity)}");
+                    + $"{card.cardArt} | 역할:{card.type} | 성향:{AffinityHelper.GetLabel(card.affinity)}");
         }
     }
 }
