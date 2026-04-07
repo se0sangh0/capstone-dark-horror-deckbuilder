@@ -12,6 +12,10 @@ public class NodeSystem : MonoBehaviour
         [HideInInspector] public int selectedButtonIndex = -1;
     }
 
+    [Header("Line Settings")]
+    [SerializeField] private GameObject linePrefab; // LineRenderer 컴포넌트가 붙은 프리팹
+    [SerializeField] private Transform lineParent;   // 선들을 모아둘 부모 객체
+    
     [Header("Node Structure")]
     [SerializeField] private List<NodeRow> nodeRows; 
     private int currentRowIndex = 0;
@@ -35,6 +39,7 @@ public class NodeSystem : MonoBehaviour
     {
         // 1. 자동 등록 프로세스
         SetupNodeData();
+        //CreateAllPaths();
     }
 
     void Start()
@@ -115,5 +120,40 @@ public class NodeSystem : MonoBehaviour
             }
         }
     }
+    
+    // // 모든 노드 사이의 경로를 미리 생성하는 함수
+    // private void CreateAllPaths()
+    // {
+    //     Debug.Log($"경로 생성 시작: 층수 {nodeRows.Count}"); // 로그 확인
+    //     // 마지막 층은 다음 층이 없으므로 Count - 1 까지만 반복
+    //     for (int r = 0; r < nodeRows.Count - 1; r++)
+    //     {
+    //         Debug.Log($"{r}층 버튼 개수: {nodeRows[r].buttons.Count}"); // 여기서 0이 나오면 안 됨
+    //         
+    //         NodeRow currentRow = nodeRows[r];
+    //         NodeRow nextRow = nodeRows[r + 1];
+    //
+    //         foreach (Button startBtn in currentRow.buttons)
+    //         {
+    //             foreach (Button endBtn in nextRow.buttons)
+    //             {
+    //                 SpawnLine(startBtn.transform.position, endBtn.transform.position);
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // private void SpawnLine(Vector3 start, Vector3 end)
+    // {
+    //     GameObject lineObj = Instantiate(linePrefab, lineParent);
+    //     LineRenderer lr = lineObj.GetComponent<LineRenderer>();
+    //     
+    //     lr.positionCount = 2;
+    //     lr.SetPosition(0, start);
+    //     lr.SetPosition(1, end);
+    //     
+    //     // 선이 버튼 뒤로 가도록 Z축 조정 (Canvas가 World Space일 때 유용)
+    //     // lr.transform.localPosition = new Vector3(0, 0, 10f); 
+    // }
 
 }

@@ -9,7 +9,7 @@ public class SoulstoneManager : BaseCurrency
     protected override int startingAmount => 10;
 
     // 부모가 요구하는 저장 키 값 정의 (여기만 다름!)
-    protected override string SaveKey => "PlayerBalls";
+    protected override string SaveKey => "SoulStone";
 
     private void Awake()
     {
