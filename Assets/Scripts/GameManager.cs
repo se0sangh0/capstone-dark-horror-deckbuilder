@@ -1,23 +1,106 @@
 using UnityEngine;
-
+using UnityEngine.UI;
+public enum StackType 
+{ 
+    Dealer, // 딜 (딜러)
+    Tank,   // 탱 (탱커)
+    Support // 힐 (서포터)
+}
 public class GameManager : MonoBehaviour
 {
-    public void GameExit()
-    {
-        Debug.Log("게임 종료"); // 에디터 확인용
-        Application.Quit(); // 실제 게임 종료
-    }
-     
+    public static GameManager Instance { get; private set; }
+    
+    [Header("에셋 설정 (Assets)")]
+    // Inspector에서 숫자 1~10 이미지 에셋을 순서대로 넣을 배열
+    public Sprite[] numberSprites; 
+    public Sprite emptyCardSprite; // 사용 후 보여줄 빈 카드 이미지
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    [Header("UI 연결 (UI References)")]
+    public StackCardController[] myCards; // CardArea 아래의 4개 카드
+    public GameObject checkButtonBox; // Hierarchy의 CheckButtonBox 오브젝트
+    public Button btnConfirm; // CheckButtonBox 하위의 확인 버튼
+    public Button btnCancel;  // CheckButtonBox 하위의 취소 버튼
+    
+    [Header("플레이어 스택 상태 (Player Stacks)")]
+    // 2. 각 직업별 스택을 누적해서 저장할 변수
+    public int dealerStack = 0;
+    public int tankStack = 0;
+    public int supportStack = 0;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            // DontDestroyOnLoad(gameObject); // 필요시 씬 전환 후에도 유지하려면 주석 해제
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+        }
+    }
+
     void Start()
     {
-        
+        // 게임 시작 시 내 턴 시작
+        StartMyTurn();
     }
 
-    // Update is called once per frame
-    void Update()
+    // 내 턴 시작 (카드 랜덤 지정)
+    public void StartMyTurn()
+    {
+        Debug.Log("내 턴 시작! 카드를 세팅합니다.");
+
+        foreach (StackCardController card in myCards)
+        {
+            // 1부터 등록된 이미지 개수 사이에서 랜덤 숫자 
+            // 성향별 if 문 구현 (목요일 해라 놀지말고)
+            int randomNum;
+            do
+            {
+                randomNum = Random.Range(-5, 6);
+            } while (randomNum==0);
+            Debug.Log("랜덤숫자: " + randomNum);
+            // Sprite 배열은 0부터 시작하므로 randomNum - 1 을 해줍니다.
+            if (randomNum > 0) card.SetupCard(randomNum, numberSprites[randomNum+4], emptyCardSprite);
+            else card.SetupCard(randomNum, numberSprites[randomNum+5], emptyCardSprite);
+        }
+    }
+
+    // 카드를 최종 선택(확인) 했을 때
+    public void OnCardUsed(StackCardController usedCard)
+    {
+        Debug.Log("선택한 카드 숫자: " + usedCard.currentNumber);
+        // 카드의 stackType에 따라 알맞은 스택 변수에 stackDelta를 더해줍니다.
+        switch (usedCard.stackType)
+        {
+            case StackType.Dealer:
+                dealerStack += usedCard.stackDelta;
+                Debug.Log($"딜러 스택 갱신! 현재 딜러 스택: {dealerStack}");
+                break;
+                
+            case StackType.Tank:
+                tankStack += usedCard.stackDelta;
+                Debug.Log($"탱커 스택 갱신! 현재 탱커 스택: {tankStack}");
+                break;
+                
+            case StackType.Support:
+                supportStack += usedCard.stackDelta;
+                Debug.Log($"서포터 스택 갱신! 현재 서포터 스택: {supportStack}");
+                break;
+        }
+    }
+
+    // 내 턴 종료 및 상대 턴 진행
+    public void EndMyTurn()
     {
         
+        Debug.Log("내 턴 종료. 적 턴 시작...");
+        
+        // 적의 행동 로직 작성 구역
+        // ...
+
+        // 적 턴이 끝나면 다시 내 턴으로 돌아옴 (테스트를 위해 2초 뒤에 시작하도록 지연)
+        Invoke("StartMyTurn", 2.0f);
     }
 }
