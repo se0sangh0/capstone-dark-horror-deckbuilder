@@ -6,7 +6,7 @@ public class SoulstoneManager : BaseCurrency
     [SerializeField] private TMP_Text amountText;
     public static SoulstoneManager Instance { get; private set; }
 
-    protected override int startingAmount => 10;
+    protected override int StartingAmount => 10;
 
     // 부모가 요구하는 저장 키 값 정의 (여기만 다름!)
     protected override string SaveKey => "SoulStone";

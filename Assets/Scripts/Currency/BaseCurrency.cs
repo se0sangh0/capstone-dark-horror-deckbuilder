@@ -12,7 +12,7 @@ public abstract class BaseCurrency : MonoBehaviour
     private int _amount;
 
     [Header("Settings")]
-    protected virtual int startingAmount => 0;
+    protected virtual int StartingAmount => 0;
     
     // 공통 프로퍼티
     public int Amount
@@ -67,6 +67,6 @@ public abstract class BaseCurrency : MonoBehaviour
     // 공통 메서드: 로드
     private void LoadCurrency()
     {
-        Amount = PlayerPrefs.GetInt(SaveKey, startingAmount);
+        Amount = PlayerPrefs.GetInt(SaveKey, StartingAmount);
     }
 }
