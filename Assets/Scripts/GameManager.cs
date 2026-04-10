@@ -54,7 +54,33 @@ public class GameManager : MonoBehaviour
         foreach (StackCardController card in myCards)
         {
             // 1부터 등록된 이미지 개수 사이에서 랜덤 숫자 
-            // 성향별 if 문 구현 (목요일 해라 놀지말고)
+            // 성향별 if 문 구현
+            //ToDo
+            /*
+            // 1. 상태를 enum으로 정의합니다. (플레이어는 이 중 딱 하나의 성향만 가질 수 있습니다)
+            public enum PlayerPersonality { Gambler, Safety, Opportunist, Optimist }
+            public PlayerPersonality personality; // 인스펙터 창에서 선택 가능
+
+            // 2. 난수 생성 함수 내부
+            switch (personality)
+            {
+                case PlayerPersonality.Gambler: // 도박사
+                    randomNum = Random.Range(0, 2) == 0 ? -5 : 5;
+                    break;
+
+                case PlayerPersonality.Safety:        min = -1; max = 3; break; // 안전주의자
+                case PlayerPersonality.Opportunist: min = -3; max = 4; break; // 기회주의자
+                case PlayerPersonality.Optimist:    min = -5; max = 5; break; // 낙천가
+            }
+
+            // 도박사가 아닐 때만 0을 제외한 랜덤값을 뽑습니다.
+            if (personality != PlayerPersonality.Gambler)
+            {
+                do {
+                    randomNum = Random.Range(min, max);
+                } while (randomNum == 0);
+            }
+             */
             int randomNum;
             do
             {
@@ -94,12 +120,7 @@ public class GameManager : MonoBehaviour
     // 내 턴 종료 및 상대 턴 진행
     public void EndMyTurn()
     {
-        
         Debug.Log("내 턴 종료. 적 턴 시작...");
-        
-        // 적의 행동 로직 작성 구역
-        // ...
-
         // 적 턴이 끝나면 다시 내 턴으로 돌아옴 (테스트를 위해 2초 뒤에 시작하도록 지연)
         Invoke("StartMyTurn", 2.0f);
     }
