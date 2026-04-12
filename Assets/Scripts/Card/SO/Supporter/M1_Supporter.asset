@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: M1_Supporter
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   type: 2
-  cardArt: {fileID: 0}
+  cardArt: {fileID: 4693821623100491536, guid: 41b0693a291a74243b151cb88570c526, type: 3}
   cardPower: -1
+  affinity: 0

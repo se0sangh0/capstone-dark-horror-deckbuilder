@@ -443,37 +443,41 @@ MonoBehaviour:
   currentPhase: 0
   isAllyFirstAttacker: 0
   allies:
-  - baseData: {fileID: 0}
+  - baseData: {fileID: 11400000, guid: cbd674e9798549e42a82cbea6b3d525c, type: 2}
     positionStack: 0
-    currentHp: 0
+    currentHp: 100
     currentStress: 0
     currentStack: 0
     isDead: 0
-  - baseData: {fileID: 0}
+  - baseData: {fileID: 11400000, guid: cbd674e9798549e42a82cbea6b3d525c, type: 2}
     positionStack: 0
-    currentHp: 0
+    currentHp: 100
     currentStress: 0
     currentStack: 0
     isDead: 0
-  - baseData: {fileID: 0}
-    positionStack: 0
-    currentHp: 0
+  - baseData: {fileID: 11400000, guid: b2bc33568eab8b342bbbeff6f7362693, type: 2}
+    positionStack: 1
+    currentHp: 100
     currentStress: 0
     currentStack: 0
     isDead: 0
-  - baseData: {fileID: 0}
-    positionStack: 0
-    currentHp: 0
+  - baseData: {fileID: 11400000, guid: 5732f0061ed9db145bebff02b6e03bcd, type: 2}
+    positionStack: 2
+    currentHp: 100
     currentStress: 0
     currentStack: 0
     isDead: 0
   enemies:
   - enemyName: Boss
+    baseData: {fileID: 0}
     currentHp: 1000
     isDead: 0
   currentTurnStackSum: 0
   enemyPowerScore: 5
   gameOverSceneName: GameStartScene
+  actionDelayTime: 0.5
+  turnTransitionDelay: 1
+  gameOverDelay: 1.5
 --- !u!1001 &407485575
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1413,18 +1417,18 @@ PrefabInstance:
     - target: {fileID: 6640722165256449197, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 681744203}
+      objectReference: {fileID: 390679775}
     - target: {fileID: 6640722165256449197, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 6640722165256449197, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: EndMyTurn
+      value: FinishPlayerTurn
       objectReference: {fileID: 0}
     - target: {fileID: 6640722165256449197, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
-      value: GameManager, Assembly-CSharp
+      value: BattleManager, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 6640722165256449197, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
@@ -4094,6 +4098,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 659c324ed93c86e4bad43ec0c0d541c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DefaultSetting
+  factionType: 0
   cardPrefab: {fileID: 5214129751848754868, guid: ec137b0e40ce9a24a81e4c083ab6beae, type: 3}
   cardCount: 4
   startX: -2
@@ -4238,6 +4243,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 659c324ed93c86e4bad43ec0c0d541c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DefaultSetting
+  factionType: 1
   cardPrefab: {fileID: 5917696149376670484, guid: 0df0609182b9f6f419f5b9b2ea093fbb, type: 3}
   cardCount: 4
   startX: 4

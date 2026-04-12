@@ -116,12 +116,5 @@ public class GameManager : MonoBehaviour
                 break;
         }
     }
-
-    // 내 턴 종료 및 상대 턴 진행
-    public void EndMyTurn()
-    {
-        Debug.Log("내 턴 종료. 적 턴 시작...");
-        // 적 턴이 끝나면 다시 내 턴으로 돌아옴 (테스트를 위해 2초 뒤에 시작하도록 지연)
-        Invoke("StartMyTurn", 2.0f);
-    }
+    
 }
