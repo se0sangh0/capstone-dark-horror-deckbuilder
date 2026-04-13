@@ -1,35 +1,34 @@
 {
-  "name": "@figma/괴이탐사국-ui-prototype",
+  "name": "dark-horror-deckbuilder-figma-prototype",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.1",
+  "description": "Figma Make UI prototype for Dark Horror Deckbuilder game",
   "type": "module",
-  "description": "괴이탐사국 UI 프로토타입 (Figma Make)",
   "scripts": {
-    "build": "vite build"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "11.14.0",
-    "@emotion/styled": "11.14.1",
-    "@mui/icons-material": "7.3.5",
-    "@mui/material": "7.3.5",
-    "@radix-ui/react-dialog": "1.1.6",
-    "@radix-ui/react-progress": "1.1.2",
-    "@radix-ui/react-slot": "1.1.2",
-    "class-variance-authority": "0.7.1",
-    "clsx": "2.1.1",
-    "lucide-react": "0.487.0",
-    "react-dnd": "16.0.1",
-    "react-dnd-html5-backend": "16.0.1",
-    "tailwind-merge": "3.2.0"
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-popover": "^1.1.6",
+    "@radix-ui/react-progress": "^1.1.2",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.487.0",
+    "tailwind-merge": "^3.2.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.1.12",
-    "@vitejs/plugin-react": "4.7.0",
-    "tailwindcss": "4.1.12",
-    "vite": "6.3.5"
+    "@tailwindcss/vite": "^4.1.12",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.7.3",
+    "vite": "^6.3.5"
   },
   "peerDependencies": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
