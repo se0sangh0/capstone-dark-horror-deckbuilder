@@ -25,7 +25,7 @@ public class BattleManager : MonoBehaviour
     public bool isAllyFirstAttacker;
 
     [Header("Entities Data")]
-    public List<CompanionEntity> allies = new List<CompanionEntity>();
+    public List<FellowData> allies = new List<FellowData>();
     public List<EnemyEntity> enemies = new List<EnemyEntity>();
     
     [Header("Stacks Info")]
@@ -212,7 +212,7 @@ public class BattleManager : MonoBehaviour
             {
                 if (ally.currentStack > 0)
                 {
-                    string allyName = ally.baseData != null ? ally.baseData.name : "이름 없음";
+                    string allyName = ally != null ? ally.name : "이름 없음";
                     Debug.Log($"{allyName}(이)가 보유한 스택({ally.currentStack})을 사용하여 행동합니다!");
                     ally.currentStack = 0; 
                     yield return new WaitForSeconds(actionDelayTime);
@@ -234,7 +234,7 @@ public class BattleManager : MonoBehaviour
         foreach (var ally in allies.Where(a => a.currentHp <= 0 && !a.isDead))
         {
             ally.isDead = true;
-            string allyName = ally.baseData != null ? ally.baseData.name : "이름 없음";
+            string allyName = ally != null ? ally.name : "이름 없음";
             Debug.Log($"{allyName} 사망!");
         }
 

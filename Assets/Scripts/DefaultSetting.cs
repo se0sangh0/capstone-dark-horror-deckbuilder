@@ -54,9 +54,9 @@ public class DefaultSetting : MonoBehaviour
         if (factionType == FactionType.Ally)
         {
             var allies = BattleManager.Instance.allies;
-            if (index < allies.Count && allies[index].baseData != null && allies[index].baseData.cardArt != null)
+            if (index < allies.Count && allies[index] != null && allies[index].fellowSprite != null)
             {
-                renderer.material.mainTexture = allies[index].baseData.cardArt.texture;
+                renderer.material.mainTexture = allies[index].fellowSprite.texture;
                 Debug.Log($"[아군 세팅 성공] {objName}에 이미지 할당됨.");
             }
         }

@@ -443,30 +443,10 @@ MonoBehaviour:
   currentPhase: 0
   isAllyFirstAttacker: 0
   allies:
-  - baseData: {fileID: 11400000, guid: cbd674e9798549e42a82cbea6b3d525c, type: 2}
-    positionStack: 0
-    currentHp: 100
-    currentStress: 0
-    currentStack: 0
-    isDead: 0
-  - baseData: {fileID: 11400000, guid: cbd674e9798549e42a82cbea6b3d525c, type: 2}
-    positionStack: 0
-    currentHp: 100
-    currentStress: 0
-    currentStack: 0
-    isDead: 0
-  - baseData: {fileID: 11400000, guid: b2bc33568eab8b342bbbeff6f7362693, type: 2}
-    positionStack: 1
-    currentHp: 100
-    currentStress: 0
-    currentStack: 0
-    isDead: 0
-  - baseData: {fileID: 11400000, guid: 5732f0061ed9db145bebff02b6e03bcd, type: 2}
-    positionStack: 2
-    currentHp: 100
-    currentStress: 0
-    currentStack: 0
-    isDead: 0
+  - {fileID: 11400000, guid: a6faa0bc91059bc4c8ba4898e83877b1, type: 2}
+  - {fileID: 11400000, guid: a6faa0bc91059bc4c8ba4898e83877b1, type: 2}
+  - {fileID: 11400000, guid: 31b0e2111bf899146810b82ccc210702, type: 2}
+  - {fileID: 11400000, guid: f31f56624c4f6e241a2d437e79760eed, type: 2}
   enemies:
   - enemyName: Boss
     baseData: {fileID: 0}
