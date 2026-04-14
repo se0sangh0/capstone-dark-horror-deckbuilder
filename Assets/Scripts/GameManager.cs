@@ -88,8 +88,11 @@ public class GameManager : MonoBehaviour
             } while (randomNum==0);
             Debug.Log("랜덤숫자: " + randomNum);
             // Sprite 배열은 0부터 시작하므로 randomNum - 1 을 해줍니다.
-            if (randomNum > 0) card.SetupCard(randomNum, numberSprites[randomNum+4], emptyCardSprite);
-            else card.SetupCard(randomNum, numberSprites[randomNum+5], emptyCardSprite);
+            // if (randomNum > 0) card.SetupCard(randomNum, numberSprites[randomNum+4], emptyCardSprite);
+            // else card.SetupCard(randomNum, numberSprites[randomNum+5], emptyCardSprite);
+            
+            // 3항 연산자로 코드 길이 줄임.
+            card.SetupCard(randomNum, numberSprites[randomNum+(randomNum > 0 ? 4 : 5)], emptyCardSprite);
         }
     }
 
@@ -116,12 +119,5 @@ public class GameManager : MonoBehaviour
                 break;
         }
     }
-
-    // 내 턴 종료 및 상대 턴 진행
-    public void EndMyTurn()
-    {
-        Debug.Log("내 턴 종료. 적 턴 시작...");
-        // 적 턴이 끝나면 다시 내 턴으로 돌아옴 (테스트를 위해 2초 뒤에 시작하도록 지연)
-        Invoke("StartMyTurn", 2.0f);
-    }
+    
 }
