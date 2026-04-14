@@ -40,7 +40,7 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        StartMyTurn();
+        //StartMyTurn();
     }
 
     // -------------------------------------------------------
@@ -70,8 +70,8 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[카드 사용] type={usedCard.stackType} delta={usedCard.stackDelta:+#;-#;0}");
 
         // 스택 관리 권한: BattleManager
-        if (BattleManager.Instance != null)
-            BattleManager.Instance.AddStack(usedCard.stackType, usedCard.stackDelta);
+        if (PlayerRoleCost.Instance != null)
+            PlayerRoleCost.Instance.Add(usedCard.stackType, usedCard.stackDelta);
     }
 
     // -------------------------------------------------------

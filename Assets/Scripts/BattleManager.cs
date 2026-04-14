@@ -36,12 +36,10 @@ public class BattleManager : MonoBehaviour
     // 스택 (역할별 + 이번 턴 합산)
     // 기획서 기준: 아군 점수 = Σ(동료 스택) + 이번 턴 카드 스택 합
     // -------------------------------------------------------
-    [Header("Stacks — 이번 턴")]
-    public int dealerStack  = 0;
-    public int tankStack    = 0;
-    public int supportStack = 0;
-    /// <summary>이번 턴 카드 기여량 합산 (선공 판정용)</summary>
-    public int currentTurnStackSum = 0;
+    // [Header("Stacks — 이번 턴")]
+    // public int dealerStack  = 0;
+    // public int tankStack    = 0;
+    // public int supportStack = 0;
 
     // 적 고정 스택: 일반=3, 보스=8 (기획서 §선공판정)
     [Header("Enemy")]
@@ -130,7 +128,7 @@ public class BattleManager : MonoBehaviour
     private void HandleInitiativeCheck()
     {
         Debug.Log("--- 3. 선공 판정 ---");
-        DecideInitiative();
+        //DecideInitiative();
         currentPhase = BattlePhase.FirstAction;
     }
 
@@ -146,7 +144,10 @@ public class BattleManager : MonoBehaviour
     {
         Debug.Log("--- 6. 결과 처리 ---");
         ProcessDeathAndStress();
-        ResetTurnStacks();
+        //ResetTurnStacks();
+        PlayerRoleCost.Instance.SetAmount(StackType.Dealer, 0);
+        PlayerRoleCost.Instance.SetAmount(StackType.Tank, 0);
+        PlayerRoleCost.Instance.SetAmount(StackType.Support, 0);
 
         if (CheckBattleEndCondition())
         {
@@ -196,45 +197,34 @@ public class BattleManager : MonoBehaviour
     /// </summary>
     public void PlayCardOnStack(CardData cardData, StackType targetStack)
     {
-        AddStack(targetStack, cardData.stackDelta);
+        PlayerRoleCost.Instance.Add(targetStack, cardData.stackDelta);
         Debug.Log($"[CardPlayed] id={cardData.id} type={targetStack} delta={cardData.stackDelta:+#;-#;0}");
     }
 
     /// <summary>
     /// StackCardController → BattleManager 직접 반영 경로 (GameManager.OnCardUsed에서 호출).
     /// </summary>
-    public void AddStack(StackType type, int delta)
-    {
-        switch (type)
-        {
-            case StackType.Dealer:  dealerStack  += delta; break;
-            case StackType.Tank:    tankStack    += delta; break;
-            case StackType.Support: supportStack += delta; break;
-        }
-        currentTurnStackSum += delta;
-        Debug.Log($"[스택 갱신] {type} {delta:+#;-#;0} → D={dealerStack} T={tankStack} S={supportStack} (합:{currentTurnStackSum})");
-    }
 
     // -------------------------------------------------------
     // 선공 판정
     // 기획서: 아군 점수 = Σ(동료 스택) + 이번 턴 카드 스택 합
     // -------------------------------------------------------
-    private void DecideInitiative()
-    {
-        //int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.carryOverStack)
-                           //+ currentTurnStackSum;
-        int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.currentStack) + currentTurnStackSum;
-
-        Debug.Log($"[선공 판정] 아군={allyTotalStack} vs 적={enemyPowerScore}");
-
-        if      (allyTotalStack > enemyPowerScore) isAllyFirstAttacker = true;
-        else if (allyTotalStack < enemyPowerScore) isAllyFirstAttacker = false;
-        else
-        {
-            isAllyFirstAttacker = Random.value > 0.5f;
-            Debug.Log($"동점 → 코인 토스: {(isAllyFirstAttacker ? "아군 선공" : "적 선공")}");
-        }
-    }
+    // private void DecideInitiative()
+    // {
+    //     //int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.carryOverStack)
+    //                        //+ currentTurnStackSum;
+    //     int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.currentStack);
+    //
+    //     Debug.Log($"[선공 판정] 아군={allyTotalStack} vs 적={enemyPowerScore}");
+    //
+    //     if      (allyTotalStack > enemyPowerScore) isAllyFirstAttacker = true;
+    //     else if (allyTotalStack < enemyPowerScore) isAllyFirstAttacker = false;
+    //     else
+    //     {
+    //         isAllyFirstAttacker = Random.value > 0.5f;
+    //         Debug.Log($"동점 → 코인 토스: {(isAllyFirstAttacker ? "아군 선공" : "적 선공")}");
+    //     }
+    // }
 
     // -------------------------------------------------------
     // 행동 실행
@@ -247,7 +237,8 @@ public class BattleManager : MonoBehaviour
             foreach (var ally in allies.Where(a => !a.isDead))
             {
                 string allyName    = ally != null ? ally.positionStack.ToString() : "이름 없음";
-                int    roleStack   = GetStackForRole(ally.positionStack);
+                //int    roleStack   = GetStackForRole(ally.positionStack);
+                int roleStack = PlayerRoleCost.Instance.GetAmount(ally.positionStack);
                 int    totalStack  = roleStack + ally.currentStack;
                 //int    required    = ally != null ? ally.baseData.requiredStack : 3;
                 int required = 3;
@@ -255,7 +246,8 @@ public class BattleManager : MonoBehaviour
                 if (totalStack >= required)
                 {
                     Debug.Log($"{allyName}(이)가 스택({totalStack}/{required})으로 행동합니다!");
-                    ConsumeStackForRole(ally.positionStack, required);
+                    //ConsumeStackForRole(ally.positionStack, required);
+                    PlayerRoleCost.Instance.Use(ally.positionStack, required);
                     ally.currentStack = 0;
                     // TODO: 실제 스킬 실행 (SkillDefinition 연동 후 교체)
                     yield return new WaitForSeconds(actionDelayTime);
@@ -326,35 +318,35 @@ public class BattleManager : MonoBehaviour
     // -------------------------------------------------------
 
     /// <summary>턴 종료 시 역할별 스택 및 합산값 초기화.</summary>
-    private void ResetTurnStacks()
-    {
-        dealerStack        = 0;
-        tankStack          = 0;
-        supportStack       = 0;
-        currentTurnStackSum = 0;
-    }
+    // private void ResetTurnStacks()
+    // {
+    //     dealerStack        = 0;
+    //     tankStack          = 0;
+    //     supportStack       = 0;
+    //     currentTurnStackSum = 0;
+    // }
 
-    private int GetStackForRole(StackType role)
-    {
-        return role switch
-        {
-            StackType.Dealer  => dealerStack,
-            StackType.Tank    => tankStack,
-            StackType.Support => supportStack,
-            _                 => 0
-        };
-    }
+    // private int GetStackForRole(StackType role)
+    // {
+    //     return role switch
+    //     {
+    //         StackType.Dealer  => dealerStack,
+    //         StackType.Tank    => tankStack,
+    //         StackType.Support => supportStack,
+    //         _                 => 0
+    //     };
+    // }
 
     /// <summary>스택 소비량이 음수가 되지 않도록 clamp. (stackMin=0, 기획/SO스키마 §CombatTuning)</summary>
-    private void ConsumeStackForRole(StackType role, int amount)
-    {
-        switch (role)
-        {
-            case StackType.Dealer:  dealerStack  = Mathf.Max(0, dealerStack  - amount); break;
-            case StackType.Tank:    tankStack    = Mathf.Max(0, tankStack    - amount); break;
-            case StackType.Support: supportStack = Mathf.Max(0, supportStack - amount); break;
-        }
-    }
+    // private void ConsumeStackForRole(StackType role, int amount)
+    // {
+    //     switch (role)
+    //     {
+    //         case StackType.Dealer:  dealerStack  = Mathf.Max(0, dealerStack  - amount); break;
+    //         case StackType.Tank:    tankStack    = Mathf.Max(0, tankStack    - amount); break;
+    //         case StackType.Support: supportStack = Mathf.Max(0, supportStack - amount); break;
+    //     }
+    // }
 }
 
 // -------------------------------------------------------

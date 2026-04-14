@@ -13,7 +13,7 @@ public abstract class RoleCostBase : MonoBehaviour
         { StackType.Support, 0 }
     };
 
-    public event Action<StackType, int> OnCostChanged;
+    public event Action OnCostChanged;
 
     private readonly Dictionary<StackType, int> _costs = new();
 
@@ -23,8 +23,9 @@ public abstract class RoleCostBase : MonoBehaviour
     {
         foreach (StackType role in Enum.GetValues(typeof(StackType)))
         {
+            PlayerPrefs.SetInt(GetSaveKey(role), 0); // Todo 테스트 코드, 실제 게임 실행 시 삭제
             LoadCost(role);
-            UpdateUI(role, GetAmount(role)); // 초기 UI 세팅
+            UpdateUI(); // 초기 UI 세팅
         }
     }
 
@@ -33,8 +34,12 @@ public abstract class RoleCostBase : MonoBehaviour
 
     public virtual void Add(StackType role, int value)
     {
-        if (value <= 0) return;
-        SetAmount(role, GetAmount(role) + value);
+        if (value <= 0 && GetAmount(role) + value <= 0)
+        {
+            SetAmount(role, 0);
+        }
+        
+        else SetAmount(role, GetAmount(role) + value);
         SaveCost(role);
     }
 
@@ -46,15 +51,15 @@ public abstract class RoleCostBase : MonoBehaviour
         return true;
     }
 
-    private void SetAmount(StackType role, int newValue)
+    public void SetAmount(StackType role, int newValue)
     {
         if (GetAmount(role) == newValue) return;
         _costs[role] = newValue;
         Debug.Log($"{GetSaveKey(role)} 코스트가 {newValue}로 변경되었습니다.");
-        OnCostChanged?.Invoke(role, newValue);
+        OnCostChanged?.Invoke();
     }
     
-    protected abstract void UpdateUI(StackType role, int newValue);
+    protected abstract void UpdateUI();
 
     private void SaveCost(StackType role)
     {
