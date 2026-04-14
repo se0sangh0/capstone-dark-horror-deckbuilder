@@ -48,8 +48,11 @@ public class BattleManager : MonoBehaviour
     [Tooltip("일반 적=3, 보스=8  (기획/시스템/02_전투_시스템_명세.md)")]
     public int enemyPowerScore = 3;
 
-    [Header("Scene Transition")]
+    [Header("Settings & Timers")]
     public string gameOverSceneName = "GameStartScene";
+    public float actionDelayTime = 0.5f;       // 행동 시 대기 시간
+    public float turnTransitionDelay = 1.0f;   // 턴 종료 후 다음 턴 대기 시간
+    public float gameOverDelay = 1.5f;         // 게임 오버 연출 대기 시간
 
     private bool isPlayerTurnFinishing = false;
 
@@ -80,72 +83,99 @@ public class BattleManager : MonoBehaviour
     {
         switch (phase)
         {
-            // ── 1. 드로우 페이즈 ─────────────────────────────────
             case BattlePhase.DrawPhase:
-                Debug.Log("--- 1. 드로우 페이즈 ---");
-                GameManager.Instance?.StartMyTurn();
-                currentPhase = BattlePhase.PlayerCardPlay;
+                yield return StartCoroutine(HandleDrawPhase());
                 break;
-
-            // ── 2. 플레이어 카드 플레이 ──────────────────────────
             case BattlePhase.PlayerCardPlay:
-                Debug.Log("--- 2. 플레이어 카드 플레이 (대기중) ---");
-                isPlayerTurnFinishing = false;
-
-                yield return new WaitUntil(() =>
-                    isPlayerTurnFinishing ||
-                    (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
-                );
-
-                currentPhase = BattlePhase.InitiativeCheck;
+                yield return StartCoroutine(HandlePlayerCardPlay());
                 break;
-
-            // ── 3. 선공 판정 ─────────────────────────────────────
             case BattlePhase.InitiativeCheck:
-                Debug.Log("--- 3. 선공 판정 ---");
-                DecideInitiative();
-                currentPhase = BattlePhase.FirstAction;
+                HandleInitiativeCheck();
                 break;
-
-            // ── 4. 선공 측 행동 ──────────────────────────────────
             case BattlePhase.FirstAction:
-                Debug.Log($"--- 4. 선공 측 행동 ({(isAllyFirstAttacker ? "아군" : "적군")}) ---");
-                yield return StartCoroutine(ExecuteAction(isAllyFirstAttacker));
-                currentPhase = BattlePhase.SecondAction;
+                yield return StartCoroutine(HandleActionPhase(isAllyFirstAttacker, BattlePhase.SecondAction));
                 break;
-
-            // ── 5. 후공 측 행동 ──────────────────────────────────
             case BattlePhase.SecondAction:
-                Debug.Log($"--- 5. 후공 측 행동 ({(!isAllyFirstAttacker ? "아군" : "적군")}) ---");
-                yield return StartCoroutine(ExecuteAction(!isAllyFirstAttacker));
-                currentPhase = BattlePhase.ResultProcessing;
+                yield return StartCoroutine(HandleActionPhase(!isAllyFirstAttacker, BattlePhase.ResultProcessing));
                 break;
-
-            // ── 6. 결과 처리 ─────────────────────────────────────
             case BattlePhase.ResultProcessing:
-                Debug.Log("--- 6. 결과 처리 ---");
-                ProcessDeathAndStress();
-                ResetTurnStacks();
-
-                if (CheckBattleEndCondition())
-                {
-                    currentPhase = BattlePhase.BattleEnd;
-
-                    if (allies.Count > 0 && allies.All(a => a.isDead))
-                    {
-                        Debug.Log("아군 전멸! 게임 오버 씬으로 전환합니다.");
-                        yield return new WaitForSeconds(1.5f);
-                        SceneManager.LoadScene(gameOverSceneName);
-                    }
-                }
-                else
-                {
-                    yield return new WaitForSeconds(1.0f);
-                    currentPhase = BattlePhase.DrawPhase;
-                }
+                yield return StartCoroutine(HandleResultProcessing());
                 break;
         }
     }
+
+    #region Phase Handlers (모듈화된 페이즈 로직)
+
+    private IEnumerator HandleDrawPhase()
+    {
+        Debug.Log("--- 1. 드로우 페이즈 ---");
+        GameManager.Instance?.StartMyTurn();
+        currentPhase = BattlePhase.PlayerCardPlay;
+        yield return null;
+    }
+
+    private IEnumerator HandlePlayerCardPlay()
+    {
+        Debug.Log("--- 2. 플레이어 카드 플레이 (대기중) ---");
+        isPlayerTurnFinishing = false;
+
+        yield return new WaitUntil(() =>
+            isPlayerTurnFinishing ||
+            (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+        );
+
+        currentPhase = BattlePhase.InitiativeCheck;
+    }
+
+    private void HandleInitiativeCheck()
+    {
+        Debug.Log("--- 3. 선공 판정 ---");
+        DecideInitiative();
+        currentPhase = BattlePhase.FirstAction;
+    }
+
+    private IEnumerator HandleActionPhase(bool isAllyTurn, BattlePhase nextPhase)
+    {
+        string faction = isAllyTurn ? "아군" : "적군";
+        Debug.Log($"--- 행동 페이즈 진행 ({faction}) ---");
+        yield return StartCoroutine(ExecuteAction(isAllyTurn));
+        currentPhase = nextPhase;
+    }
+
+    private IEnumerator HandleResultProcessing()
+    {
+        Debug.Log("--- 6. 결과 처리 ---");
+        ProcessDeathAndStress();
+        ResetTurnStacks();
+
+        if (CheckBattleEndCondition())
+        {
+            currentPhase = BattlePhase.BattleEnd;
+            yield return StartCoroutine(HandleBattleEnd());
+        }
+        else
+        {
+            yield return new WaitForSeconds(turnTransitionDelay);
+            currentPhase = BattlePhase.DrawPhase;
+        }
+    }
+
+    private IEnumerator HandleBattleEnd()
+    {
+        if (allies.Count > 0 && allies.All(a => a.isDead))
+        {
+            Debug.Log("아군 전멸! 게임 오버 씬으로 전환합니다.");
+            yield return new WaitForSeconds(gameOverDelay);
+            SceneManager.LoadScene(gameOverSceneName);
+        }
+        else
+        {
+            Debug.Log("전투 승리!");
+            // TODO: 승리 처리 로직
+        }
+    }
+
+    #endregion
 
     // -------------------------------------------------------
     // 공개 API
@@ -226,7 +256,7 @@ public class BattleManager : MonoBehaviour
                     ConsumeStackForRole(ally.positionStack, required);
                     ally.carryOverStack = 0;
                     // TODO: 실제 스킬 실행 (SkillDefinition 연동 후 교체)
-                    yield return new WaitForSeconds(0.5f);
+                    yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
                 {
@@ -242,7 +272,7 @@ public class BattleManager : MonoBehaviour
             {
                 Debug.Log($"적 {enemy.enemyName}(이)가 아군을 공격합니다!");
                 // TODO: 적 AI 행동 구현
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(actionDelayTime);
             }
         }
     }
