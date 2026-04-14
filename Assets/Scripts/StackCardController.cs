@@ -13,8 +13,9 @@ public class StackCardController : MonoBehaviour
     private Button myButton;
     
     // StackCardController.cs 내부 예시
-    public StackType stackType; // Inspector에서 Dealer, Tank, Support 중 선택
-    public int stackDelta;      // 카드에 적힌 숫자 (+3, -2 등)
+    public StackType   stackType; // Inspector에서 Dealer, Tank, Support 중 선택
+    public int         stackDelta; // 카드에 적힌 숫자 (+3, -2 등)
+    public CardAffinity affinity = CardAffinity.Optimist; // 성향 (드로우 범위 결정)
 
     void Awake()
     {

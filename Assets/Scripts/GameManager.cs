@@ -1,127 +1,125 @@
+// GameManager.cs
+// UI 입력 수신 및 드로우 페이즈 카드 세팅.
+// 스택 관리 권한은 BattleManager 에 있음.
+
 using UnityEngine;
 using UnityEngine.UI;
-public enum StackType 
-{ 
+
+public enum StackType
+{
     Dealer, // 딜 (딜러)
     Tank,   // 탱 (탱커)
     Support // 힐 (서포터)
 }
+
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
-    
+
     [Header("에셋 설정 (Assets)")]
-    // Inspector에서 숫자 1~10 이미지 에셋을 순서대로 넣을 배열
-    public Sprite[] numberSprites; 
-    public Sprite emptyCardSprite; // 사용 후 보여줄 빈 카드 이미지
+    [Tooltip("숫자 스프라이트 배열. 인덱스 순서: -5~-1, +1~+5 (총 10장)")]
+    public Sprite[] numberSprites;
+    public Sprite   emptyCardSprite;
 
     [Header("UI 연결 (UI References)")]
-    public StackCardController[] myCards; // CardArea 아래의 4개 카드
-    public GameObject checkButtonBox; // Hierarchy의 CheckButtonBox 오브젝트
-    public Button btnConfirm; // CheckButtonBox 하위의 확인 버튼
-    public Button btnCancel;  // CheckButtonBox 하위의 취소 버튼
-    
-    [Header("플레이어 스택 상태 (Player Stacks)")]
-    // 2. 각 직업별 스택을 누적해서 저장할 변수
-    public int dealerStack = 0;
-    public int tankStack = 0;
-    public int supportStack = 0;
+    public StackCardController[] myCards;
+    public GameObject checkButtonBox;
+    public Button     btnConfirm;
+    public Button     btnCancel;
+
+    // -------------------------------------------------------
+    // 스택 상태 → BattleManager 가 관리. 여기선 제거.
+    // (구 필드: dealerStack / tankStack / supportStack)
+    // -------------------------------------------------------
 
     private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            // DontDestroyOnLoad(gameObject); // 필요시 씬 전환 후에도 유지하려면 주석 해제
-        }
-        else if (Instance != this)
-        {
-            Destroy(gameObject);
-        }
+        if (Instance == null) Instance = this;
+        else if (Instance != this) Destroy(gameObject);
     }
 
     void Start()
     {
-        // 게임 시작 시 내 턴 시작
         StartMyTurn();
     }
 
-    // 내 턴 시작 (카드 랜덤 지정)
+    // -------------------------------------------------------
+    // 드로우 페이즈 — 카드 세팅
+    // 성향(CardAffinity) 기반 stackDelta 생성.
+    // AffinityHelper.GenerateStack() 이용 (CardAffinity.cs 참조)
+    // -------------------------------------------------------
     public void StartMyTurn()
     {
         Debug.Log("내 턴 시작! 카드를 세팅합니다.");
 
         foreach (StackCardController card in myCards)
         {
-            // 1부터 등록된 이미지 개수 사이에서 랜덤 숫자 
-            // 성향별 if 문 구현
-            //ToDo
-            /*
-            // 1. 상태를 enum으로 정의합니다. (플레이어는 이 중 딱 하나의 성향만 가질 수 있습니다)
-            public enum PlayerPersonality { Gambler, Safety, Opportunist, Optimist }
-            public PlayerPersonality personality; // 인스펙터 창에서 선택 가능
+            // 성향 기반 스택값 생성 (성향이 None이면 -5~+5 균등, 0 제외)
+            int stackValue = GenerateStackValue(card.affinity);
 
-            // 2. 난수 생성 함수 내부
-            switch (personality)
-            {
-                case PlayerPersonality.Gambler: // 도박사
-                    randomNum = Random.Range(0, 2) == 0 ? -5 : 5;
-                    break;
-
-                case PlayerPersonality.Safety:        min = -1; max = 3; break; // 안전주의자
-                case PlayerPersonality.Opportunist: min = -3; max = 4; break; // 기회주의자
-                case PlayerPersonality.Optimist:    min = -5; max = 5; break; // 낙천가
-            }
-
-            // 도박사가 아닐 때만 0을 제외한 랜덤값을 뽑습니다.
-            if (personality != PlayerPersonality.Gambler)
-            {
-                do {
-                    randomNum = Random.Range(min, max);
-                } while (randomNum == 0);
-            }
-             */
-            int randomNum;
-            do
-            {
-                randomNum = Random.Range(-5, 6);
-            } while (randomNum==0);
-            Debug.Log("랜덤숫자: " + randomNum);
-            // Sprite 배열은 0부터 시작하므로 randomNum - 1 을 해줍니다.
-            if (randomNum > 0) card.SetupCard(randomNum, numberSprites[randomNum+4], emptyCardSprite);
-            else card.SetupCard(randomNum, numberSprites[randomNum+5], emptyCardSprite);
+            Sprite sprite = GetSpriteForValue(stackValue);
+            card.SetupCard(stackValue, sprite, emptyCardSprite);
         }
     }
 
-    // 카드를 최종 선택(확인) 했을 때
+    // -------------------------------------------------------
+    // 카드 확정 시 → BattleManager 에 스택 반영
+    // -------------------------------------------------------
     public void OnCardUsed(StackCardController usedCard)
     {
-        Debug.Log("선택한 카드 숫자: " + usedCard.currentNumber);
-        // 카드의 stackType에 따라 알맞은 스택 변수에 stackDelta를 더해줍니다.
-        switch (usedCard.stackType)
-        {
-            case StackType.Dealer:
-                dealerStack += usedCard.stackDelta;
-                Debug.Log($"딜러 스택 갱신! 현재 딜러 스택: {dealerStack}");
-                break;
-                
-            case StackType.Tank:
-                tankStack += usedCard.stackDelta;
-                Debug.Log($"탱커 스택 갱신! 현재 탱커 스택: {tankStack}");
-                break;
-                
-            case StackType.Support:
-                supportStack += usedCard.stackDelta;
-                Debug.Log($"서포터 스택 갱신! 현재 서포터 스택: {supportStack}");
-                break;
-        }
+        Debug.Log($"[카드 사용] type={usedCard.stackType} delta={usedCard.stackDelta:+#;-#;0}");
+
+        // 스택 관리 권한: BattleManager
+        if (BattleManager.Instance != null)
+            BattleManager.Instance.AddStack(usedCard.stackType, usedCard.stackDelta);
     }
 
-    // 내 턴 종료 및 상대 턴 진행
+    // -------------------------------------------------------
+    // 내 턴 종료 (레거시 — BattleManager.FinishPlayerTurn 권장)
+    // -------------------------------------------------------
     public void EndMyTurn()
     {
-        Debug.Log("내 턴 종료. 적 턴 시작...");
-        // 적 턴이 끝나면 다시 내 턴으로 돌아옴 (테스트를 위해 2초 뒤에 시작하도록 지연)
-        Invoke("StartMyTurn", 2.0f);
+        Debug.Log("내 턴 종료.");
+        BattleManager.Instance?.FinishPlayerTurn();
+    }
+
+    // -------------------------------------------------------
+    // 내부 유틸리티
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// 성향 규칙에 따라 0을 제외한 stackDelta 값을 생성한다.
+    /// AffinityHelper.GenerateStack() 이 0을 반환할 경우(None 성향 등) 재시도.
+    /// </summary>
+    private int GenerateStackValue(CardAffinity affinity)
+    {
+        // None 성향이면 낙천가 범위(-5~+5)와 동일하게 취급
+        if (affinity == CardAffinity.None)
+            affinity = CardAffinity.Optimist;
+
+        int value;
+        int maxRetry = 20;
+        do
+        {
+            value = AffinityHelper.GenerateStack(affinity);
+            maxRetry--;
+        }
+        while (value == 0 && maxRetry > 0);
+
+        return value;
+    }
+
+    /// <summary>
+    /// stackValue (-5~-1, +1~+5) 에 대응하는 스프라이트 반환.
+    /// 배열 순서: index 0=-5, 1=-4, 2=-3, 3=-2, 4=-1, 5=+1, 6=+2, 7=+3, 8=+4, 9=+5
+    /// </summary>
+    private Sprite GetSpriteForValue(int value)
+    {
+        if (numberSprites == null || numberSprites.Length == 0) return null;
+
+        // value: -5→0, -4→1, -3→2, -2→3, -1→4, +1→5, +2→6, +3→7, +4→8, +5→9
+        int index = value > 0 ? value + 4 : value + 5;
+        index = Mathf.Clamp(index, 0, numberSprites.Length - 1);
+        return numberSprites[index];
     }
 }
