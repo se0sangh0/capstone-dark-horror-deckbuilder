@@ -29,7 +29,7 @@ public class BattleManager : MonoBehaviour
     public bool isAllyFirstAttacker;
 
     [Header("Entities Data")]
-    public List<CompanionEntity> allies  = new List<CompanionEntity>();
+    public List<FellowData> allies  = new List<FellowData>();
     public List<EnemyEntity>     enemies = new List<EnemyEntity>();
 
     // -------------------------------------------------------
@@ -221,8 +221,9 @@ public class BattleManager : MonoBehaviour
     // -------------------------------------------------------
     private void DecideInitiative()
     {
-        int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.carryOverStack)
-                           + currentTurnStackSum;
+        //int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.carryOverStack)
+                           //+ currentTurnStackSum;
+        int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.currentStack) + currentTurnStackSum;
 
         Debug.Log($"[선공 판정] 아군={allyTotalStack} vs 적={enemyPowerScore}");
 
@@ -245,24 +246,25 @@ public class BattleManager : MonoBehaviour
         {
             foreach (var ally in allies.Where(a => !a.isDead))
             {
-                string allyName    = ally.baseData != null ? ally.baseData.displayName : "이름 없음";
+                string allyName    = ally != null ? ally.positionStack.ToString() : "이름 없음";
                 int    roleStack   = GetStackForRole(ally.positionStack);
-                int    totalStack  = roleStack + ally.carryOverStack;
-                int    required    = ally.baseData != null ? ally.baseData.requiredStack : 3;
+                int    totalStack  = roleStack + ally.currentStack;
+                //int    required    = ally != null ? ally.baseData.requiredStack : 3;
+                int required = 3;
 
                 if (totalStack >= required)
                 {
                     Debug.Log($"{allyName}(이)가 스택({totalStack}/{required})으로 행동합니다!");
                     ConsumeStackForRole(ally.positionStack, required);
-                    ally.carryOverStack = 0;
+                    ally.currentStack = 0;
                     // TODO: 실제 스킬 실행 (SkillDefinition 연동 후 교체)
                     yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
                 {
                     // 스킵 + 미행동 보상 (역할 스택 +1, 다음 턴 이월)
-                    ally.carryOverStack += 1;
-                    Debug.Log($"[UnitSkipped] {allyName} 스택 부족 ({totalStack}/{required}) → 보너스 +1 이월 (carry={ally.carryOverStack})");
+                    ally.currentStack+= 1;
+                    Debug.Log($"[UnitSkipped] {allyName} 스택 부족 ({totalStack}/{required}) → 보너스 +1 이월 (carry={ally.currentStack})");
                 }
             }
         }
@@ -289,14 +291,14 @@ public class BattleManager : MonoBehaviour
         foreach (var ally in dyingAllies)
         {
             ally.isDead = true;
-            string allyName = ally.baseData != null ? ally.baseData.displayName : "이름 없음";
+            string allyName = ally != null ? ally.positionStack.ToString() : "이름 없음";
             Debug.Log($"[UnitDied] {allyName}");
 
             // 생존 동료 전원 스트레스 +20 (즉시 적용, 데미지 계산 후)
             foreach (var survivor in allies.Where(a => !a.isDead))
             {
                 survivor.currentStress += 20;
-                string survivorName = survivor.baseData != null ? survivor.baseData.displayName : "이름 없음";
+                string survivorName = survivor != null ? survivor.positionStack.ToString() : "이름 없음";
                 Debug.Log($"[스트레스] {survivorName} +20 → {survivor.currentStress}");
             }
         }

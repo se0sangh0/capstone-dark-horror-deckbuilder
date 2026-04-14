@@ -34,6 +34,7 @@ public class StackCardController : MonoBehaviour
     public void SetupCard(int number, Sprite numberSprite, Sprite emptySpr)
     {
         currentNumber = number;
+        stackDelta = number;
         emptySprite = emptySpr;
         myImage.sprite = numberSprite; // 해당 숫자 이미지로 변경
         

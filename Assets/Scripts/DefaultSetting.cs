@@ -63,11 +63,11 @@ public class DefaultSetting : MonoBehaviour
         else if (factionType == FactionType.Enemy)
         {
             var enemies = BattleManager.Instance.enemies;
-            if (index < enemies.Count && enemies[index].baseData != null && enemies[index].baseData.cardArt != null)
-            {
-                renderer.material.mainTexture = enemies[index].baseData.cardArt.texture;
-                Debug.Log($"[적군 세팅 성공] {objName}에 이미지 할당됨.");
-            }
+            // if (index < enemies.Count && enemies[index] != null && enemies[index].cardArt != null)
+            // {
+            //     renderer.material.mainTexture = enemies[index].baseData.cardArt.texture;
+            //     Debug.Log($"[적군 세팅 성공] {objName}에 이미지 할당됨.");
+            // }
         }
     }
 }
