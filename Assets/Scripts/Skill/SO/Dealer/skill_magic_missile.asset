@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6, type: 3}
+  m_Name: skill_magic_missile
+  m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
+  id: skill_magic_missile
+  displayName: "\uB9E4\uC9C1 \uBBF8\uC0AC\uC77C"
+  skillGroup: "\uB2E8\uC77C"
+  costType: 0
+  costAmount: 1
+  targeting: 1
+  effectType: 0
+  power: 15
+  aiPriority: 0
+  statusEffect: 0
+  statusValue: 0
+  description: "\uAE30\uBCF8 \uB2E8\uC77C\uAE30"

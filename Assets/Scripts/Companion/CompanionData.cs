@@ -45,11 +45,11 @@ public class CompanionData : ScriptableObject
     public int requiredStack = 3;
 
     [Header("스킬")]
-    [Tooltip("스킬 1 (SkillDefinition ID 참조)")]
-    public string skill1Id;
+    [Tooltip("스킬 1 (SkillDefinition SO 참조)")]
+    public SkillDefinition skill1;
 
-    [Tooltip("스킬 2 (SkillDefinition ID 참조)")]
-    public string skill2Id;
+    // [Tooltip("스킬 2 (SkillDefinition SO 참조) — 테스트 후 활성화")]
+    // public SkillDefinition skill2;
 
     [Header("시각")]
     public Sprite portrait;
