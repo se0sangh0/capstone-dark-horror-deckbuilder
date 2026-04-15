@@ -28,6 +28,13 @@ public class GameManager : MonoBehaviour
     public Button     btnCancel;
 
     // -------------------------------------------------------
+    // 드로우 덱 — 전투 진입 시 DeckBuilder가 생성.
+    // 각 카드는 (CardData, CompanionData owner) 튜플.
+    // -------------------------------------------------------
+    private List<(CardData card, CompanionData owner)> drawDeck = new();
+    private int currentDrawIndex = 0;
+
+    // -------------------------------------------------------
     // 스택 상태 → BattleManager 가 관리. 여기선 제거.
     // (구 필드: dealerStack / tankStack / supportStack)
     // -------------------------------------------------------
@@ -45,21 +52,42 @@ public class GameManager : MonoBehaviour
 
     // -------------------------------------------------------
     // 드로우 페이즈 — 카드 세팅
-    // 성향(CardAffinity) 기반 stackDelta 생성.
-    // AffinityHelper.GenerateStack() 이용 (CardAffinity.cs 참조)
+    // drawDeck에서 카드를 뽑아 myCards 슬롯에 세팅.
+    // 성향은 owner(동료)에서 읽음.
     // -------------------------------------------------------
     public void StartMyTurn()
     {
         Debug.Log("내 턴 시작! 카드를 세팅합니다.");
 
-        foreach (StackCardController card in myCards)
+        for (int i = 0; i < myCards.Length; i++)
         {
+            if (currentDrawIndex >= drawDeck.Count)
+            {
+                // 덱에 카드 부족 → 빈 슬롯 처리
+                myCards[i].gameObject.SetActive(false);
+                continue;
+            }
+
+            var (cardData, owner) = drawDeck[currentDrawIndex];
+            currentDrawIndex++;
+
             // 성향 기반 스택값 생성 (성향이 None이면 -5~+5 균등, 0 제외)
-            int stackValue = GenerateStackValue(card.affinity);
+            int stackValue = GenerateStackValue(owner.affinity);
 
             Sprite sprite = GetSpriteForValue(stackValue);
-            card.SetupCard(stackValue, sprite, emptyCardSprite);
+            myCards[i].SetupCard(stackValue, sprite, emptyCardSprite, owner);
+            myCards[i].gameObject.SetActive(true);
         }
+    }
+
+    /// <summary>
+    /// 전투 진입 시 호출. DeckBuilder가 생성한 덱을 주입한다.
+    /// </summary>
+    public void InjectDeck(List<(CardData card, CompanionData owner)> deck)
+    {
+        drawDeck = deck;
+        currentDrawIndex = 0;
+        Debug.Log($"[GameManager] 덱 주입 완료: {drawDeck.Count}장");
     }
 
     // -------------------------------------------------------
