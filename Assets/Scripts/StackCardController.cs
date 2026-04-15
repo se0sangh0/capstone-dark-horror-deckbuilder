@@ -12,10 +12,9 @@ public class StackCardController : MonoBehaviour
     private Image myImage;
     private Button myButton;
     
-    // StackCardController.cs 내부 예시
     public StackType   stackType; // Inspector에서 Dealer, Tank, Support 중 선택
     public int         stackDelta; // 카드에 적힌 숫자 (+3, -2 등)
-    public CardAffinity affinity = CardAffinity.Optimist; // 성향 (드로우 범위 결정)
+    public CompanionData owner;    // 이 카드의 소유 동료 (성향 계산용)
 
     void Awake()
     {
@@ -31,13 +30,14 @@ public class StackCardController : MonoBehaviour
     }
 
     // GameManager가 턴 시작 시 호출하여 카드를 세팅하는 함수
-    public void SetupCard(int number, Sprite numberSprite, Sprite emptySpr)
+    public void SetupCard(int number, Sprite numberSprite, Sprite emptySpr, CompanionData cardOwner)
     {
+        owner = cardOwner;
         currentNumber = number;
         stackDelta = number;
         emptySprite = emptySpr;
         myImage.sprite = numberSprite; // 해당 숫자 이미지로 변경
-        
+
         isUsed = false;
         myButton.interactable = true; // 버튼 클릭 활성화
         myImage.color = Color.white;  // 색상 원래대로

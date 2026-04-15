@@ -27,10 +27,6 @@ public class CardData : ScriptableObject
     [FormerlySerializedAs("cardPower")]   // 기존 SO 에셋 직렬화 호환
     public int stackDelta;
 
-    [Header("성향")]
-    [Tooltip("카드를 뽑는 동료의 성향. 드로우 시 stackDelta 범위 결정에 참조.")]
-    public CardAffinity affinity;
-
     [Header("에셋 (선택)")]
     [Tooltip("카드 아트 스프라이트")]
     public Sprite cardArt;
