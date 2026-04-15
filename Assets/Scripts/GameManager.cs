@@ -2,6 +2,7 @@
 // UI 입력 수신 및 드로우 페이즈 카드 세팅.
 // 스택 관리 권한은 BattleManager 에 있음.
 
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
