@@ -47,9 +47,24 @@ UserSettings/
 
 # Crash reports
 sysinfo.txt
+crashlytics-build.properties
 
 # If mobile build folders appear
 .gradle/
 *.apk
 *.aab
 *.ipa
+
+# ===== Unity 추가 누락 항목 (리스크 없는 항목) =====
+
+# 디버그 심볼 메타파일 (자동생성)
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity asset bundles (빌드 산출물)
+*.unitypackage
+AssetBundles/
+
+# Unity Package Manager lock (로컬 전용)
+/[Pp]ackages/packages-lock.json
