@@ -62,15 +62,16 @@ public static class DeckBuilder
     /// 동료의 역할과 성향에 맞는 카드를 필터링한다.
     /// 역할(Role)은 일치 필수, 성향(Affinity)은 동일하거나 None이면 통과.
     /// </summary>
-    private static List<CardData> GetMatchingCards(
-        CompanionData companion,
-        List<CardData> allCards)
+    private static List<CardData> GetMatchingCards(CompanionData companion, List<CardData> allCards)
     {
-        return allCards
+        var matched = allCards
             .Where(c => (int)c.stackType == (int)companion.role)
             .ToList();
-    }
 
+        // ✅ 추가
+        Debug.Log($"[DeckBuilder] {companion.displayName}(role={(int)companion.role}) → 매칭 카드 {matched.Count}장");
+        return matched;
+    }
     /// <summary>
     /// 리스트에서 count장을 복원 추첨로 선택한다.
     /// 풀이 count보다 적으면 여러 번 순환 사용.

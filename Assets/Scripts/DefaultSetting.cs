@@ -49,14 +49,14 @@ public class DefaultSetting : MonoBehaviour
     }
     
     // 소속에 따라 데이터를 다르게 가져와서 이미지를 입히는 함수
-    void ApplyCardImage(int index, MeshRenderer renderer, string objName)
+    void ApplyCardImage(int index, MeshRenderer Renderer, string objName)
     {
         if (factionType == FactionType.Ally)
         {
             var allies = BattleManager.Instance.allies;
             if (index < allies.Count && allies[index] != null && allies[index].fellowSprite != null)
             {
-                renderer.material.mainTexture = allies[index].fellowSprite.texture;
+                Renderer.material.mainTexture = allies[index].fellowSprite.texture;
                 Debug.Log($"[아군 세팅 성공] {objName}에 이미지 할당됨.");
             }
         }
@@ -65,7 +65,7 @@ public class DefaultSetting : MonoBehaviour
             var enemies = BattleManager.Instance.enemies;
             // if (index < enemies.Count && enemies[index] != null && enemies[index].cardArt != null)
             // {
-            //     renderer.material.mainTexture = enemies[index].baseData.cardArt.texture;
+            //     Renderer.material.mainTexture = enemies[index].baseData.cardArt.texture;
             //     Debug.Log($"[적군 세팅 성공] {objName}에 이미지 할당됨.");
             // }
         }

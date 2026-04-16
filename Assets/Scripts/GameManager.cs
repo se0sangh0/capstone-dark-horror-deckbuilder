@@ -3,6 +3,7 @@
 // 스택 관리 권한은 BattleManager 에 있음.
 
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -56,7 +57,7 @@ public class GameManager : MonoBehaviour
     // drawDeck에서 카드를 뽑아 myCards 슬롯에 세팅.
     // 성향은 owner(동료)에서 읽음.
     // -------------------------------------------------------
-    public void StartMyTurn()
+    /*public void StartMyTurn()
     {
         Debug.Log("내 턴 시작! 카드를 세팅합니다.");
 
@@ -80,7 +81,33 @@ public class GameManager : MonoBehaviour
             myCards[i].gameObject.SetActive(true);
         }
     }
+*/
+    public void StartMyTurn()
+    {
+        Debug.Log("내 턴 시작!");
+        // ✅ 디버그 추가
+        Debug.Log($"[StartMyTurn] myCards 길이: {myCards?.Length ?? -1}");
+        for (int i = 0; i < myCards.Length; i++)
+            Debug.Log($"[StartMyTurn] myCards[{i}] = {(myCards[i] == null ? "NULL" : myCards[i].name)}");
 
+        for (int i = 0; i < myCards.Length; i++)
+        {
+            if (currentDrawIndex >= drawDeck.Count)
+            {
+                myCards[i].gameObject.SetActive(false);
+                continue;
+            }
+
+            var (cardData, owner) = drawDeck[currentDrawIndex];
+            currentDrawIndex++;
+
+            int stackValue = GenerateStackValue(owner.affinity);
+
+            // ✅ 스프라이트 없이 바로 세팅
+            myCards[i].SetupCard(stackValue, owner);
+            myCards[i].gameObject.SetActive(true);
+        }
+    }
     /// <summary>
     /// 전투 진입 시 호출. DeckBuilder가 생성한 덱을 주입한다.
     /// </summary>
@@ -91,6 +118,25 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] 덱 주입 완료: {drawDeck.Count}장");
     }
 
+    /// <summary>
+    /// 사망한 동료의 카드를 drawDeck에서 전부 제거한다.
+    /// BattleManager.ProcessDeathAndStress()에서 호출.
+    /// </summary>
+    public void RemoveCardsOfCompanion(CompanionData deadCompanion)
+    {
+        // 아직 안 뽑힌 카드 중 해당 동료 카드 개수 파악 (인덱스 보정용)
+        int removedBeforeIndex = drawDeck
+            .Take(currentDrawIndex)
+            .Count(entry => entry.owner == deadCompanion);
+
+        // drawDeck에서 해당 동료 카드 전부 제거
+        int removedCount = drawDeck.RemoveAll(entry => entry.owner == deadCompanion);
+
+        // 이미 지나간 인덱스도 당겨지므로 보정
+        currentDrawIndex = Mathf.Max(0, currentDrawIndex - removedBeforeIndex);
+
+        Debug.Log($"[DeckCleanup] {deadCompanion.displayName} 카드 {removedCount}장 제거 | 잔여 덱: {drawDeck.Count}장");
+    }
     // -------------------------------------------------------
     // 카드 확정 시 → BattleManager 에 스택 반영
     // -------------------------------------------------------

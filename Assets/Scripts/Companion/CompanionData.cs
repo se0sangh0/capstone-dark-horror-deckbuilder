@@ -57,6 +57,10 @@ public class CompanionData : ScriptableObject
     [Header("메모")]
     [TextArea(2, 4)]
     public string note;
+    
+    // CompanionData.cs에 추가
+    [Header("캐릭터 이미지")]
+    public string spritePath; // Resources 폴더 기준 경로
 
     // -------------------------------------------------------
     // 런타임 프로퍼티
