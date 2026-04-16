@@ -31,6 +31,9 @@ public class BattleManager : MonoBehaviour
     [Header("Entities Data")]
     public List<FellowData> allies  = new List<FellowData>();
     public List<EnemyEntity>     enemies = new List<EnemyEntity>();
+    
+    [Header("Card Pool")]
+    public List<CardData> allCards = new List<CardData>(); 
 
     // -------------------------------------------------------
     // 스택 (역할별 + 이번 턴 합산)
@@ -65,9 +68,46 @@ public class BattleManager : MonoBehaviour
 
     private void Start()
     {
+        InitBattle();
         StartCoroutine(BattleLoop());
     }
 
+    private void InitBattle()
+    {
+        if (PartyManager.Instance == null)
+        {
+            Debug.LogError("[BattleManager] PartyManager가 없습니다!");
+            return;
+        }
+
+        var companions = PartyManager.Instance.GetActiveCompanions();
+        Debug.Log($"[BattleManager] 전투 시작 — 동료 {companions.Count}명");
+
+        allies.Clear();
+        foreach (var companion in companions)
+        {
+            var fellow = ScriptableObject.CreateInstance<FellowData>();
+            fellow.data = companion;
+            fellow.positionStack = (StackType)(int)companion.role;
+            fellow.currentHp = companion.maxHp;
+            fellow.isDead = false;
+
+            // ✅ Resources에서 스프라이트 로드
+            if (!string.IsNullOrEmpty(companion.spritePath))
+            {
+                fellow.fellowSprite = Resources.Load<Sprite>(companion.spritePath);
+                if (fellow.fellowSprite == null)
+                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {companion.spritePath}");
+            }
+
+            allies.Add(fellow);
+        }
+
+        var pool = GenerateCardPool();
+        var deck = DeckBuilder.BuildPartyDeck(companions, pool);
+        GameManager.Instance.InjectDeck(deck);
+        Debug.Log($"[BattleManager] 덱 주입 완료: {deck.Count}장");
+    }
     // -------------------------------------------------------
     // 메인 루프
     // -------------------------------------------------------
@@ -239,8 +279,8 @@ public class BattleManager : MonoBehaviour
                 string allyName    = ally != null ? ally.positionStack.ToString() : "이름 없음";
                 //int    roleStack   = GetStackForRole(ally.positionStack);
                 int roleStack = PlayerRoleCost.Instance.GetAmount(ally.positionStack);
-                int    totalStack  = roleStack + ally.currentStack;
-                //int    required    = ally != null ? ally.baseData.requiredStack : 3;
+                int totalStack  = roleStack + ally.currentStack;
+                //int required = ally != null ? ally.baseData.requiredStack : 3;
                 int required = 3;
 
                 if (totalStack >= required)
@@ -270,7 +310,24 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
+    private List<CardData> GenerateCardPool()
+    {
+        var pool = new List<CardData>();
 
+        // 역할별로 더미 CardData를 런타임에 생성
+        foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                var card = ScriptableObject.CreateInstance<CardData>();
+                card.id = $"card_{role}_{i}";
+                card.stackType = role;
+                card.stackDelta = 0; // stackDelta는 성향에서 런타임 생성하니까 0으로 고정
+                pool.Add(card);
+            }
+        }
+        return pool;
+    }
     // -------------------------------------------------------
     // 사망 처리 + 스트레스 전파
     // 기획서: 동료 사망 시 생존 동료 전원 스트레스 +20
@@ -283,15 +340,20 @@ public class BattleManager : MonoBehaviour
         foreach (var ally in dyingAllies)
         {
             ally.isDead = true;
-            string allyName = ally != null ? ally.positionStack.ToString() : "이름 없음";
-            Debug.Log($"[UnitDied] {allyName}");
+            Debug.Log($"[UnitDied] {ally.positionStack}");
 
-            // 생존 동료 전원 스트레스 +20 (즉시 적용, 데미지 계산 후)
+            // 덱에서 카드 제거
+            if (ally.data != null)
+                GameManager.Instance?.RemoveCardsOfCompanion(ally.data);
+
+            // ✅ PartyManager에도 사망 통보
+            PartyManager.Instance?.RemoveCompanion(ally.data);
+
+            // 스트레스 전파
             foreach (var survivor in allies.Where(a => !a.isDead))
             {
                 survivor.currentStress += 20;
-                string survivorName = survivor != null ? survivor.positionStack.ToString() : "이름 없음";
-                Debug.Log($"[스트레스] {survivorName} +20 → {survivor.currentStress}");
+                Debug.Log($"[스트레스] {survivor.positionStack} +20");
             }
         }
 
@@ -313,7 +375,7 @@ public class BattleManager : MonoBehaviour
         return false;
     }
 
-    // -------------------------------------------------------
+   /* // -------------------------------------------------------
     // 내부 유틸리티
     // -------------------------------------------------------
 
@@ -346,33 +408,13 @@ public class BattleManager : MonoBehaviour
     //         case StackType.Tank:    tankStack    = Mathf.Max(0, tankStack    - amount); break;
     //         case StackType.Support: supportStack = Mathf.Max(0, supportStack - amount); break;
     //     }
-    // }
+    // }*/
 }
 
 // -------------------------------------------------------
 // 런타임 엔티티
 // -------------------------------------------------------
 
-[System.Serializable]
-public class CompanionEntity
-{
-    /// <summary>동료 SO 데이터 (역할·성향·requiredStack 포함)</summary>
-    public CompanionData baseData;
-
-    /// <summary>이 동료가 점유하는 스택 슬롯 유형</summary>
-    public StackType positionStack;
-
-    public int currentHp     = 100;
-    public int currentStress = 0;
-
-    /// <summary>
-    /// 미행동 보상으로 누적된 이월 스택.
-    /// 선공 판정 기여 + 다음 턴 행동 임계값에 합산.
-    /// </summary>
-    public int carryOverStack = 0;
-
-    public bool isDead = false;
-}
 
 [System.Serializable]
 public class EnemyEntity
