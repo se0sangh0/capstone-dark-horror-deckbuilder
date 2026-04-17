@@ -100,25 +100,30 @@ public class GameManager : Singleton<GameManager>
     public void StartMyTurn()
     {
         Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
-        Debug.Log($"[GameManager] 카드 슬롯 개수: {myCards?.Length ?? -1}");
 
         for (int i = 0; i < myCards.Length; i++)
         {
+            // 이미 카드가 세팅되어 있고 아직 사용하지 않은 슬롯 → 그대로 유지
+            if (myCards[i].owner != null && !myCards[i].isUsed)
+            {
+                Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
+                continue;
+            }
+
             if (currentDrawIndex >= drawDeck.Count)
             {
-                // 덱에 카드가 부족하면 슬롯 비활성화
                 myCards[i].gameObject.SetActive(false);
                 continue;
             }
 
+            // 사용됐거나 초기화되지 않은 슬롯에만 새 카드 드로우
             var (cardData, owner) = drawDeck[currentDrawIndex];
             currentDrawIndex++;
 
-            // 성향 기반으로 스택 값 생성 (0은 재생성)
             int stackValue = GenerateStackValue(owner.affinity);
-
             myCards[i].SetupCard(stackValue, owner);
             myCards[i].gameObject.SetActive(true);
+            Debug.Log($"[GameManager] myCards[{i}] 새 카드 드로우 → {stackValue:+#;-#;0} ({owner.displayName})");
         }
     }
 

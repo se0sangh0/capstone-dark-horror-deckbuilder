@@ -81,7 +81,18 @@ public partial class BattleManager
                     PlayerRoleCost.Instance.Use(ally.positionStack, required);
                     ally.currentStack = 0;  // 이월 스택 소모
 
-                    // TODO: 실제 스킬 실행 (SkillDefinition / SkillDatabase 연동 후 교체)
+                    // ── 스킬 실행 ────────────────────────────────
+                    var skills = ally.GetSkills();
+                    if (skills.Count > 0)
+                    {
+                        UseSkill(ally, skills[0]);                               // 스킬 1 — 활성
+                        // if (skills.Count > 1) UseSkill(ally, skills[1]);     // 스킬 2 — 테스트용 주석 처리
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[BattleManager] {allyName} — 사용 가능한 스킬 없음.");
+                    }
+
                     yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
@@ -230,6 +241,98 @@ public partial class BattleManager
     // Inspector 에서 컴포넌트 우클릭 → TEST 항목으로 실행
     // ===========================================================
 
+    // ===========================================================
+    // 스킬 실행
+    // ===========================================================
+
+    /// <summary>동료가 스킬을 사용한다. effectType 에 따라 Damage / Heal / Shield 분기.</summary>
+    private void UseSkill(FellowData user, SkillData skill)
+    {
+        string userName = user.data?.displayName ?? user.positionStack.ToString();
+
+        Debug.Log($"┌─────────────────────────────────────────");
+        Debug.Log($"│ [스킬 사용] {userName}  →  {skill.displayName}");
+        Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}");
+        Debug.Log($"│  설명: {skill.description}");
+        if (skill.statusEffect != "None")
+            Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");
+        Debug.Log($"└─────────────────────────────────────────");
+
+        switch (skill.effectType)
+        {
+            case "Damage": ApplySkillDamage(skill);        break;
+            case "Heal":   ApplySkillHeal(user, skill);    break;
+            case "Shield": Debug.Log($"[UseSkill] Shield — 추후 구현 예정 (파워: {skill.power})");            break;
+            case "Buff":   Debug.Log($"[UseSkill] Buff — 추후 구현 예정 (상태이상: {skill.statusEffect})");   break;
+            case "Debuff": Debug.Log($"[UseSkill] Debuff — 추후 구현 예정 (상태이상: {skill.statusEffect})"); break;
+            default:       Debug.LogWarning($"[UseSkill] 알 수 없는 effectType: '{skill.effectType}'");       break;
+        }
+    }
+
+    /// <summary>스킬 데미지 적용. SingleEnemy / AllEnemies 분기.</summary>
+    private void ApplySkillDamage(SkillData skill)
+    {
+        var liveEnemies = enemies.Where(e => !e.isDead).ToList();
+        if (liveEnemies.Count == 0) { Debug.Log("[ApplySkillDamage] 살아있는 적 없음."); return; }
+
+        switch (skill.targeting)
+        {
+            case "SingleEnemy":
+                var target = liveEnemies[Random.Range(0, liveEnemies.Count)];
+                target.currentHp -= skill.power;
+                Debug.Log($"[ApplySkillDamage] {target.enemyName} → {skill.power} 데미지 (남은 HP: {target.currentHp})");
+                break;
+            case "AllEnemies":
+                foreach (var e in liveEnemies)
+                {
+                    e.currentHp -= skill.power;
+                    Debug.Log($"[ApplySkillDamage] {e.enemyName} → {skill.power} 데미지 (남은 HP: {e.currentHp})");
+                }
+                break;
+            default:
+                Debug.LogWarning($"[ApplySkillDamage] 미지원 targeting: '{skill.targeting}'");
+                break;
+        }
+    }
+
+    /// <summary>스킬 회복 적용. Self / SingleAlly / AllAllies 분기.</summary>
+    private void ApplySkillHeal(FellowData user, SkillData skill)
+    {
+        var liveAllies = allies.Where(a => !a.isDead).ToList();
+
+        switch (skill.targeting)
+        {
+            case "Self":
+                user.CurrentHp += skill.power;
+                UpdateAllyHpUI(user);
+                Debug.Log($"[ApplySkillHeal] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{skill.power} HP (현재: {user.CurrentHp})");
+                break;
+            case "SingleAlly":
+                if (liveAllies.Count == 0) break;
+                var healTarget = liveAllies.OrderBy(a => a.CurrentHp).First();
+                healTarget.CurrentHp += skill.power;
+                UpdateAllyHpUI(healTarget);
+                Debug.Log($"[ApplySkillHeal] {healTarget.data?.displayName ?? healTarget.positionStack.ToString()} +{skill.power} HP (현재: {healTarget.CurrentHp})");
+                break;
+            case "AllAllies":
+                foreach (var ally in liveAllies)
+                {
+                    ally.CurrentHp += skill.power;
+                    UpdateAllyHpUI(ally);
+                    Debug.Log($"[ApplySkillHeal] {ally.data?.displayName ?? ally.positionStack.ToString()} +{skill.power} HP (현재: {ally.CurrentHp})");
+                }
+                break;
+            default:
+                Debug.LogWarning($"[ApplySkillHeal] 미지원 targeting: '{skill.targeting}'");
+                break;
+        }
+    }
+
+    // ===========================================================
+    // [ContextMenu] 에디터 테스트 메서드
+    // Inspector 에서 컴포넌트 우클릭 → TEST 항목으로 실행
+    // ===========================================================
+
     /// <summary>[에디터 테스트] 살아있는 아군 전체에게 10 데미지를 입힌다.</summary>
     [ContextMenu("TEST / 아군 전체 10 데미지")]
     private void TestDamageAllAllies()
@@ -267,5 +370,49 @@ public partial class BattleManager
         Debug.Log($"[BattleManager] 현재 페이즈: {currentPhase}");
         Debug.Log($"[BattleManager] 선공: {(isAllyFirstAttacker ? "아군" : "적군")}");
         Debug.Log($"[BattleManager] 아군 {allies.Count}명 / 적군 {enemies.Count}명");
+    }
+
+    /// <summary>[에디터 테스트] 아군 스킬 배정 무결성 검사.</summary>
+    [ContextMenu("TEST / 스킬 배정 무결성 검사")]
+    private void TestSkillAssignmentIntegrity()
+    {
+        Debug.Log("[BattleManager] ── 스킬 배정 무결성 검사 시작 ──");
+        int errors = 0;
+
+        if (SkillDatabase.Instance == null)
+        { Debug.LogError("  [오류] SkillDatabase 인스턴스 없음 — 씬에 배치하세요."); return; }
+
+        if (allies.Count == 0)
+        { Debug.LogWarning("  [경고] allies 없음 — 전투 시작 후 테스트하세요."); return; }
+
+        foreach (var ally in allies)
+        {
+            string name = ally.data?.displayName ?? ally.positionStack.ToString();
+            if (ally.data == null)                                            { Debug.LogError($"  [오류] {name}: data null"); errors++; continue; }
+            if (ally.data.skillIds == null || ally.data.skillIds.Length == 0) { Debug.LogError($"  [오류] {name}: skillIds 배정 안 됨"); errors++; continue; }
+
+            Debug.Log($"  [{name}] 스킬 {ally.data.skillIds.Length}개:");
+            for (int i = 0; i < ally.data.skillIds.Length; i++)
+            {
+                var skill = SkillDatabase.Instance.GetSkill(ally.data.skillIds[i]);
+                string tag = (i == 0) ? "[활성]      " : "[비활성-테스트용]";
+                if (skill == null) { Debug.LogError($"    [오류] {tag} ID '{ally.data.skillIds[i]}' 없음"); errors++; }
+                else Debug.Log($"    {tag} {skill.displayName}  |  {skill.effectType}  {skill.targeting}  파워:{skill.power}");
+            }
+        }
+
+        if (errors == 0) Debug.Log($"[BattleManager] ✓ 무결성 검사 통과! ({allies.Count}명)");
+        else             Debug.LogError($"[BattleManager] ✗ 무결성 검사 실패: {errors}개 오류.");
+    }
+
+    /// <summary>[에디터 테스트] 아군 [0] 스킬 강제 실행.</summary>
+    [ContextMenu("TEST / 아군 [0] 스킬 강제 실행")]
+    private void TestForceUseFirstAllySkill()
+    {
+        var live = allies.Where(a => !a.isDead).ToList();
+        if (live.Count == 0) { Debug.LogWarning("[BattleManager] 살아있는 아군 없음."); return; }
+        var skills = live[0].GetSkills();
+        if (skills.Count == 0) { Debug.LogWarning("[BattleManager] 배정된 스킬 없음."); return; }
+        UseSkill(live[0], skills[0]);
     }
 }
