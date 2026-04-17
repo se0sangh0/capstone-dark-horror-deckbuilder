@@ -185,9 +185,9 @@ public class BattleManager : MonoBehaviour
         Debug.Log("--- 6. 결과 처리 ---");
         ProcessDeathAndStress();
         //ResetTurnStacks();
-        PlayerRoleCost.Instance.SetAmount(StackType.Dealer, 0);
-        PlayerRoleCost.Instance.SetAmount(StackType.Tank, 0);
-        PlayerRoleCost.Instance.SetAmount(StackType.Support, 0);
+        // PlayerRoleCost.Instance.SetAmount(StackType.Dealer, 0);
+        // PlayerRoleCost.Instance.SetAmount(StackType.Tank, 0);
+        // PlayerRoleCost.Instance.SetAmount(StackType.Support, 0);
 
         if (CheckBattleEndCondition())
         {
@@ -292,7 +292,7 @@ public class BattleManager : MonoBehaviour
                     Debug.Log($"{allyName}(이)가 스택({totalStack}/{required})으로 행동합니다!");
                     //ConsumeStackForRole(ally.positionStack, required);
                     PlayerRoleCost.Instance.Use(ally.positionStack, required);
-                    ally.currentStack = 0;
+                    //ally.currentStack = 0;
                     // TODO: 실제 스킬 실행 (SkillDefinition 연동 후 교체)
                     yield return new WaitForSeconds(actionDelayTime);
                 }
