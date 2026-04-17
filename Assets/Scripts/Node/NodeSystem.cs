@@ -32,8 +32,8 @@ public class NodeSystem : MonoBehaviour
     [SerializeField] private NodeVisualState currentState;
     [SerializeField] private NodeVisualState lockedState;
     
-    [SerializeField] public GameObject nodeDisplay;
-    [SerializeField] public GameObject actionDisplay;
+    [SerializeField] public GameObject[] nodeDisplay;
+    [SerializeField] public GameObject[] actionDisplay;
 
     void Awake()
     {

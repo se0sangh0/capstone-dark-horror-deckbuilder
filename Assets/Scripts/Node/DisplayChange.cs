@@ -3,8 +3,8 @@ using UnityEngine;
 public class DisplayChange : MonoBehaviour
 {
     public static DisplayChange instance = null;
-    [SerializeField] private GameObject nodeDisplay;
-    [SerializeField] private GameObject actionDisplay;
+    [SerializeField] private GameObject[] nodeDisplay;
+    [SerializeField] private GameObject[] actionDisplay;
 
     void Awake()
     {
@@ -27,9 +27,9 @@ public class DisplayChange : MonoBehaviour
         }
     }
     //(다른 클래스에서 불러오는 메서드)action <-> node 디스플레이 활성화/비활성화 상태 변경 메서드
-    public void DisplayChanger(GameObject node, GameObject action)
+    public void DisplayChanger(GameObject[] node, GameObject[] action)
     {
-        node.SetActive(!node.activeSelf);
-        action.SetActive(!action.activeSelf);
+        foreach(GameObject n in node) n.SetActive(!n.activeSelf);
+        foreach(GameObject a in action)a.SetActive(!a.activeSelf);
     }
 }

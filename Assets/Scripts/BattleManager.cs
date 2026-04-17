@@ -2,12 +2,14 @@
 // 전투 흐름 제어 및 스택 관리.
 // 규칙 기준: 기획/시스템/02_전투_시스템_명세.md
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using System.Linq;
+using Random = UnityEngine.Random;
 
 public enum BattlePhase
 {
@@ -67,6 +69,12 @@ public class BattleManager : MonoBehaviour
     }
 
     private void Start()
+    {
+        // InitBattle();
+        // StartCoroutine(BattleLoop());
+    }
+
+    private void OnEnable()
     {
         InitBattle();
         StartCoroutine(BattleLoop());
