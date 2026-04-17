@@ -168,7 +168,7 @@ public class BattleManager : MonoBehaviour
     private void HandleInitiativeCheck()
     {
         Debug.Log("--- 3. 선공 판정 ---");
-        //DecideInitiative();
+        DecideInitiative();
         currentPhase = BattlePhase.FirstAction;
     }
 
@@ -249,22 +249,26 @@ public class BattleManager : MonoBehaviour
     // 선공 판정
     // 기획서: 아군 점수 = Σ(동료 스택) + 이번 턴 카드 스택 합
     // -------------------------------------------------------
-    // private void DecideInitiative()
-    // {
-    //     //int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.carryOverStack)
-    //                        //+ currentTurnStackSum;
-    //     int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.currentStack);
-    //
-    //     Debug.Log($"[선공 판정] 아군={allyTotalStack} vs 적={enemyPowerScore}");
-    //
-    //     if      (allyTotalStack > enemyPowerScore) isAllyFirstAttacker = true;
-    //     else if (allyTotalStack < enemyPowerScore) isAllyFirstAttacker = false;
-    //     else
-    //     {
-    //         isAllyFirstAttacker = Random.value > 0.5f;
-    //         Debug.Log($"동점 → 코인 토스: {(isAllyFirstAttacker ? "아군 선공" : "적 선공")}");
-    //     }
-    // }
+    private void DecideInitiative()
+    {
+        //프로토타입 - 아군 선공 고정
+        isAllyFirstAttacker = true;
+        Debug.Log("[선공 판정] 프로토타입 — 아군 선공 고정");
+        //Todo 선공 판정 조건 추후 구현 예정
+        //int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.carryOverStack)
+                           //+ currentTurnStackSum;
+        // int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.currentStack);
+        //
+        // Debug.Log($"[선공 판정] 아군={allyTotalStack} vs 적={enemyPowerScore}");
+        //
+        // if      (allyTotalStack > enemyPowerScore) isAllyFirstAttacker = true;
+        // else if (allyTotalStack < enemyPowerScore) isAllyFirstAttacker = false;
+        // else
+        // {
+        //     isAllyFirstAttacker = Random.value > 0.5f;
+        //     Debug.Log($"동점 → 코인 토스: {(isAllyFirstAttacker ? "아군 선공" : "적 선공")}");
+        // }
+    }
 
     // -------------------------------------------------------
     // 행동 실행
@@ -281,7 +285,7 @@ public class BattleManager : MonoBehaviour
                 int roleStack = PlayerRoleCost.Instance.GetAmount(ally.positionStack);
                 int totalStack  = roleStack + ally.currentStack;
                 //int required = ally != null ? ally.baseData.requiredStack : 3;
-                int required = 3;
+                int required = ally.data?.requiredStack ?? 3;
 
                 if (totalStack >= required)
                 {
@@ -302,14 +306,42 @@ public class BattleManager : MonoBehaviour
         }
         else
         {
+            // foreach (var enemy in enemies.Where(e => !e.isDead))
+            // {
+            //     Debug.Log($"적 {enemy.enemyName}(이)가 아군을 공격합니다!");
+            //     // TODO: 적 AI 행동 구현
+            //     yield return new WaitForSeconds(actionDelayTime);
+            // }
             foreach (var enemy in enemies.Where(e => !e.isDead))
             {
-                Debug.Log($"적 {enemy.enemyName}(이)가 아군을 공격합니다!");
-                // TODO: 적 AI 행동 구현
+                var targets = allies.Where(a => !a.isDead).ToList();
+                if (targets.Count == 0) break;
+
+                // 랜덤 타겟 선택
+                var target = targets[Random.Range(0, targets.Count)];
+                ApplyDamageToAlly(target, enemy.attackPower);
+
+                Debug.Log($"[적 행동] {enemy.enemyName} → {target.positionStack} {enemy.attackPower} 데미지");
                 yield return new WaitForSeconds(actionDelayTime);
             }
         }
     }
+    // ✅ 추가 — 데미지 적용 + 슬라이더 갱신
+    private void ApplyDamageToAlly(FellowData target, int damage)
+    {
+        target.currentHp = Mathf.Max(0, target.currentHp - damage);
+        UpdateAllyHpUI(target);
+        Debug.Log($"[HP] {target.positionStack} HP: {target.currentHp}");
+    }
+
+    private void UpdateAllyHpUI(FellowData target)
+    {
+        if (target.HpSlider != null)
+            target.HpSlider.value = target.currentHp;
+        else
+            Debug.LogWarning($"[UI] {target.positionStack}의 hpSlider가 null입니다.");
+    }
+    
     private List<CardData> GenerateCardPool()
     {
         var pool = new List<CardData>();
@@ -409,6 +441,22 @@ public class BattleManager : MonoBehaviour
     //         case StackType.Support: supportStack = Mathf.Max(0, supportStack - amount); break;
     //     }
     // }*/
+   // BattleManager.cs 하단에 추가
+   [ContextMenu("TEST / 아군 전체 10 데미지")]
+   private void TestDamageAllAllies()
+   {
+       foreach (var ally in allies.Where(a => !a.isDead))
+           ApplyDamageToAlly(ally, 10);
+   }
+
+   [ContextMenu("TEST / 아군 랜덤 1명 10 데미지")]
+   private void TestDamageRandomAlly()
+   {
+       var targets = allies.Where(a => !a.isDead).ToList();
+       if (targets.Count == 0) return;
+       ApplyDamageToAlly(targets[Random.Range(0, targets.Count)], 10);
+   }
+
 }
 
 // -------------------------------------------------------
@@ -421,5 +469,6 @@ public class EnemyEntity
 {
     public string enemyName = "테스트 몬스터";
     public int    currentHp = 100;
+    public int    attackPower = 10; // ✅ 추가
     public bool   isDead    = false;
 }

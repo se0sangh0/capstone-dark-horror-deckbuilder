@@ -45,6 +45,21 @@ public class DefaultSetting : MonoBehaviour
             {
                 ApplyCardImage(i, renderer, newObj.name);
             }
+            // ✅ 추가 — 생성된 프리팹에서 Slider 찾아 FellowData에 연결
+            if (factionType == FactionType.Ally && i < allies.Count)
+            {
+                var slider = newObj.GetComponentInChildren<UnityEngine.UI.Slider>();
+                if (slider != null)
+                {
+                    allies[i].HpSlider = slider;
+                    slider.maxValue = allies[i].data != null ? allies[i].data.maxHp : 100;
+                    slider.value = allies[i].currentHp;
+                }
+                else
+                {
+                    Debug.LogWarning($"[DefaultSetting] {newObj.name}에서 Slider를 찾지 못했습니다.");
+                }
+            }
         }
     }
     

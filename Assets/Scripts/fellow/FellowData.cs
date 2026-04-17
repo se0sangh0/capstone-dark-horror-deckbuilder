@@ -18,4 +18,7 @@ public class FellowData : ScriptableObject
     public int currentStress = 0;
     public int currentStack = 0;
     public bool isDead = false;
+    
+    // ✅ 추가 — SO에 직렬화 안 하고 런타임에만 참조
+    [System.NonSerialized] public UnityEngine.UI.Slider HpSlider;
 }
