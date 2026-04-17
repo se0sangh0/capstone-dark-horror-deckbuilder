@@ -51,9 +51,10 @@ public class DefaultSetting : MonoBehaviour
                 var slider = newObj.GetComponentInChildren<UnityEngine.UI.Slider>();
                 if (slider != null)
                 {
-                    allies[i].HpSlider = slider;
+                    //해당 코드 사용으로 대미지 계산 시 ally.CurrentHp -= damage 형식으로 작성하면 무결성 검증 및 사망 확인도 가능
+                    allies[i].InitHp(slider); 
                     slider.maxValue = allies[i].data != null ? allies[i].data.maxHp : 100;
-                    slider.value = allies[i].currentHp;
+                    slider.value = allies[i].CurrentHp;
                 }
                 else
                 {

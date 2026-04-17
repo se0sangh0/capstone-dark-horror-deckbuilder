@@ -89,7 +89,7 @@ public class BattleManager : MonoBehaviour
             var fellow = ScriptableObject.CreateInstance<FellowData>();
             fellow.data = companion;
             fellow.positionStack = (StackType)(int)companion.role;
-            fellow.currentHp = companion.maxHp;
+            fellow.CurrentHp = companion.maxHp;
             fellow.isDead = false;
 
             // ✅ Resources에서 스프라이트 로드
@@ -329,15 +329,15 @@ public class BattleManager : MonoBehaviour
     // ✅ 추가 — 데미지 적용 + 슬라이더 갱신
     private void ApplyDamageToAlly(FellowData target, int damage)
     {
-        target.currentHp = Mathf.Max(0, target.currentHp - damage);
+        target.CurrentHp = Mathf.Max(0, target.CurrentHp - damage);
         UpdateAllyHpUI(target);
-        Debug.Log($"[HP] {target.positionStack} HP: {target.currentHp}");
+        Debug.Log($"[HP] {target.positionStack} HP: {target.CurrentHp}");
     }
 
     private void UpdateAllyHpUI(FellowData target)
     {
         if (target.HpSlider != null)
-            target.HpSlider.value = target.currentHp;
+            target.HpSlider.value = target.CurrentHp;
         else
             Debug.LogWarning($"[UI] {target.positionStack}의 hpSlider가 null입니다.");
     }
@@ -367,7 +367,7 @@ public class BattleManager : MonoBehaviour
     private void ProcessDeathAndStress()
     {
         // 이번 처리 사이클에서 사망 확정된 동료 목록 (isDead 플래그 세우기 전)
-        var dyingAllies = allies.Where(a => a.currentHp <= 0 && !a.isDead).ToList();
+        var dyingAllies = allies.Where(a => a.CurrentHp <= 0 && !a.isDead).ToList();
 
         foreach (var ally in dyingAllies)
         {
