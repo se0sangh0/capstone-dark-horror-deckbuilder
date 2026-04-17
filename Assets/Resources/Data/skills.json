@@ -1,0 +1,102 @@
+{
+  "skills": [
+    {
+      "id": "skill_slash_01",
+      "displayName": "베기",
+      "skillGroup": "단일",
+      "costType": "Dealer",
+      "costAmount": 3,
+      "targeting": "SingleEnemy",
+      "effectType": "Damage",
+      "power": 15,
+      "aiPriority": 5,
+      "statusEffect": "None",
+      "statusValue": 0,
+      "description": "적 1명에게 15의 데미지를 입힌다."
+    },
+    {
+      "id": "skill_whirlwind_01",
+      "displayName": "회오리베기",
+      "skillGroup": "범위",
+      "costType": "Dealer",
+      "costAmount": 5,
+      "targeting": "AllEnemies",
+      "effectType": "Damage",
+      "power": 8,
+      "aiPriority": 3,
+      "statusEffect": "None",
+      "statusValue": 0,
+      "description": "모든 적에게 8의 데미지를 입힌다."
+    },
+    {
+      "id": "skill_guard_01",
+      "displayName": "방어 태세",
+      "skillGroup": "단일",
+      "costType": "Tank",
+      "costAmount": 3,
+      "targeting": "Self",
+      "effectType": "Shield",
+      "power": 20,
+      "aiPriority": 4,
+      "statusEffect": "None",
+      "statusValue": 0,
+      "description": "자신에게 20의 실드를 부여한다."
+    },
+    {
+      "id": "skill_taunt_01",
+      "displayName": "도발",
+      "skillGroup": "단일",
+      "costType": "Tank",
+      "costAmount": 2,
+      "targeting": "Self",
+      "effectType": "Buff",
+      "power": 0,
+      "aiPriority": 6,
+      "statusEffect": "Taunt",
+      "statusValue": 1,
+      "description": "적의 시선을 끌어 아군을 보호한다."
+    },
+    {
+      "id": "skill_heal_01",
+      "displayName": "치유",
+      "skillGroup": "단일",
+      "costType": "Support",
+      "costAmount": 3,
+      "targeting": "SingleAlly",
+      "effectType": "Heal",
+      "power": 15,
+      "aiPriority": 7,
+      "statusEffect": "None",
+      "statusValue": 0,
+      "description": "아군 1명의 HP 를 15 회복시킨다."
+    },
+    {
+      "id": "skill_group_heal_01",
+      "displayName": "단체 치유",
+      "skillGroup": "범위",
+      "costType": "Support",
+      "costAmount": 5,
+      "targeting": "AllAllies",
+      "effectType": "Heal",
+      "power": 8,
+      "aiPriority": 5,
+      "statusEffect": "None",
+      "statusValue": 0,
+      "description": "모든 아군의 HP 를 8 회복시킨다."
+    },
+    {
+      "id": "skill_stress_relief_01",
+      "displayName": "격려",
+      "skillGroup": "단일",
+      "costType": "Support",
+      "costAmount": 2,
+      "targeting": "SingleAlly",
+      "effectType": "Buff",
+      "power": 0,
+      "aiPriority": 3,
+      "statusEffect": "StressHeal",
+      "statusValue": 10,
+      "description": "아군 1명의 스트레스를 10 감소시킨다."
+    }
+  ]
+}

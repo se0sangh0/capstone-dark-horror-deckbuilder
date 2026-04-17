@@ -1,99 +1,112 @@
+// ============================================================
 // GameManager.cs
-// UI 입력 수신 및 드로우 페이즈 카드 세팅.
-// 스택 관리 권한은 BattleManager 에 있음.
+// UI 입력 수신 및 드로우 페이즈 카드 세팅 매니저
+// ============================================================
+//
+// [이 파일이 하는 일]
+//   - 플레이어가 사용할 카드 슬롯을 화면에 세팅합니다.
+//   - 카드가 사용되면 BattleManager 에 스택 반영을 요청합니다.
+//   - 게임 내 덱(카드 뭉치)을 보관하고 관리합니다.
+//
+// [스택 관리 권한]
+//   스택 값 자체는 BattleManager / PlayerRoleCost 가 관리합니다.
+//   GameManager 는 카드 선택 이벤트를 중계하는 역할만 합니다.
+//
+// [어디서 쓰이나요?]
+//   - BattleManager.cs : InjectDeck(), RemoveCardsOfCompanion() 호출
+//   - StackCardController.cs : GameManager.Instance 참조
+//
+// [연결된 파일]
+//   - Core/Singleton.cs : 싱글톤 기반 클래스
+//   - StackCardController.cs : 카드 UI 컨트롤러
+//   - BattleManager.cs : 전투 흐름 관리
+// ============================================================
 
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
+// ----------------------------------------------------------
+// [StackType 열거형]
+// 역할별 스택 종류를 나타냅니다.
+// 이 값은 게임 전체에서 공통으로 사용됩니다.
+// ----------------------------------------------------------
+/// <summary>
+/// 역할별 스택 종류.
+/// Dealer=딜러, Tank=탱커, Support=서포터
+/// </summary>
 public enum StackType
 {
-    Dealer, // 딜 (딜러)
-    Tank,   // 탱 (탱커)
-    Support // 힐 (서포터)
+    Dealer  = 0,  // 딜 (딜러)
+    Tank    = 1,  // 탱 (탱커)
+    Support = 2   // 힐 (서포터)
 }
 
-public class GameManager : MonoBehaviour
+/// <summary>
+/// UI 입력 수신 및 드로우 페이즈 카드 세팅 싱글톤 매니저.
+/// GameManager.Instance 로 전역 접근 가능.
+/// </summary>
+public class GameManager : Singleton<GameManager>
 {
-    public static GameManager Instance { get; private set; }
-
+    // ----------------------------------------------------------
+    // [에셋 설정]
+    // ----------------------------------------------------------
     [Header("에셋 설정 (Assets)")]
     [Tooltip("숫자 스프라이트 배열. 인덱스 순서: -5~-1, +1~+5 (총 10장)")]
     public Sprite[] numberSprites;
-    public Sprite   emptyCardSprite;
 
+    [Tooltip("사용한(빈) 카드 슬롯에 표시될 스프라이트")]
+    public Sprite emptyCardSprite;
+
+    // ----------------------------------------------------------
+    // [UI 연결]
+    // myCards : 화면에 표시될 카드 슬롯들 (Inspector 에서 연결)
+    // checkButtonBox : 카드 확인/취소 팝업 박스
+    // btnConfirm / btnCancel : 확인/취소 버튼
+    // ----------------------------------------------------------
     [Header("UI 연결 (UI References)")]
+    [Tooltip("화면에 표시될 카드 슬롯 배열. Inspector 에서 연결하세요.")]
     public StackCardController[] myCards;
-    public GameObject checkButtonBox;
-    public Button     btnConfirm;
-    public Button     btnCancel;
 
-    // -------------------------------------------------------
-    // 드로우 덱 — 전투 진입 시 DeckBuilder가 생성.
-    // 각 카드는 (CardData, CompanionData owner) 튜플.
-    // -------------------------------------------------------
+    [Tooltip("카드 클릭 시 나타나는 확인/취소 팝업 오브젝트")]
+    public GameObject checkButtonBox;
+
+    [Tooltip("카드 사용 확인 버튼")]
+    public Button btnConfirm;
+
+    [Tooltip("카드 사용 취소 버튼")]
+    public Button btnCancel;
+
+    // ----------------------------------------------------------
+    // [드로우 덱]
+    // 전투 진입 시 BattleManager → DeckBuilder 가 생성하여 주입합니다.
+    // 각 카드는 (CardData, 소유자 CompanionData) 쌍으로 저장됩니다.
+    // ----------------------------------------------------------
     private List<(CardData card, CompanionData owner)> drawDeck = new();
+
+    /// <summary>현재 드로우 위치 (몇 번째 카드까지 뽑았는지)</summary>
     private int currentDrawIndex = 0;
 
-    // -------------------------------------------------------
-    // 스택 상태 → BattleManager 가 관리. 여기선 제거.
-    // (구 필드: dealerStack / tankStack / supportStack)
-    // -------------------------------------------------------
+    // ----------------------------------------------------------
+    // 드로우 페이즈 — 카드 슬롯에 카드 세팅
+    // drawDeck 에서 카드를 뽑아 myCards 슬롯에 배치합니다.
+    // ----------------------------------------------------------
 
-    private void Awake()
-    {
-        if (Instance == null) Instance = this;
-        else if (Instance != this) Destroy(gameObject);
-    }
-
-    void Start()
-    {
-        //StartMyTurn();
-    }
-
-    // -------------------------------------------------------
-    // 드로우 페이즈 — 카드 세팅
-    // drawDeck에서 카드를 뽑아 myCards 슬롯에 세팅.
-    // 성향은 owner(동료)에서 읽음.
-    // -------------------------------------------------------
-    /*public void StartMyTurn()
-    {
-        Debug.Log("내 턴 시작! 카드를 세팅합니다.");
-
-        for (int i = 0; i < myCards.Length; i++)
-        {
-            if (currentDrawIndex >= drawDeck.Count)
-            {
-                // 덱에 카드 부족 → 빈 슬롯 처리
-                myCards[i].gameObject.SetActive(false);
-                continue;
-            }
-
-            var (cardData, owner) = drawDeck[currentDrawIndex];
-            currentDrawIndex++;
-
-            // 성향 기반 스택값 생성 (성향이 None이면 -5~+5 균등, 0 제외)
-            int stackValue = GenerateStackValue(owner.affinity);
-
-            Sprite sprite = GetSpriteForValue(stackValue);
-            myCards[i].SetupCard(stackValue, sprite, emptyCardSprite, owner);
-            myCards[i].gameObject.SetActive(true);
-        }
-    }
-*/
+    /// <summary>
+    /// 드로우 페이즈: 덱에서 카드를 뽑아 화면 슬롯에 세팅한다.
+    /// BattleManager.HandleDrawPhase() 에서 호출됩니다.
+    /// </summary>
     public void StartMyTurn()
     {
-        Debug.Log("내 턴 시작!");
-        // ✅ 디버그 추가
-        Debug.Log($"[StartMyTurn] myCards 길이: {myCards?.Length ?? -1}");
-        for (int i = 0; i < myCards.Length; i++)
-            Debug.Log($"[StartMyTurn] myCards[{i}] = {(myCards[i] == null ? "NULL" : myCards[i].name)}");
+        Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
+        Debug.Log($"[GameManager] 카드 슬롯 개수: {myCards?.Length ?? -1}");
 
         for (int i = 0; i < myCards.Length; i++)
         {
             if (currentDrawIndex >= drawDeck.Count)
             {
+                // 덱에 카드가 부족하면 슬롯 비활성화
                 myCards[i].gameObject.SetActive(false);
                 continue;
             }
@@ -101,15 +114,20 @@ public class GameManager : MonoBehaviour
             var (cardData, owner) = drawDeck[currentDrawIndex];
             currentDrawIndex++;
 
+            // 성향 기반으로 스택 값 생성 (0은 재생성)
             int stackValue = GenerateStackValue(owner.affinity);
 
-            // ✅ 스프라이트 없이 바로 세팅
             myCards[i].SetupCard(stackValue, owner);
             myCards[i].gameObject.SetActive(true);
         }
     }
+
+    // ----------------------------------------------------------
+    // 공개 API
+    // ----------------------------------------------------------
+
     /// <summary>
-    /// 전투 진입 시 호출. DeckBuilder가 생성한 덱을 주입한다.
+    /// 전투 진입 시 BattleManager 가 호출하여 덱을 주입한다.
     /// </summary>
     public void InjectDeck(List<(CardData card, CompanionData owner)> deck)
     {
@@ -119,56 +137,58 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 사망한 동료의 카드를 drawDeck에서 전부 제거한다.
-    /// BattleManager.ProcessDeathAndStress()에서 호출.
+    /// 사망한 동료의 카드를 drawDeck 에서 전부 제거한다.
+    /// BattleManager.ProcessDeathAndStress() 에서 호출됩니다.
     /// </summary>
     public void RemoveCardsOfCompanion(CompanionData deadCompanion)
     {
-        // 아직 안 뽑힌 카드 중 해당 동료 카드 개수 파악 (인덱스 보정용)
+        // 이미 뽑힌 카드 중 해당 동료 카드 수 (인덱스 보정용)
         int removedBeforeIndex = drawDeck
             .Take(currentDrawIndex)
             .Count(entry => entry.owner == deadCompanion);
 
-        // drawDeck에서 해당 동료 카드 전부 제거
+        // drawDeck 에서 해당 동료 카드 전부 제거
         int removedCount = drawDeck.RemoveAll(entry => entry.owner == deadCompanion);
 
         // 이미 지나간 인덱스도 당겨지므로 보정
         currentDrawIndex = Mathf.Max(0, currentDrawIndex - removedBeforeIndex);
 
-        Debug.Log($"[DeckCleanup] {deadCompanion.displayName} 카드 {removedCount}장 제거 | 잔여 덱: {drawDeck.Count}장");
+        Debug.Log($"[GameManager] {deadCompanion.displayName} 카드 {removedCount}장 제거 | 잔여 덱: {drawDeck.Count}장");
     }
-    // -------------------------------------------------------
-    // 카드 확정 시 → BattleManager 에 스택 반영
-    // -------------------------------------------------------
+
+    /// <summary>
+    /// 카드 확정 시 호출. BattleManager(PlayerRoleCost) 에 스택을 반영한다.
+    /// StackCardController.HandleConfirm() 에서 호출됩니다.
+    /// </summary>
     public void OnCardUsed(StackCardController usedCard)
     {
-        Debug.Log($"[카드 사용] type={usedCard.stackType} delta={usedCard.stackDelta:+#;-#;0}");
+        Debug.Log($"[GameManager] 카드 사용됨 | 역할={usedCard.stackType} 스택={usedCard.stackDelta:+#;-#;0}");
 
-        // 스택 관리 권한: BattleManager
+        // 스택 관리 권한: PlayerRoleCost
         if (PlayerRoleCost.Instance != null)
             PlayerRoleCost.Instance.Add(usedCard.stackType, usedCard.stackDelta);
     }
 
-    // -------------------------------------------------------
-    // 내 턴 종료 (레거시 — BattleManager.FinishPlayerTurn 권장)
-    // -------------------------------------------------------
+    /// <summary>
+    /// 내 턴 종료. BattleManager.FinishPlayerTurn() 을 호출한다.
+    /// </summary>
     public void EndMyTurn()
     {
-        Debug.Log("내 턴 종료.");
+        Debug.Log("[GameManager] 내 턴 종료 신호 전송.");
         BattleManager.Instance?.FinishPlayerTurn();
     }
 
-    // -------------------------------------------------------
+    // ----------------------------------------------------------
     // 내부 유틸리티
-    // -------------------------------------------------------
+    // ----------------------------------------------------------
 
     /// <summary>
-    /// 성향 규칙에 따라 0을 제외한 stackDelta 값을 생성한다.
-    /// AffinityHelper.GenerateStack() 이 0을 반환할 경우(None 성향 등) 재시도.
+    /// 성향 규칙에 따라 0을 제외한 스택 값을 생성한다.
+    /// AffinityHelper.GenerateStack() 이 0을 반환하면 최대 20회 재시도.
     /// </summary>
     private int GenerateStackValue(CardAffinity affinity)
     {
-        // None 성향이면 낙천가 범위(-5~+5)와 동일하게 취급
+        // None 성향은 낙천가(Optimist)와 동일하게 처리
         if (affinity == CardAffinity.None)
             affinity = CardAffinity.Optimist;
 
@@ -185,16 +205,42 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// stackValue (-5~-1, +1~+5) 에 대응하는 스프라이트 반환.
-    /// 배열 순서: index 0=-5, 1=-4, 2=-3, 3=-2, 4=-1, 5=+1, 6=+2, 7=+3, 8=+4, 9=+5
+    /// stackValue (-5~-1, +1~+5) 에 대응하는 스프라이트를 반환한다.
+    /// 배열 인덱스: 0=-5, 1=-4, 2=-3, 3=-2, 4=-1, 5=+1, 6=+2, 7=+3, 8=+4, 9=+5
     /// </summary>
     private Sprite GetSpriteForValue(int value)
     {
         if (numberSprites == null || numberSprites.Length == 0) return null;
 
-        // value: -5→0, -4→1, -3→2, -2→3, -1→4, +1→5, +2→6, +3→7, +4→8, +5→9
         int index = value > 0 ? value + 4 : value + 5;
         index = Mathf.Clamp(index, 0, numberSprites.Length - 1);
         return numberSprites[index];
+    }
+
+    // ----------------------------------------------------------
+    // [ContextMenu] 무결성 테스트
+    // ----------------------------------------------------------
+
+    /// <summary>[에디터 테스트] 현재 덱 상태를 콘솔에 출력한다.</summary>
+    [ContextMenu("TEST / 덱 상태 출력")]
+    private void TestPrintDeck()
+    {
+        Debug.Log($"[GameManager] 덱 상태: 전체={drawDeck.Count}장 | 현재 인덱스={currentDrawIndex}");
+        for (int i = currentDrawIndex; i < drawDeck.Count; i++)
+            Debug.Log($"  [{i}] {drawDeck[i].owner?.displayName ?? "없음"} — {drawDeck[i].card?.id ?? "없음"}");
+    }
+
+    /// <summary>[에디터 테스트] 카드 슬롯 연결 상태를 확인한다.</summary>
+    [ContextMenu("TEST / 카드 슬롯 연결 확인")]
+    private void TestCheckCardSlots()
+    {
+        Debug.Log($"[GameManager] 카드 슬롯 확인: {myCards?.Length ?? 0}개");
+        if (myCards != null)
+            for (int i = 0; i < myCards.Length; i++)
+                Debug.Log($"  슬롯[{i}]: {(myCards[i] == null ? "NULL ← 연결 필요!" : myCards[i].name)}");
+
+        Debug.Log($"  checkButtonBox: {(checkButtonBox == null ? "NULL ← 연결 필요!" : checkButtonBox.name)}");
+        Debug.Log($"  btnConfirm: {(btnConfirm == null ? "NULL ← 연결 필요!" : btnConfirm.name)}");
+        Debug.Log($"  btnCancel: {(btnCancel == null ? "NULL ← 연결 필요!" : btnCancel.name)}");
     }
 }
