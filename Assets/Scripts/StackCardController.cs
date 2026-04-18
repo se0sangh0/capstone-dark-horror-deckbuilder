@@ -143,7 +143,7 @@ public class StackCardController : MonoBehaviour
         // 카드 상태 초기화
         isUsed                = false;
         myButton.interactable = true;
-        myImage.color         = Color.white;
+        myImage.color = Color.gray1;
         myImage.sprite        = null;
     }
 

@@ -20,6 +20,6 @@ public partial class FellowData : ScriptableObject
     public StackType positionStack;
     public Sprite    fellowSprite;
     public int       currentStress = 0;
-    public int       currentStack  = 0;
+    //public int       currentStack  = 0;
     public bool      isDead        = false;
 }

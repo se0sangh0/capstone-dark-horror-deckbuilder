@@ -12,9 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a8004c159e1cbb488366491ecb5d9f4, type: 3}
   m_Name: TestDealer1
   m_EditorClassIdentifier: Assembly-CSharp::FellowData
+  data: {fileID: 0}
   positionStack: 0
   fellowSprite: {fileID: 3793062149320369958, guid: 31aba1a6b700ca5488eb5293fa8a22b9, type: 3}
-  currentHp: 100
   currentStress: 0
-  currentStack: 0
   isDead: 0
+  _currentHp: 0
+  _assignedSkillIds: []
+  _skillSummary: "(\uC804\uD22C \uC2DC\uC791 \uC804 \u2014 \uC2A4\uD0AC\uC774 \uC544\uC9C1
+    \uBC30\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4)"

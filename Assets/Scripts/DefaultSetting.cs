@@ -92,7 +92,8 @@ public class DefaultSetting : MonoBehaviour
         for (int i = 0; i < cardCount; i++)
         {
             // startX 부터 spacingX 간격으로 X 위치 계산
-            float currentX   = startX + (spacingX * i);
+            // 중앙을 기준으로 아군은 오른쪽에서 왼쪽으로 배치, 적군은 왼쪽에서 오른쪽으로 배치
+            float currentX   = startX + (factionType == FactionType.Ally ? -1 : 1) * (spacingX * i);
             Vector3 newPos   = transform.position + new Vector3(currentX, 0f, 0f);
 
             // 카드 프리팹 생성
@@ -151,8 +152,8 @@ public class DefaultSetting : MonoBehaviour
         {
             // TODO: 적 이미지 적용 로직 (EnemyEntity 에 스프라이트 추가 후 구현)
             // var enemies = BattleManager.Instance.enemies;
-            // if (index < enemies.Count && enemies[index].cardArt != null)
-            //     renderer.material.mainTexture = enemies[index].cardArt.texture;
+            // if (index < enemies.Count && enemies[index].enemySprite != null)
+            //     renderer.material.mainTexture = enemies[index].enemySprite.texture;
         }
     }
 }

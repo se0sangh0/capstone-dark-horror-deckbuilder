@@ -69,17 +69,19 @@ public partial class BattleManager
             // 살아있는 아군 각각 행동 처리
             foreach (var ally in allies.Where(a => !a.isDead))
             {
-                string allyName  = ally.positionStack.ToString();
+                StackType allyRole  = ally.positionStack;
                 int roleStack    = PlayerRoleCost.Instance.GetAmount(ally.positionStack);
-                int totalStack   = roleStack + ally.currentStack;  // 이월 스택 포함
+                //int totalStack   = roleStack + ally.currentStack;  // 이월 스택 포함
                 int required     = ally.data?.requiredStack ?? 3;
 
-                if (totalStack >= required)
+                //if (totalStack >= required)
+                if(roleStack >= required)
                 {
                     // 스택 충분: 행동 실행
-                    Debug.Log($"[아군 행동] {allyName} — 스택({totalStack}/{required}) 충족, 행동 실행!");
+                    //Debug.Log($"[아군 행동] {allyName} — 스택({totalStack}/{required}) 충족, 행동 실행!");
+                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{required}) 충족, 행동 실행!");
                     PlayerRoleCost.Instance.Use(ally.positionStack, required);
-                    ally.currentStack = 0;  // 이월 스택 소모
+                    //ally.currentStack = 0;  // 이월 스택 소모
 
                     // ── 스킬 실행 ────────────────────────────────
                     var skills = ally.GetSkills();
@@ -90,7 +92,7 @@ public partial class BattleManager
                     }
                     else
                     {
-                        Debug.LogWarning($"[BattleManager] {allyName} — 사용 가능한 스킬 없음.");
+                        Debug.LogWarning($"[BattleManager] {allyRole} — 사용 가능한 스킬 없음.");
                     }
 
                     yield return new WaitForSeconds(actionDelayTime);
@@ -98,8 +100,10 @@ public partial class BattleManager
                 else
                 {
                     // 스택 부족: 스킵 + 이월 보너스 +1
-                    ally.currentStack += 1;
-                    Debug.Log($"[아군 스킵] {allyName} — 스택 부족 ({totalStack}/{required}) → 이월 보너스 +1 (누적: {ally.currentStack})");
+                   //ally.currentStack += 1;
+                   PlayerRoleCost.Instance.Add(allyRole, 1);
+                   //Debug.Log($"[아군 스킵] {allyName} — 스택 부족 ({totalStack}/{required}) → 이월 보너스 +1 (누적: {ally.currentStack})");
+                   Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({PlayerRoleCost.Instance.GetAmount(allyRole)}/{required}) → 이월 보너스 +1)");
                 }
             }
         }

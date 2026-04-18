@@ -97,9 +97,9 @@ public partial class BattleManager
         ProcessDeathAndStress();
 
         // 이번 턴 스택 전부 초기화
-        PlayerRoleCost.Instance.SetAmount(StackType.Dealer,  0);
-        PlayerRoleCost.Instance.SetAmount(StackType.Tank,    0);
-        PlayerRoleCost.Instance.SetAmount(StackType.Support, 0);
+        // PlayerRoleCost.Instance.SetAmount(StackType.Dealer,  0);
+        // PlayerRoleCost.Instance.SetAmount(StackType.Tank,    0);
+        // PlayerRoleCost.Instance.SetAmount(StackType.Support, 0);
 
         // 전투 종료 여부 판정
         if (CheckBattleEndCondition())
