@@ -33,6 +33,6 @@ public class MoveScene : MonoBehaviour
     public void InGameSceneLoaded()
     {
         Debug.Log("[MoveScene] InGameScene 으로 이동합니다.");
-        SceneManager.LoadScene("InGameScene");
+        SceneManager.LoadScene("GamePlayScene");
     }
 }

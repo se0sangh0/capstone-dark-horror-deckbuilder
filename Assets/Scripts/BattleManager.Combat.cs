@@ -109,17 +109,19 @@ public partial class BattleManager
         }
         else
         {
-            // 살아있는 적 각각 행동 처리
-            foreach (var enemy in enemies.Where(e => !e.isDead))
+            // ── 살아있는 적 목록 기준으로 순서대로 공격 ─────────────
+            // 주의: enemies[0] 고정이 아닌 liveEnemies 순서대로 처리
+            var liveEnemies = enemies.Where(e => !e.isDead).ToList();
+            Debug.Log($"[적 행동] 살아있는 적 수: {liveEnemies.Count}");
+
+            foreach (var enemy in liveEnemies)
             {
                 var targets = allies.Where(a => !a.isDead).ToList();
                 if (targets.Count == 0) break;
 
-                // 랜덤 아군 타겟 선택
-                var target = targets[Random.Range(0, targets.Count)];
+                var target = targets[0];
                 ApplyDamageToAlly(target, enemy.attackPower);
-
-                Debug.Log($"[적 행동] {enemy.enemyName} → {target.positionStack} 에게 {enemy.attackPower} 데미지");
+                Debug.Log($"[적 행동] {enemy.displayName} → {target.positionStack} 에게 {enemy.attackPower} 데미지");
                 yield return new WaitForSeconds(actionDelayTime);
             }
         }
@@ -195,7 +197,7 @@ public partial class BattleManager
     private void ProcessDeathAndStress()
     {
         // 이번 사이클에서 새로 사망한 아군 목록
-        var dyingAllies = allies.Where(a => a.CurrentHp <= 0 && !a.isDead).ToList();
+        var dyingAllies = allies.Where(a => a.isDead && a.CurrentHp <= 0).ToList();
 
         foreach (var ally in dyingAllies)
         {
@@ -217,12 +219,15 @@ public partial class BattleManager
             }
         }
 
-        // 적 사망 처리
-        foreach (var enemy in enemies.Where(e => e.currentHp <= 0 && !e.isDead))
-        {
-            enemy.isDead = true;
-            Debug.Log($"[적 사망] {enemy.enemyName} 처치됨.");
-        }
+        // ── 적 사망 처리 ─────────────────────────────────────────
+        // CurrentHp setter가 isDead=true를 설정하므로 isDead만 체크
+        // ※ CurrentHp=0 이지만 InitHp() 미호출된 적 오감지 방지:
+        //    → isDead가 true인 것만 처리 (setter 경유 사망만 유효)
+        var dyingEnemies = enemies.Where(e => e.isDead && e.CurrentHp <= 0).ToList();
+
+        Debug.Log($"[ProcessDeath] 이번 턴 사망한 적: {dyingEnemies.Count}명");
+        foreach (var enemy in dyingEnemies)
+            Debug.Log($"  └ {enemy.displayName} | HP:{enemy.CurrentHp} | isDead:{enemy.isDead}");
     }
 
     // ===========================================================
@@ -235,9 +240,18 @@ public partial class BattleManager
     /// </summary>
     private bool CheckBattleEndCondition()
     {
-        if (enemies.Count > 0 && enemies.All(e => e.isDead)) return true;
-        if (allies.Count  > 0 && allies.All(a  => a.isDead)) return true;
-        return false;
+        // ── 디버깅: 전투 종료 판정 전 전체 적 상태 출력 ──────────
+        DebugPrintEnemyStates("[CheckBattleEnd]");
+
+        bool allEnemiesDead = enemies.Count > 0 && enemies.All(e => e.isDead);
+        bool allAlliesDead  = allies.Count  > 0 && allies.All(a  => a.isDead);
+
+        if (allEnemiesDead)
+            Debug.Log("[CheckBattleEnd] → 적 전멸 조건 충족!");
+        if (allAlliesDead)
+            Debug.Log("[CheckBattleEnd] → 아군 전멸 조건 충족!");
+
+        return allEnemiesDead || allAlliesDead;
     }
 
     // ===========================================================
@@ -283,14 +297,14 @@ public partial class BattleManager
         {
             case "SingleEnemy":
                 var target = liveEnemies[Random.Range(0, liveEnemies.Count)];
-                target.currentHp -= skill.power;
-                Debug.Log($"[ApplySkillDamage] {target.enemyName} → {skill.power} 데미지 (남은 HP: {target.currentHp})");
+                target.CurrentHp -= skill.power;
+                Debug.Log($"[ApplySkillDamage] {target.name} → {skill.power} 데미지 (남은 HP: {target.CurrentHp})");
                 break;
             case "AllEnemies":
                 foreach (var e in liveEnemies)
                 {
-                    e.currentHp -= skill.power;
-                    Debug.Log($"[ApplySkillDamage] {e.enemyName} → {skill.power} 데미지 (남은 HP: {e.currentHp})");
+                    e.CurrentHp -= skill.power;
+                    Debug.Log($"[ApplySkillDamage] {e.name} → {skill.power} 데미지 (남은 HP: {e.CurrentHp})");
                 }
                 break;
             default:
@@ -332,6 +346,22 @@ public partial class BattleManager
         }
     }
 
+    private void DebugPrintEnemyStates(string context = "")
+    {
+        Debug.Log($"{context} ── 적 상태 전체 ({enemies.Count}명) ──────────────");
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null)
+            {
+                Debug.LogError($"  [{i}] NULL ← Inspector 리스트에 빈 슬롯 있음!");
+                continue;
+            }
+            string status = e.isDead ? "💀 사망" : "✅ 생존";
+            Debug.Log($"  [{i}] {e.displayName} | HP:{e.CurrentHp}/{e.maxHp} | isDead:{e.isDead} | {status}");
+        }
+    }
+    
     // ===========================================================
     // [ContextMenu] 에디터 테스트 메서드
     // Inspector 에서 컴포넌트 우클릭 → TEST 항목으로 실행

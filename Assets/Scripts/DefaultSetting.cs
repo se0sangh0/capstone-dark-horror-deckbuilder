@@ -56,7 +56,7 @@ public class DefaultSetting : MonoBehaviour
     public GameObject cardPrefab;
 
     [Tooltip("생성할 카드 개수")]
-    public int cardCount = 4;
+    public int cardCount;
 
     // ----------------------------------------------------------
     // [위치 설정]
@@ -88,6 +88,7 @@ public class DefaultSetting : MonoBehaviour
     {
         // BattleManager 의 allies 목록을 가져옴 (동적 참조)
         var allies = BattleManager.Instance.allies;
+        var enemies = BattleManager.Instance.enemies;
 
         for (int i = 0; i < cardCount; i++)
         {
@@ -127,6 +128,26 @@ public class DefaultSetting : MonoBehaviour
                     Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
                 }
             }
+            // ── 적군 HP 슬라이더 연결 ────────────────────────────
+            else if (factionType == FactionType.Enemy && i < enemies.Count)
+            {
+                var slider = newObj.GetComponentInChildren<UnityEngine.UI.Slider>();
+                if (slider != null)
+                {
+                    // EnemyData.InitHp() 를 호출하면:
+                    // - HpSlider 연결
+                    // - OnHpChanged 이벤트로 자동 UI 갱신
+                    // - 사망 시 OnDied 이벤트 발생
+                    enemies[i].InitHp(slider);
+                    slider.maxValue = enemies[i].maxHp;
+                    slider.value    = enemies[i].CurrentHp;
+                    Debug.Log($"[DefaultSetting] {newObj.name} hp 동기화");
+                }
+                else
+                {
+                    Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
+                }
+            }
         }
     }
 
@@ -151,9 +172,9 @@ public class DefaultSetting : MonoBehaviour
         else if (factionType == FactionType.Enemy)
         {
             // TODO: 적 이미지 적용 로직 (EnemyEntity 에 스프라이트 추가 후 구현)
-            // var enemies = BattleManager.Instance.enemies;
-            // if (index < enemies.Count && enemies[index].enemySprite != null)
-            //     renderer.material.mainTexture = enemies[index].enemySprite.texture;
+            var enemies = BattleManager.Instance.enemies;
+            if (index < enemies.Count && enemies[index].enemySprite != null)
+                renderer.material.mainTexture = enemies[index].enemySprite.texture;
         }
     }
 }

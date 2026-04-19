@@ -36,6 +36,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 // ----------------------------------------------------------
@@ -80,7 +81,7 @@ public partial class BattleManager : Singleton<BattleManager>
     public List<FellowData> allies  = new();
 
     [Tooltip("적 엔티티 목록")]
-    public List<EnemyEntity> enemies = new();
+    public List<EnemyData> enemies = new();
 
     // ----------------------------------------------------------
     // [카드 풀]
@@ -118,6 +119,7 @@ public partial class BattleManager : Singleton<BattleManager>
 
     /// <summary>플레이어가 턴 종료를 눌렀는지 여부</summary>
     private bool isPlayerTurnFinishing = false;
+    
 
     // ----------------------------------------------------------
     // Start — 전투 초기화 및 메인 루프 시작
@@ -200,6 +202,24 @@ public partial class BattleManager : Singleton<BattleManager>
             }
 
             allies.Add(fellow);
+        }
+        // ── enemies SO → 런타임 독립 인스턴스로 교체 ─────────────────
+        // Inspector에서 같은 SO를 여러 슬롯에 넣어도
+        // 각각 독립된 메모리 객체로 분리되어 HP가 공유되지 않음
+        var originalEnemies = enemies.ToList();  // Inspector 원본 보존
+        enemies.Clear();
+
+        foreach (var original in originalEnemies)
+        {
+            if (original == null) continue;
+
+            // SO 에셋을 복사해 런타임 전용 인스턴스 생성
+            var runtimeEnemy = Instantiate(original);
+            runtimeEnemy.name = original.name + "_runtime"; // Inspector에서 구분용
+            runtimeEnemy.InitHp();                          // 복사본 HP 초기화
+
+            enemies.Add(runtimeEnemy);
+            Debug.Log($"[BattleManager] 적 런타임 인스턴스 생성: {runtimeEnemy.displayName} | HP:{runtimeEnemy.CurrentHp}/{runtimeEnemy.maxHp}");
         }
 
         // 카드 풀 생성 → 덱 구성 → GameManager 에 주입
@@ -324,18 +344,3 @@ public partial class BattleManager : Singleton<BattleManager>
 /// 런타임 적 엔티티 데이터.
 /// Inspector 에서 enemies 리스트에 직접 입력할 수 있습니다.
 /// </summary>
-[System.Serializable]
-public class EnemyEntity
-{
-    [Tooltip("적 이름")]
-    public string enemyName = "테스트 몬스터";
-
-    [Tooltip("현재 HP")]
-    public int currentHp = 100;
-
-    [Tooltip("공격력 — 아군에게 가하는 데미지")]
-    public int attackPower = 10;
-
-    [Tooltip("사망 여부")]
-    public bool isDead = false;
-}

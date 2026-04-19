@@ -21,6 +21,7 @@
 //   - Node/NodeSystem.cs : 노드 버튼 클릭 시 이 클래스를 호출
 // ============================================================
 
+using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -41,7 +42,10 @@ public class DisplayChange : Singleton<DisplayChange>
     
     [Tooltip("전투/행동 화면 오브젝트를 연결하세요.")]
     [SerializeField] private GameObject[] actionDisplay;
-
+    
+    [Tooltip("결과 팝업 화면 오브젝트를 연결하세요.")]
+    [SerializeField] private GameObject resultPopup;
+    [SerializeField] private TMP_Text textDisplay;
     // ----------------------------------------------------------
     // 내부 Inspector 참조로 화면 전환 (외부 매개변수 없이 호출)
     // ----------------------------------------------------------
@@ -78,5 +82,13 @@ public class DisplayChange : Singleton<DisplayChange>
     {
         foreach(GameObject n in node) n.SetActive(!n.activeSelf);
         foreach(GameObject a in action)a.SetActive(!a.activeSelf);
+    }
+
+    public void ToggleResultDisplay(bool result)
+    {
+        textDisplay.text = result ? "Win" : "Lose";
+        textDisplay.color = result ? Color.green : Color.red;
+        
+        resultPopup.SetActive(!resultPopup.activeSelf);
     }
 }

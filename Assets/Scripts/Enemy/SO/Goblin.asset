@@ -12,13 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3b0dd1c242fe4fe387aa6783ce8c4be, type: 3}
   m_Name: Goblin
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
-  id: 
-  displayName: 
+  id: 001
+  displayName: Goblin
   tier: 1
   maxHp: 50
   attackPower: 15
   attackCost: 1
   skillId: 
-  portrait: {fileID: 0}
+  portrait: {fileID: -5555149662375978252, guid: dbd82a883cfa56541b84612475f2e28d, type: 3}
   spritePath: 
   note: 
+  isDead: 1
+  enemySprite: {fileID: -5555149662375978252, guid: dbd82a883cfa56541b84612475f2e28d, type: 3}

@@ -122,18 +122,24 @@ public partial class BattleManager
     // ----------------------------------------------------------
     private IEnumerator HandleBattleEnd()
     {
-        bool allAlliesDead = allies.Count > 0 && allies.All(a => a.isDead);
+        bool allEnemiesDead = enemies.Count > 0 && enemies.All(a => a.isDead);
 
-        if (allAlliesDead)
-        {
-            Debug.Log("[BattleManager] 아군 전멸! 게임 오버 씬으로 전환합니다.");
-            yield return new WaitForSeconds(gameOverDelay);
-            SceneManager.LoadScene(gameOverSceneName);
-        }
-        else
+        yield return new WaitForSeconds(gameOverDelay);
+        DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+        yield return new WaitForSeconds(gameOverDelay);
+        if (allEnemiesDead)
         {
             Debug.Log("[BattleManager] 전투 승리!");
             // TODO: 승리 처리 로직 (보상, 다음 씬 이동 등)
+            DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+            DisplayChange.Instance.ToggleDisplay();
         }
+        else
+        {
+            Debug.Log("[BattleManager] 아군 전멸! 게임 오버 씬으로 전환합니다.");
+            DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+            SceneManager.LoadScene(gameOverSceneName);
+        }
+        
     }
 }
