@@ -4,23 +4,34 @@
 // ============================================================
 //
 // [이 파일이 하는 일]
-//   현재 파티에 있는 동료 목록을 관리합니다.
-//   - 동료 모집 (RecruitCompanion)
-//   - 동료 사망/이탈 (RemoveCompanion)
-//   - 현재 살아있는 동료 목록 조회 (GetActiveCompanions)
+//   현재 파티에 있는 동료(FellowData) 목록을 관리합니다.
+//   - 동료 모집 (RecruitFellow)
+//   - 동료 사망/이탈 (RemoveFellow) — 스킬도 함께 초기화됨
+//   - 현재 살아있는 동료 목록 조회 (GetActiveFellows)
+//
+// [SO 에셋 사용 방법]
+//   Inspector 에서 _defaultFellowAssets 에 FellowData SO 에셋을
+//   (TestDealer1, TestTanker1, TestSupporter1 등) 연결하면
+//   런타임에 그 에셋이 그대로 파티 멤버로 사용됩니다.
+//   비어 있으면 기존처럼 런타임에 임시 인스턴스를 생성합니다.
+//
+// [스킬 영속 구조]
+//   FellowData 인스턴스 자체를 파티 전체에서 공유합니다.
+//   BattleManager 는 매 전투마다 새 인스턴스를 만들지 않고
+//   이 목록의 FellowData 를 그대로 재사용합니다.
+//   → 스킬은 최초 배정 후 사망 전까지 변경되지 않습니다.
 //
 // [씬이 바뀌어도 유지됩니다]
-//   파티는 전투 씬이 바뀌어도 유지되어야 하므로
 //   DontDestroyOnLoad 로 설정됩니다.
-//   (Singleton Inspector 에서 "씬이 바뀌어도 유지" 체크 필요)
 //
 // [어디서 쓰이나요?]
-//   - BattleManager.cs : GetActiveCompanions() 로 동료 목록 조회
-//   - BattleManager.cs : RemoveCompanion() 으로 사망 동료 제거
+//   - BattleManager.cs : GetActiveFellows() 로 FellowData 목록 조회
+//   - BattleManager.Combat.cs : RemoveFellow() 로 사망 동료 제거
 //
 // [연결된 파일]
 //   - Core/Singleton.cs : 싱글톤 기반 클래스
-//   - Companion/CompanionData.cs : 동료 데이터 ScriptableObject
+//   - fellow/FellowData.cs : 동료 런타임 상태 ScriptableObject
+//   - Companion/CompanionData.cs : 동료 기본 정의 데이터
 //   - BattleManager.cs : 전투 시작 시 파티 목록 사용
 // ============================================================
 
@@ -35,28 +46,32 @@ using UnityEngine;
 public class PartyManager : Singleton<PartyManager>
 {
     // ----------------------------------------------------------
-    // [_activeCompanions] — 현재 살아있는 동료 목록
-    // Inspector 에서 확인할 수 있도록 SerializeField 적용
+    // [SO 에셋 연결] — Inspector 에서 FellowData SO 에셋을 여기에 드래그
     // ----------------------------------------------------------
+    [Header("동료 SO 에셋 (Inspector 에서 드래그로 연결)")]
+    [Tooltip("기본 파티 FellowData SO 에셋 목록.\n"
+           + "비어 있으면 런타임에 임시 인스턴스를 생성합니다.\n"
+           + "예: TestDealer1, TestTanker1, TestSupporter1")]
     [SerializeField]
-    [Tooltip("현재 파티에 있는 동료 목록 (런타임에서 관리됨)")]
-    private List<CompanionData> _activeCompanions = new();
+    private List<FellowData> _defaultFellowAssets = new();
+
+    // ----------------------------------------------------------
+    // [_activeFellows] — 현재 살아있는 동료 FellowData 목록
+    // ----------------------------------------------------------
+    [Header("현재 파티 (런타임 관리)")]
+    [SerializeField]
+    [Tooltip("현재 파티에 있는 동료 FellowData 목록 (런타임에서 관리됨)")]
+    private List<FellowData> _activeFellows = new();
 
     // ----------------------------------------------------------
     // Awake — 싱글톤 등록 + 씬 유지 + 기본 파티 생성
     // ----------------------------------------------------------
     protected override void Awake()
     {
-        // 반드시 base.Awake() 먼저 호출 (싱글톤 중복 제거 처리)
         base.Awake();
-
-        // 중복 파괴된 경우 초기화하지 않음
         if (Instance != this) return;
 
-        // 씬 전환 시에도 파티 유지
         DontDestroyOnLoad(gameObject);
-
-        // 테스트용 기본 파티 생성 (나중에 모집 시스템으로 교체)
         InitDefaultParty();
     }
 
@@ -65,50 +80,100 @@ public class PartyManager : Singleton<PartyManager>
     // ----------------------------------------------------------
 
     /// <summary>
-    /// 현재 살아있는 동료 목록의 복사본을 반환한다.
-    /// (외부에서 목록을 직접 변조하지 못하도록 복사본 반환)
+    /// 현재 살아있는 동료 FellowData 목록의 복사본을 반환한다.
+    /// BattleManager 에서 전투 시작 시 호출됩니다.
+    /// </summary>
+    public List<FellowData> GetActiveFellows()
+        => _activeFellows.ToList();
+
+    /// <summary>
+    /// DeckBuilder 호환용 — 동료의 CompanionData 목록을 반환한다.
+    /// data 가 null 인 동료는 제외됩니다.
     /// </summary>
     public List<CompanionData> GetActiveCompanions()
-        => _activeCompanions.ToList();
+        => _activeFellows
+            .Where(f => f != null && f.data != null)
+            .Select(f => f.data)
+            .ToList();
 
     /// <summary>
     /// 동료를 파티에 추가한다. (모집 이벤트에서 호출)
     /// 이미 파티에 있으면 중복 추가하지 않는다.
     /// </summary>
-    public void RecruitCompanion(CompanionData companion)
+    public void RecruitFellow(FellowData fellow)
     {
-        if (_activeCompanions.Contains(companion))
+        if (_activeFellows.Contains(fellow))
         {
-            Debug.LogWarning($"[PartyManager] 이미 파티에 있는 동료: {companion.displayName}");
+            Debug.LogWarning($"[PartyManager] 이미 파티에 있는 동료: {fellow.data?.displayName ?? fellow.name}");
             return;
         }
-        _activeCompanions.Add(companion);
-        Debug.Log($"[PartyManager] 동료 합류: {companion.displayName} | 현재 {_activeCompanions.Count}명");
+        _activeFellows.Add(fellow);
+        Debug.Log($"[PartyManager] 동료 합류: {fellow.data?.displayName ?? fellow.name} | 현재 {_activeFellows.Count}명");
     }
 
     /// <summary>
     /// 동료를 파티에서 제거한다. (사망 또는 이탈 시 BattleManager 가 호출)
+    /// ClearSkills() 를 함께 호출하여 스킬을 초기화한다.
+    /// </summary>
+    public void RemoveFellow(FellowData fellow)
+    {
+        if (fellow == null) return;
+        fellow.ClearSkills();
+        _activeFellows.Remove(fellow);
+        Debug.Log($"[PartyManager] 동료 사망/이탈: {fellow.data?.displayName ?? fellow.name} | 잔여: {_activeFellows.Count}명");
+    }
+
+    /// <summary>
+    /// 하위 호환용 — CompanionData 로 동료를 찾아 RemoveFellow 를 호출한다.
     /// </summary>
     public void RemoveCompanion(CompanionData companion)
     {
-        _activeCompanions.Remove(companion);
-        Debug.Log($"[PartyManager] 동료 사망/이탈: {companion?.displayName} | 잔여: {_activeCompanions.Count}명");
+        var fellow = _activeFellows.FirstOrDefault(f => f.data == companion);
+        if (fellow != null) RemoveFellow(fellow);
     }
 
     /// <summary>현재 파티 인원 수</summary>
-    public int CompanionCount => _activeCompanions.Count;
+    public int CompanionCount => _activeFellows.Count;
 
     // ----------------------------------------------------------
-    // 테스트용 기본 파티 생성
-    // TODO: 나중에 모집 시스템으로 교체하고 이 메서드는 삭제하세요.
-    // ScriptableObject 없이 런타임에 직접 생성합니다.
+    // 기본 파티 생성
+    // SO 에셋이 Inspector 에 연결되어 있으면 그것을 사용하고,
+    // 없으면 기존처럼 런타임 임시 인스턴스를 생성합니다.
     // ----------------------------------------------------------
     private void InitDefaultParty()
     {
-        // 이미 파티가 있으면 초기화 안 함
-        if (_activeCompanions.Count > 0) return;
+        if (_activeFellows.Count > 0) return;
 
-        // (이름, 역할, 성향, 스프라이트 경로) 형식
+        // ── SO 에셋이 있으면 우선 사용 ──────────────────────────
+        if (_defaultFellowAssets != null && _defaultFellowAssets.Count > 0)
+        {
+            foreach (var fellow in _defaultFellowAssets)
+            {
+                if (fellow == null) continue;
+
+                // CompanionData 가 없으면 positionStack 기반으로 런타임 생성
+                if (fellow.data == null)
+                {
+                    var c = ScriptableObject.CreateInstance<CompanionData>();
+                    c.id            = fellow.name;
+                    c.displayName   = fellow.name;
+                    c.role          = (CompanionRole)(int)fellow.positionStack;
+                    c.affinity      = CardAffinity.Gambler;
+                    c.maxHp         = 30;
+                    c.requiredStack = 3;
+                    fellow.data     = c;
+                    Debug.Log($"[PartyManager] {fellow.name}: CompanionData 런타임 생성 (data 가 null 이었음)");
+                }
+
+                _activeFellows.Add(fellow);
+            }
+
+            Debug.Log($"[PartyManager] SO 에셋 파티 로드 완료: {_activeFellows.Count}명");
+            return;
+        }
+
+        // ── SO 에셋 없음: 런타임 임시 파티 생성 (기존 방식) ─────
+        // TODO: 나중에 모집 시스템으로 교체하고 이 블록은 삭제하세요.
         var defaultMembers = new[]
         {
             ("딜러A",   CompanionRole.Dealer,  CardAffinity.Gambler,     "Characters/test_allies_dealer"),
@@ -120,17 +185,22 @@ public class PartyManager : Singleton<PartyManager>
         foreach (var (name, role, affinity, path) in defaultMembers)
         {
             var c = ScriptableObject.CreateInstance<CompanionData>();
-            c.id          = name;
-            c.displayName = name;
-            c.role        = role;
-            c.affinity    = affinity;
-            c.spritePath  = path;
-            c.maxHp       = 30;
+            c.id            = name;
+            c.displayName   = name;
+            c.role          = role;
+            c.affinity      = affinity;
+            c.spritePath    = path;
+            c.maxHp         = 30;
             c.requiredStack = 3;
-            _activeCompanions.Add(c);
+
+            var fellow = ScriptableObject.CreateInstance<FellowData>();
+            fellow.data          = c;
+            fellow.positionStack = (StackType)(int)role;
+
+            _activeFellows.Add(fellow);
         }
 
-        Debug.Log($"[PartyManager] 기본 파티 생성 완료: {_activeCompanions.Count}명");
+        Debug.Log($"[PartyManager] 런타임 기본 파티 생성 완료: {_activeFellows.Count}명");
     }
 
     // ----------------------------------------------------------
@@ -141,11 +211,13 @@ public class PartyManager : Singleton<PartyManager>
     [ContextMenu("TEST / 현재 파티 목록 출력")]
     private void TestPrintParty()
     {
-        Debug.Log($"[PartyManager] 파티 인원: {_activeCompanions.Count}명");
-        for (int i = 0; i < _activeCompanions.Count; i++)
+        Debug.Log($"[PartyManager] 파티 인원: {_activeFellows.Count}명");
+        for (int i = 0; i < _activeFellows.Count; i++)
         {
-            var c = _activeCompanions[i];
-            Debug.Log($"  [{i}] {c.displayName} | 역할:{c.role} | 성향:{c.affinity} | HP:{c.maxHp}");
+            var f     = _activeFellows[i];
+            string nm = f.data?.displayName ?? f.name;
+            string sk = f.HasSkills ? "스킬 배정됨" : "스킬 없음";
+            Debug.Log($"  [{i}] {nm} | 역할:{f.positionStack} | HP:{f.CurrentHp} | {sk}");
         }
     }
 
@@ -153,7 +225,7 @@ public class PartyManager : Singleton<PartyManager>
     [ContextMenu("TEST / 기본 파티로 초기화")]
     private void TestResetParty()
     {
-        _activeCompanions.Clear();
+        _activeFellows.Clear();
         InitDefaultParty();
         Debug.Log("[PartyManager] 기본 파티로 초기화 완료.");
     }

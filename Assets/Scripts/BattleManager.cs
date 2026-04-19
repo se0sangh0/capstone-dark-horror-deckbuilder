@@ -147,38 +147,52 @@ public partial class BattleManager : Singleton<BattleManager>
             return;
         }
 
-        var companions = PartyManager.Instance.GetActiveCompanions();
-        Debug.Log($"[BattleManager] 전투 시작 — 동료 {companions.Count}명");
+        // FellowData 인스턴스를 새로 만들지 않고 PartyManager 의 것을 재사용한다.
+        // → 스킬이 이미 배정된 동료는 기존 스킬을 유지한다.
+        var fellows = PartyManager.Instance.GetActiveFellows();
+        Debug.Log($"[BattleManager] 전투 시작 — 동료 {fellows.Count}명");
 
-        // 동료 FellowData 생성 및 초기화
         allies.Clear();
-        foreach (var companion in companions)
+        foreach (var fellow in fellows)
         {
-            // 런타임 FellowData 생성 (ScriptableObject)
-            var fellow = ScriptableObject.CreateInstance<FellowData>();
-            fellow.data           = companion;
-            fellow.positionStack  = (StackType)(int)companion.role;
-            fellow.CurrentHp      = companion.maxHp;
-            fellow.isDead         = false;
+            if (fellow == null) continue;
 
-            // Resources 폴더에서 스프라이트 로드
-            if (!string.IsNullOrEmpty(companion.spritePath))
+            // CompanionData 가 없으면 전투에서 제외
+            if (fellow.data == null)
             {
-                fellow.fellowSprite = Resources.Load<Sprite>(companion.spritePath);
-                if (fellow.fellowSprite == null)
-                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {companion.spritePath}");
+                Debug.LogWarning($"[BattleManager] {fellow.name}: data(CompanionData) 가 null — 전투에서 제외됨.");
+                continue;
             }
 
-            // -------------------------------------------------------
-            // 스킬 랜덤 배정 (직업에 맞는 스킬 2개, 중복 없음)
-            // -------------------------------------------------------
+            // ── 상태 초기화 (HP·사망·스트레스) — 스킬은 유지 ──
+            fellow.isDead        = false;
+            fellow.currentStress = 0;
+            fellow.CurrentHp     = fellow.data.maxHp;
+            fellow.positionStack = (StackType)(int)fellow.data.role;
+
+            // 스프라이트 로드
+            if (!string.IsNullOrEmpty(fellow.data.spritePath) && fellow.fellowSprite == null)
+            {
+                fellow.fellowSprite = Resources.Load<Sprite>(fellow.data.spritePath);
+                if (fellow.fellowSprite == null)
+                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {fellow.data.spritePath}");
+            }
+
+            // ── 스킬 배정 — 이미 있으면 그대로 유지 (전투 간 고정) ──
             if (SkillDatabase.Instance != null)
             {
-                // 이 동료의 역할에 맞는 스킬 2개를 랜덤으로 선택하여 배정
-                companion.skillIds = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
-
-                // Inspector 에서 배정된 스킬을 확인할 수 있도록 요약 정보 갱신
-                fellow.RefreshSkillInfo();
+                if (!fellow.HasSkills)
+                {
+                    // 최초 배정: 역할에 맞는 스킬 2개를 랜덤으로 선택
+                    var ids = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
+                    fellow.AssignSkills(ids);
+                }
+                else
+                {
+                    // 이미 배정된 스킬 유지 — Inspector 표시만 갱신
+                    Debug.Log($"[BattleManager] {fellow.data.displayName} — 기존 스킬 유지 (재배정 없음)");
+                    fellow.RefreshSkillInfo();
+                }
             }
             else
             {
@@ -189,6 +203,7 @@ public partial class BattleManager : Singleton<BattleManager>
         }
 
         // 카드 풀 생성 → 덱 구성 → GameManager 에 주입
+        var companions = PartyManager.Instance.GetActiveCompanions();
         var pool = GenerateCardPool();
         var deck = DeckBuilder.BuildPartyDeck(companions, pool);
         GameManager.Instance.InjectDeck(deck);

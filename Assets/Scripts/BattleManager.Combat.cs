@@ -206,8 +206,8 @@ public partial class BattleManager
             if (ally.data != null)
                 GameManager.Instance?.RemoveCardsOfCompanion(ally.data);
 
-            // PartyManager 에도 사망 통보
-            PartyManager.Instance?.RemoveCompanion(ally.data);
+            // PartyManager 에 사망 통보 — 스킬 초기화(ClearSkills) 포함
+            PartyManager.Instance?.RemoveFellow(ally);
 
             // 생존 아군 전원 스트레스 +20
             foreach (var survivor in allies.Where(a => !a.isDead))
@@ -392,16 +392,15 @@ public partial class BattleManager
         foreach (var ally in allies)
         {
             string name = ally.data?.displayName ?? ally.positionStack.ToString();
-            if (ally.data == null)                                            { Debug.LogError($"  [오류] {name}: data null"); errors++; continue; }
-            if (ally.data.skillIds == null || ally.data.skillIds.Length == 0) { Debug.LogError($"  [오류] {name}: skillIds 배정 안 됨"); errors++; continue; }
+            if (ally.data == null)    { Debug.LogError($"  [오류] {name}: data(CompanionData) null"); errors++; continue; }
+            if (!ally.HasSkills)      { Debug.LogError($"  [오류] {name}: 스킬 배정 안 됨 (HasSkills == false)"); errors++; continue; }
 
-            Debug.Log($"  [{name}] 스킬 {ally.data.skillIds.Length}개:");
-            for (int i = 0; i < ally.data.skillIds.Length; i++)
+            var skills = ally.GetSkills();
+            Debug.Log($"  [{name}] 스킬 {skills.Count}개:");
+            for (int i = 0; i < skills.Count; i++)
             {
-                var skill = SkillDatabase.Instance.GetSkill(ally.data.skillIds[i]);
-                string tag = (i == 0) ? "[활성]      " : "[비활성-테스트용]";
-                if (skill == null) { Debug.LogError($"    [오류] {tag} ID '{ally.data.skillIds[i]}' 없음"); errors++; }
-                else Debug.Log($"    {tag} {skill.displayName}  |  {skill.effectType}  {skill.targeting}  파워:{skill.power}");
+                string tag = (i == 0) ? "[활성]         " : "[비활성-테스트용]";
+                Debug.Log($"    {tag} {skills[i].displayName}  |  {skills[i].effectType}  {skills[i].targeting}  파워:{skills[i].power}");
             }
         }
 
