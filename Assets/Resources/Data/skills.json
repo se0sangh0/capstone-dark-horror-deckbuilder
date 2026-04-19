@@ -9,7 +9,7 @@
       "targeting": "SingleEnemy",
       "effectType": "Damage",
       "power": 15,
-      "aiPriority": 3,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "마법 화살을 날려 적 1명에게 15의 데미지를 입힌다."
@@ -23,7 +23,7 @@
       "targeting": "AllEnemies",
       "effectType": "Damage",
       "power": 35,
-      "aiPriority": 5,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "화염구를 폭발시켜 모든 적에게 35의 데미지를 분산하여 입힌다."
@@ -37,7 +37,7 @@
       "targeting": "SingleEnemy",
       "effectType": "Damage",
       "power": 25,
-      "aiPriority": 4,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "순간적으로 칼을 뽑아 적 1명에게 25의 데미지를 입힌다."
@@ -51,7 +51,7 @@
       "targeting": "SingleEnemy",
       "effectType": "Damage",
       "power": 50,
-      "aiPriority": 7,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "번개처럼 빠른 일격으로 적 1명에게 50의 데미지를 입힌다."
@@ -65,7 +65,7 @@
       "targeting": "AllAllies",
       "effectType": "Shield",
       "power": 20,
-      "aiPriority": 5,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "방패를 들어 모든 아군에게 20의 실드를 부여한다."
@@ -79,7 +79,7 @@
       "targeting": "AllAllies",
       "effectType": "Shield",
       "power": 40,
-      "aiPriority": 7,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "강화된 전투 태세로 모든 아군에게 40의 실드를 부여한다."
@@ -93,7 +93,7 @@
       "targeting": "SingleEnemy",
       "effectType": "Damage",
       "power": 15,
-      "aiPriority": 3,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "무모하게 돌진하여 적 1명에게 15의 데미지를 입힌다."
@@ -107,7 +107,7 @@
       "targeting": "AllAllies",
       "effectType": "Heal",
       "power": 34,
-      "aiPriority": 6,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "불굴의 의지로 모든 아군의 HP를 34 회복시킨다."
@@ -121,7 +121,7 @@
       "targeting": "SingleAlly",
       "effectType": "Heal",
       "power": 35,
-      "aiPriority": 6,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "별빛을 불러 아군 1명의 HP를 35 회복시킨다."
@@ -135,7 +135,7 @@
       "targeting": "AllAllies",
       "effectType": "Heal",
       "power": 40,
-      "aiPriority": 8,
+      "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
       "description": "신성한 기원으로 모든 아군의 HP를 40 회복시킨다."
