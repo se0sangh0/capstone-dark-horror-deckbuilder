@@ -17,7 +17,7 @@ MonoBehaviour:
   fellowSprite: {fileID: 4693821623100491536, guid: 41b0693a291a74243b151cb88570c526, type: 3}
   currentStress: 0
   isDead: 0
-  _currentHp: 30
+  _currentHp: 100
   _persistedSkillIds:
   - skill_prayer
   - skill_starlight

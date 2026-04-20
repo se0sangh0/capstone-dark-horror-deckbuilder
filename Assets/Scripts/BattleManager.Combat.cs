@@ -67,43 +67,40 @@ public partial class BattleManager
         if (isAllyTurn)
         {
             // 살아있는 아군 각각 행동 처리
+            // ── 참조 흐름 ────────────────────────────────────────────
+            //   PlayerRoleCost  : 현재 누적 스택량 조회/소모/이월 (+1)
+            //   FellowData.GetSkills() → SkillData.costAmount : 스킬별 필요 스택
+            //   UseSkill()       : BattleManager.Combat.cs 하단 정의
+            // ─────────────────────────────────────────────────────────
             foreach (var ally in allies.Where(a => !a.isDead))
             {
-                StackType allyRole  = ally.positionStack;
-                int roleStack    = PlayerRoleCost.Instance.GetAmount(ally.positionStack);
-                //int totalStack   = roleStack + ally.currentStack;  // 이월 스택 포함
-                int required     = ally.data?.requiredStack ?? 3;
+                StackType allyRole = ally.positionStack;
+                int roleStack      = PlayerRoleCost.Instance.GetAmount(allyRole);
 
-                //if (totalStack >= required)
-                if(roleStack >= required)
+                // 스킬 목록 먼저 확보 — costAmount 가 행동 가능 기준이 됨
+                var skills = ally.GetSkills();
+                if (skills.Count == 0)
                 {
-                    // 스택 충분: 행동 실행
-                    //Debug.Log($"[아군 행동] {allyName} — 스택({totalStack}/{required}) 충족, 행동 실행!");
-                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{required}) 충족, 행동 실행!");
-                    PlayerRoleCost.Instance.Use(ally.positionStack, required);
-                    //ally.currentStack = 0;  // 이월 스택 소모
+                    Debug.LogWarning($"[BattleManager] {allyRole} — 배정된 스킬 없음, 스킵.");
+                    continue;
+                }
 
-                    // ── 스킬 실행 ────────────────────────────────
-                    var skills = ally.GetSkills();
-                    if (skills.Count > 0)
-                    {
-                        UseSkill(ally, skills[0]);                               // 스킬 1 — 활성
-                        // if (skills.Count > 1) UseSkill(ally, skills[1]);     // 스킬 2 — 테스트용 주석 처리
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[BattleManager] {allyRole} — 사용 가능한 스킬 없음.");
-                    }
+                var skill    = skills[0];
+                int required = skill.costAmount; // 스킬 코스트 = 필요 스택량 (SkillData.costAmount)
 
+                if (roleStack >= required)
+                {
+                    // 스택 충분: 스킬 코스트만큼 소모 후 실행
+                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{required}) 충족, [{skill.displayName}] 실행!");
+                    PlayerRoleCost.Instance.Use(allyRole, required);
+                    UseSkill(ally, skill);
                     yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
                 {
                     // 스택 부족: 스킵 + 이월 보너스 +1
-                   //ally.currentStack += 1;
-                   PlayerRoleCost.Instance.Add(allyRole, 1);
-                   //Debug.Log($"[아군 스킵] {allyName} — 스택 부족 ({totalStack}/{required}) → 이월 보너스 +1 (누적: {ally.currentStack})");
-                   Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({PlayerRoleCost.Instance.GetAmount(allyRole)}/{required}) → 이월 보너스 +1)");
+                    PlayerRoleCost.Instance.Add(allyRole, 1);
+                    Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({roleStack}/{required}) → 이월 보너스 +1");
                 }
             }
         }

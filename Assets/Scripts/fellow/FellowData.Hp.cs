@@ -50,7 +50,12 @@ public partial class FellowData
     {
         HpSlider = slider;
         int maxHp = data != null ? data.maxHp : 100;
-        _currentHp = maxHp;
+
+        // SO 에셋에서 미리 설정된 값이 있으면 유지, 없으면(0 이하) maxHp로 초기화
+        if (_currentHp <= 0)
+            _currentHp = maxHp;
+        else
+            _currentHp = Mathf.Clamp(_currentHp, 1, maxHp);
 
         if (HpSlider != null)
         {
