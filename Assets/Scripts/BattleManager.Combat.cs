@@ -135,10 +135,25 @@ public partial class BattleManager
     /// </summary>
     private void ApplyDamageToAlly(FellowData target, int damage)
     {
-        // CurrentHp setter 가 자동으로 Clamp, OnHpChanged 이벤트, 사망 처리를 담당
-        target.CurrentHp = Mathf.Max(0, target.CurrentHp - damage);
-        UpdateAllyHpUI(target);
-        Debug.Log($"[HP 변화] {target.positionStack} HP: {target.CurrentHp}");
+        int remaining = damage;
+
+        // 실드가 있으면 먼저 흡수
+        if (target.shield > 0)
+        {
+            int absorbed = Mathf.Min(target.shield, remaining);
+            target.shield -= absorbed;
+            remaining     -= absorbed;
+            target.OnShieldChanged?.Invoke();
+            Debug.Log($"[실드] {target.positionStack} 실드 {absorbed} 흡수 (남은 실드: {target.shield})");
+        }
+
+        if (remaining > 0)
+        {
+            target.CurrentHp = Mathf.Max(0, target.CurrentHp - remaining);
+            UpdateAllyHpUI(target);
+        }
+
+        Debug.Log($"[HP 변화] {target.positionStack} HP: {target.CurrentHp}  실드: {target.shield}");
     }
 
     /// <summary>
@@ -257,90 +272,14 @@ public partial class BattleManager
     // ===========================================================
 
     // ===========================================================
-    // 스킬 실행
+    // 스킬 실행 — SkillExecutor에 위임
+    // 개별 스킬 로직은 Assets/Scripts/Skill/(역할)/Skill_*.cs 에 있습니다.
     // ===========================================================
 
-    /// <summary>동료가 스킬을 사용한다. effectType 에 따라 Damage / Heal / Shield 분기.</summary>
+    /// <summary>동료가 스킬을 사용한다. SkillExecutor가 skill.id로 구현체를 찾아 실행한다.</summary>
     private void UseSkill(FellowData user, SkillData skill)
     {
-        string userName = user.data?.displayName ?? user.positionStack.ToString();
-
-        Debug.Log($"┌─────────────────────────────────────────");
-        Debug.Log($"│ [스킬 사용] {userName}  →  {skill.displayName}");
-        Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}");
-        Debug.Log($"│  설명: {skill.description}");
-        if (skill.statusEffect != "None")
-            Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");
-        Debug.Log($"└─────────────────────────────────────────");
-
-        switch (skill.effectType)
-        {
-            case "Damage": ApplySkillDamage(skill);        break;
-            case "Heal":   ApplySkillHeal(user, skill);    break;
-            case "Shield": Debug.Log($"[UseSkill] Shield — 추후 구현 예정 (파워: {skill.power})");            break;
-            case "Buff":   Debug.Log($"[UseSkill] Buff — 추후 구현 예정 (상태이상: {skill.statusEffect})");   break;
-            case "Debuff": Debug.Log($"[UseSkill] Debuff — 추후 구현 예정 (상태이상: {skill.statusEffect})"); break;
-            default:       Debug.LogWarning($"[UseSkill] 알 수 없는 effectType: '{skill.effectType}'");       break;
-        }
-    }
-
-    /// <summary>스킬 데미지 적용. SingleEnemy / AllEnemies 분기.</summary>
-    private void ApplySkillDamage(SkillData skill)
-    {
-        var liveEnemies = enemies.Where(e => !e.isDead).ToList();
-        if (liveEnemies.Count == 0) { Debug.Log("[ApplySkillDamage] 살아있는 적 없음."); return; }
-
-        switch (skill.targeting)
-        {
-            case "SingleEnemy":
-                var target = liveEnemies[Random.Range(0, liveEnemies.Count)];
-                target.CurrentHp -= skill.power;
-                Debug.Log($"[ApplySkillDamage] {target.name} → {skill.power} 데미지 (남은 HP: {target.CurrentHp})");
-                break;
-            case "AllEnemies":
-                foreach (var e in liveEnemies)
-                {
-                    e.CurrentHp -= skill.power;
-                    Debug.Log($"[ApplySkillDamage] {e.name} → {skill.power} 데미지 (남은 HP: {e.CurrentHp})");
-                }
-                break;
-            default:
-                Debug.LogWarning($"[ApplySkillDamage] 미지원 targeting: '{skill.targeting}'");
-                break;
-        }
-    }
-
-    /// <summary>스킬 회복 적용. Self / SingleAlly / AllAllies 분기.</summary>
-    private void ApplySkillHeal(FellowData user, SkillData skill)
-    {
-        var liveAllies = allies.Where(a => !a.isDead).ToList();
-
-        switch (skill.targeting)
-        {
-            case "Self":
-                user.CurrentHp += skill.power;
-                UpdateAllyHpUI(user);
-                Debug.Log($"[ApplySkillHeal] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{skill.power} HP (현재: {user.CurrentHp})");
-                break;
-            case "SingleAlly":
-                if (liveAllies.Count == 0) break;
-                var healTarget = liveAllies.OrderBy(a => a.CurrentHp).First();
-                healTarget.CurrentHp += skill.power;
-                UpdateAllyHpUI(healTarget);
-                Debug.Log($"[ApplySkillHeal] {healTarget.data?.displayName ?? healTarget.positionStack.ToString()} +{skill.power} HP (현재: {healTarget.CurrentHp})");
-                break;
-            case "AllAllies":
-                foreach (var ally in liveAllies)
-                {
-                    ally.CurrentHp += skill.power;
-                    UpdateAllyHpUI(ally);
-                    Debug.Log($"[ApplySkillHeal] {ally.data?.displayName ?? ally.positionStack.ToString()} +{skill.power} HP (현재: {ally.CurrentHp})");
-                }
-                break;
-            default:
-                Debug.LogWarning($"[ApplySkillHeal] 미지원 targeting: '{skill.targeting}'");
-                break;
-        }
+        SkillExecutor.Execute(user, skill, allies, enemies, UpdateAllyHpUI);
     }
 
     private void DebugPrintEnemyStates(string context = "")

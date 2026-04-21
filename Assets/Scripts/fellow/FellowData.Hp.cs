@@ -13,7 +13,7 @@
 //
 // ── 호출 위치 ──────────────────────────────────────────────────
 //   InitHp()         : DefaultSetting.cs 의 SpawnCard() 에서 호출
-//   CurrentHp setter : BattleManager 의 ApplyDamageToAlly / ApplySkillHeal 에서 호출
+//   CurrentHp setter : BattleManager 의 ApplyDamageToAlly / 각 SkillEffect 구현체에서 호출
 
 using UnityEngine;
 
@@ -67,8 +67,17 @@ public partial class FellowData
         OnDied      += () => Debug.Log($"[사망] {data?.displayName ?? positionStack.ToString()}");
     }
 
+    // ── 실드 ──────────────────────────────────────────────────────
+    /// <summary>실드를 추가하고 OnShieldChanged 이벤트를 발생시킨다.</summary>
+    public void AddShield(int amount)
+    {
+        shield += amount;
+        OnShieldChanged?.Invoke();
+    }
+
     // ── 런타임 전용 (NonSerialized) ──────────────────────────────
     [System.NonSerialized] public System.Action<int>        OnHpChanged;
     [System.NonSerialized] public System.Action             OnDied;
+    [System.NonSerialized] public System.Action             OnShieldChanged;
     [System.NonSerialized] public UnityEngine.UI.Slider     HpSlider;
 }
