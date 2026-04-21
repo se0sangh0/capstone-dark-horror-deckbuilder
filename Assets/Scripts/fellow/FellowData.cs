@@ -20,6 +20,7 @@ public partial class FellowData : ScriptableObject
     public StackType positionStack;
     public Sprite    fellowSprite;
     public int       currentStress = 0;
+    public int       shield        = 0;   // 피해 흡수 실드. 실드 스킬로 부여, 피해 시 먼저 소모됨.
     //public int       currentStack  = 0;
     public bool      isDead        = false;
 }

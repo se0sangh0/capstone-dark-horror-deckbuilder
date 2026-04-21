@@ -115,13 +115,13 @@ public class DefaultSetting : MonoBehaviour
                 var slider = newObj.GetComponentInChildren<UnityEngine.UI.Slider>();
                 if (slider != null)
                 {
-                    // FellowData.InitHp() 를 호출하면:
-                    // - HpSlider 연결
-                    // - OnHpChanged 이벤트로 자동 UI 갱신
-                    // - 사망 시 OnDied 이벤트 발생
                     allies[i].InitHp(slider);
                     slider.maxValue = allies[i].data != null ? allies[i].data.maxHp : 100;
                     slider.value    = allies[i].CurrentHp;
+
+                    // 실드 UI: 파란 바를 HP 슬라이더 위에 오버레이
+                    var shieldBar = slider.gameObject.AddComponent<ShieldBarUI>();
+                    shieldBar.Init(allies[i], slider);
                 }
                 else
                 {
@@ -171,7 +171,7 @@ public class DefaultSetting : MonoBehaviour
         }
         else if (factionType == FactionType.Enemy)
         {
-            // TODO: 적 이미지 적용 로직 (EnemyEntity 에 스프라이트 추가 후 구현)
+            // TODO: 적 이미지 적용 로직 (EnemyData.enemySprite 로 적용 예정)
             var enemies = BattleManager.Instance.enemies;
             if (index < enemies.Count && enemies[index].enemySprite != null)
                 renderer.material.mainTexture = enemies[index].enemySprite.texture;
