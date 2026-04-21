@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3b0dd1c242fe4fe387aa6783ce8c4be, type: 3}
+  m_Name: Goblin
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyData
+  id: 001
+  displayName: Goblin
+  tier: 1
+  maxHp: 50
+  attackPower: 15
+  attackCost: 1
+  skillId: 
+  portrait: {fileID: -5555149662375978252, guid: dbd82a883cfa56541b84612475f2e28d, type: 3}
+  spritePath: 
+  note: 
+  isDead: 1
+  enemySprite: {fileID: -5555149662375978252, guid: dbd82a883cfa56541b84612475f2e28d, type: 3}

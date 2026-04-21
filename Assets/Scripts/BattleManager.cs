@@ -36,6 +36,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 // ----------------------------------------------------------
@@ -80,7 +81,7 @@ public partial class BattleManager : Singleton<BattleManager>
     public List<FellowData> allies  = new();
 
     [Tooltip("적 엔티티 목록")]
-    public List<EnemyEntity> enemies = new();
+    public List<EnemyData> enemies = new();
 
     // ----------------------------------------------------------
     // [카드 풀]
@@ -118,6 +119,7 @@ public partial class BattleManager : Singleton<BattleManager>
 
     /// <summary>플레이어가 턴 종료를 눌렀는지 여부</summary>
     private bool isPlayerTurnFinishing = false;
+    
 
     // ----------------------------------------------------------
     // Start — 전투 초기화 및 메인 루프 시작
@@ -147,38 +149,52 @@ public partial class BattleManager : Singleton<BattleManager>
             return;
         }
 
-        var companions = PartyManager.Instance.GetActiveCompanions();
-        Debug.Log($"[BattleManager] 전투 시작 — 동료 {companions.Count}명");
+        // FellowData 인스턴스를 새로 만들지 않고 PartyManager 의 것을 재사용한다.
+        // → 스킬이 이미 배정된 동료는 기존 스킬을 유지한다.
+        var fellows = PartyManager.Instance.GetActiveFellows();
+        Debug.Log($"[BattleManager] 전투 시작 — 동료 {fellows.Count}명");
 
-        // 동료 FellowData 생성 및 초기화
         allies.Clear();
-        foreach (var companion in companions)
+        foreach (var fellow in fellows)
         {
-            // 런타임 FellowData 생성 (ScriptableObject)
-            var fellow = ScriptableObject.CreateInstance<FellowData>();
-            fellow.data           = companion;
-            fellow.positionStack  = (StackType)(int)companion.role;
-            fellow.CurrentHp      = companion.maxHp;
-            fellow.isDead         = false;
+            if (fellow == null) continue;
 
-            // Resources 폴더에서 스프라이트 로드
-            if (!string.IsNullOrEmpty(companion.spritePath))
+            // CompanionData 가 없으면 전투에서 제외
+            if (fellow.data == null)
             {
-                fellow.fellowSprite = Resources.Load<Sprite>(companion.spritePath);
-                if (fellow.fellowSprite == null)
-                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {companion.spritePath}");
+                Debug.LogWarning($"[BattleManager] {fellow.name}: data(CompanionData) 가 null — 전투에서 제외됨.");
+                continue;
             }
 
-            // -------------------------------------------------------
-            // 스킬 랜덤 배정 (직업에 맞는 스킬 2개, 중복 없음)
-            // -------------------------------------------------------
+            // ── 상태 초기화 (HP·사망·스트레스) — 스킬은 유지 ──
+            fellow.isDead        = false;
+            fellow.currentStress = 0;
+            fellow.CurrentHp     = fellow.data.maxHp;
+            fellow.positionStack = (StackType)(int)fellow.data.role;
+
+            // 스프라이트 로드
+            if (!string.IsNullOrEmpty(fellow.data.spritePath) && fellow.fellowSprite == null)
+            {
+                fellow.fellowSprite = Resources.Load<Sprite>(fellow.data.spritePath);
+                if (fellow.fellowSprite == null)
+                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {fellow.data.spritePath}");
+            }
+
+            // ── 스킬 배정 — 이미 있으면 그대로 유지 (전투 간 고정) ──
             if (SkillDatabase.Instance != null)
             {
-                // 이 동료의 역할에 맞는 스킬 2개를 랜덤으로 선택하여 배정
-                companion.skillIds = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
-
-                // Inspector 에서 배정된 스킬을 확인할 수 있도록 요약 정보 갱신
-                fellow.RefreshSkillInfo();
+                if (!fellow.HasSkills)
+                {
+                    // 최초 배정: 역할에 맞는 스킬 2개를 랜덤으로 선택
+                    var ids = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
+                    fellow.AssignSkills(ids);
+                }
+                else
+                {
+                    // 이미 배정된 스킬 유지 — Inspector 표시만 갱신
+                    Debug.Log($"[BattleManager] {fellow.data.displayName} — 기존 스킬 유지 (재배정 없음)");
+                    fellow.RefreshSkillInfo();
+                }
             }
             else
             {
@@ -187,8 +203,27 @@ public partial class BattleManager : Singleton<BattleManager>
 
             allies.Add(fellow);
         }
+        // ── enemies SO → 런타임 독립 인스턴스로 교체 ─────────────────
+        // Inspector에서 같은 SO를 여러 슬롯에 넣어도
+        // 각각 독립된 메모리 객체로 분리되어 HP가 공유되지 않음
+        var originalEnemies = enemies.ToList();  // Inspector 원본 보존
+        enemies.Clear();
+
+        foreach (var original in originalEnemies)
+        {
+            if (original == null) continue;
+
+            // SO 에셋을 복사해 런타임 전용 인스턴스 생성
+            var runtimeEnemy = Instantiate(original);
+            runtimeEnemy.name = original.name + "_runtime"; // Inspector에서 구분용
+            runtimeEnemy.InitHp();                          // 복사본 HP 초기화
+
+            enemies.Add(runtimeEnemy);
+            Debug.Log($"[BattleManager] 적 런타임 인스턴스 생성: {runtimeEnemy.displayName} | HP:{runtimeEnemy.CurrentHp}/{runtimeEnemy.maxHp}");
+        }
 
         // 카드 풀 생성 → 덱 구성 → GameManager 에 주입
+        var companions = PartyManager.Instance.GetActiveCompanions();
         var pool = GenerateCardPool();
         var deck = DeckBuilder.BuildPartyDeck(companions, pool);
         GameManager.Instance.InjectDeck(deck);
@@ -309,18 +344,3 @@ public partial class BattleManager : Singleton<BattleManager>
 /// 런타임 적 엔티티 데이터.
 /// Inspector 에서 enemies 리스트에 직접 입력할 수 있습니다.
 /// </summary>
-[System.Serializable]
-public class EnemyEntity
-{
-    [Tooltip("적 이름")]
-    public string enemyName = "테스트 몬스터";
-
-    [Tooltip("현재 HP")]
-    public int currentHp = 100;
-
-    [Tooltip("공격력 — 아군에게 가하는 데미지")]
-    public int attackPower = 10;
-
-    [Tooltip("사망 여부")]
-    public bool isDead = false;
-}
