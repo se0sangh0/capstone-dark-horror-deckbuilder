@@ -159,9 +159,8 @@ public class PartyManager : Singleton<PartyManager>
                     c.displayName   = fellow.name;
                     c.role          = (CompanionRole)(int)fellow.positionStack;
                     c.affinity      = CardAffinity.Gambler;
-                    c.maxHp         = 30;
-                    c.requiredStack = 3;
-                    fellow.data     = c;
+                    c.maxHp     = 100;
+                    fellow.data = c;
                     Debug.Log($"[PartyManager] {fellow.name}: CompanionData 런타임 생성 (data 가 null 이었음)");
                 }
 
@@ -190,8 +189,7 @@ public class PartyManager : Singleton<PartyManager>
             c.role          = role;
             c.affinity      = affinity;
             c.spritePath    = path;
-            c.maxHp         = 30;
-            c.requiredStack = 3;
+            c.maxHp = 100;
 
             var fellow = ScriptableObject.CreateInstance<FellowData>();
             fellow.data          = c;

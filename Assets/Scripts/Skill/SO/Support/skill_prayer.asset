@@ -23,5 +23,4 @@ MonoBehaviour:
   aiPriority: 0
   statusEffect: 0
   statusValue: 0
-  description: "\uC2E0\uC131\uD55C \uAE30\uC6D0\uC73C\uB85C \uBAA8\uB4E0 \uC544\uAD70\uC758
-    HP\uB97C 40 \uD68C\uBCF5\uC2DC\uD0A8\uB2E4."
+  description: "\uC544\uAD70 \uC804\uCCB4\uC758 HP\uB97C 40 \uD68C\uBCF5\uD55C\uB2E4."
