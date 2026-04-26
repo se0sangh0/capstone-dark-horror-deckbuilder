@@ -119,7 +119,13 @@ public partial class BattleManager : Singleton<BattleManager>
 
     /// <summary>플레이어가 턴 종료를 눌렀는지 여부</summary>
     private bool isPlayerTurnFinishing = false;
-    
+
+    /// <summary>이번 전투에서 선공 판정이 완료되었는지 여부 (매 전투 1회만 판정)</summary>
+    private bool _initiativeDecided = false;
+
+    /// <summary>스택 부족으로 스킵한 역할의 이월 보너스 (턴 종료 시 다음 턴으로 전달)</summary>
+    private readonly Dictionary<StackType, int> _carryoverBonus = new();
+
 
     // ----------------------------------------------------------
     // Start — 전투 초기화 및 메인 루프 시작
@@ -154,6 +160,9 @@ public partial class BattleManager : Singleton<BattleManager>
         var fellows = PartyManager.Instance.GetActiveFellows();
         Debug.Log($"[BattleManager] 전투 시작 — 동료 {fellows.Count}명");
 
+        _initiativeDecided = false;
+        _carryoverBonus.Clear();
+
         allies.Clear();
         foreach (var fellow in fellows)
         {
@@ -166,11 +175,28 @@ public partial class BattleManager : Singleton<BattleManager>
                 continue;
             }
 
-            // ── 상태 초기화 (HP·사망·스트레스) — 스킬은 유지 ──
-            fellow.isDead        = false;
-            fellow.currentStress = 0;
-            fellow.CurrentHp     = fellow.data.maxHp;
-            fellow.positionStack = (StackType)(int)fellow.data.role;
+            // ── 상태 초기화 (HP·사망·스트레스·패닉) — 스킬은 유지 ──
+            fellow.isDead          = false;
+            fellow.currentStress   = 0;
+            fellow.shield          = 0;
+            fellow.isFrozen        = false;
+            fellow.isOverBreathing = false;
+            fellow.stressResist    = fellow.data.stressResist;
+            fellow.positionStack   = (StackType)(int)fellow.data.role;
+
+            // ── [강화 시스템 TODO] 성급 초기화 ──────────────────────
+            // data.starLevel / data.maxHp 는 FellowDatabase.CreateCompanionData()
+            // 또는 UpgradeStar() 에서 이미 올바른 값으로 설정되어 있다.
+            // → 여기서는 런타임 필드를 data 에서 동기화만 한다.
+            // → maxHp 에 배율을 다시 곱하면 이중 스케일링 발생 → 절대 금지.
+            //
+            // 스킬 파워 배율 (UseSkill 에서 사용):
+            //   1★ → ×1.00   2★ → ×1.50   3★ → ×2.25
+            fellow.starLevel            = fellow.data.starLevel;
+            fellow.skillPowerMultiplier = UnityEngine.Mathf.Pow(1.5f, fellow.starLevel - 1);
+
+            // HP 는 data.maxHp (이미 성급 배율 반영) 를 그대로 사용
+            fellow.CurrentHp = fellow.data.maxHp;
 
             // 스프라이트 로드
             if (!string.IsNullOrEmpty(fellow.data.spritePath) && fellow.fellowSprite == null)

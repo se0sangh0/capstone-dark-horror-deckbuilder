@@ -67,6 +67,13 @@ public class CompanionData : ScriptableObject
     public CardAffinity affinity;
 
     // ----------------------------------------------------------
+    // [직업]
+    // ----------------------------------------------------------
+    [Header("직업 (Job)")]
+    [Tooltip("직업명. 예: 마법사, 검사, 성직자")]
+    public string jobClass;
+
+    // ----------------------------------------------------------
     // [스탯]
     // ----------------------------------------------------------
     [Header("스탯 (Stats)")]
@@ -75,6 +82,27 @@ public class CompanionData : ScriptableObject
 
     [Tooltip("행동에 필요한 최소 스택 (이 수치 이상이면 행동 가능)")]
     public int requiredStack = 3;
+
+    [Tooltip("스트레스 저항값. 피격 시 스트레스 증가량에서 차감됩니다.")]
+    public int stressResist = 0;
+
+    [Tooltip("모집에 필요한 영혼 비용")]
+    public int recruitCost = 30;
+
+    // ── [강화 시스템 TODO] ──────────────────────────────────────────
+    // ★ 성급 (1 / 2 / 3). 기본값 1★.
+    // FellowDatabase.CreateCompanionData() 에서 FellowDef.starLevel 로 초기화.
+    // 승급 시 PartyManager.UpgradeStar(role, starLevel) 에서 +1 처리 예정.
+    //
+    // 성급이 변경되면 maxHp 와 스킬 파워 배율도 함께 갱신해야 한다.
+    //   배율 계산: Mathf.Pow(1.5f, starLevel - 1)
+    //     1★ → 1.00×   2★ → 1.50×   3★ → 2.25×
+    //
+    // ※ 스킬 파워는 SkillData.power 를 직접 수정하지 않고
+    //   FellowData.skillPowerMultiplier 를 곱해 UseSkill() 에서 적용한다.
+    //   (SkillData 는 공유 SO 이므로 수정하면 다른 동료에도 영향)
+    [Tooltip("현재 성급 (1★ / 2★ / 3★). 스탯 배율의 기준이 된다.")]
+    public int starLevel = 1;
 
     // ----------------------------------------------------------
     // [스킬 목록]

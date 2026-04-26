@@ -64,7 +64,10 @@ public class PartyManager : Singleton<PartyManager>
     private List<FellowData> _activeFellows = new();
 
     // ----------------------------------------------------------
-    // Awake — 싱글톤 등록 + 씬 유지 + 기본 파티 생성
+    // Awake — 싱글톤 등록 + 씬 유지
+    // InitDefaultParty 는 Start() 에서 호출한다.
+    // FellowDatabase 가 Awake() 에서 초기화되므로, Start() 에서
+    // 호출해야 FellowDatabase.Instance 가 유효하다.
     // ----------------------------------------------------------
     protected override void Awake()
     {
@@ -72,6 +75,11 @@ public class PartyManager : Singleton<PartyManager>
         if (Instance != this) return;
 
         DontDestroyOnLoad(gameObject);
+    }
+
+    private void Start()
+    {
+        if (Instance != this) return;
         InitDefaultParty();
     }
 
@@ -135,6 +143,48 @@ public class PartyManager : Singleton<PartyManager>
     /// <summary>현재 파티 인원 수</summary>
     public int CompanionCount => _activeFellows.Count;
 
+    // ── [강화 시스템 TODO] 승급(성급 올리기) ────────────────────────
+    // 기획서 §합성/승급:
+    //   같은 역할군 + 같은 성급 동료 3명 → 소멸, 랜덤 역할의 다음 성급 동료 획득
+    //
+    // 구현 예정 흐름:
+    //
+    //   public bool TryUpgradeStar(CompanionRole role, int currentStar)
+    //   {
+    //       var candidates = _activeFellows
+    //           .Where(f => f.data?.role == role && f.starLevel == currentStar && !f.isDead)
+    //           .Take(3).ToList();
+    //
+    //       if (candidates.Count < 3) return false;
+    //
+    //       // 3명 제거
+    //       foreach (var f in candidates) RemoveFellow(f);
+    //
+    //       // 다음 성급 동료 생성 (랜덤 역할)
+    //       string[] roles = { "Dealer", "Tanker", "Support" };
+    //       string newRole = roles[UnityEngine.Random.Range(0, roles.Length)];
+    //       var def = FellowDatabase.Instance.GetRandomFellow(newRole);
+    //       if (def == null) return false;
+    //
+    //       var newData = FellowDatabase.CreateCompanionData(def, CardAffinity.Gambler);
+    //       newData.starLevel = currentStar + 1;
+    //
+    //       // starLevel 에 따라 maxHp 배율 재계산 (1.5^(star-1))
+    //       float mult = UnityEngine.Mathf.Pow(1.5f, newData.starLevel - 1);
+    //       newData.maxHp = UnityEngine.Mathf.RoundToInt(
+    //           (FellowDatabase.Instance.GetFellow(def.id)?.maxHp ?? newData.maxHp) * mult
+    //       );
+    //
+    //       var newFellow = ScriptableObject.CreateInstance<FellowData>();
+    //       newFellow.data          = newData;
+    //       newFellow.positionStack = (StackType)(int)newData.role;
+    //       newFellow.starLevel     = newData.starLevel;
+    //       RecruitFellow(newFellow);
+    //
+    //       Debug.Log($"[승급] {role} {currentStar}★ ×3 → {newRole} {currentStar + 1}★ 획득!");
+    //       return true;
+    //   }
+
     // ----------------------------------------------------------
     // 기본 파티 생성
     // SO 에셋이 Inspector 에 연결되어 있으면 그것을 사용하고,
@@ -147,22 +197,43 @@ public class PartyManager : Singleton<PartyManager>
         // ── SO 에셋이 있으면 우선 사용 ──────────────────────────
         if (_defaultFellowAssets != null && _defaultFellowAssets.Count > 0)
         {
+            bool dbReady = FellowDatabase.Instance != null;
+
             foreach (var fellow in _defaultFellowAssets)
             {
                 if (fellow == null) continue;
 
-                // CompanionData 가 없으면 positionStack 기반으로 런타임 생성
+                // CompanionData 가 없으면 FellowDatabase 또는 positionStack 기반으로 생성
                 if (fellow.data == null)
                 {
-                    var c = ScriptableObject.CreateInstance<CompanionData>();
-                    c.id            = fellow.name;
-                    c.displayName   = fellow.name;
-                    c.role          = (CompanionRole)(int)fellow.positionStack;
-                    c.affinity      = CardAffinity.Gambler;
-                    c.maxHp         = 30;
-                    c.requiredStack = 3;
-                    fellow.data     = c;
-                    Debug.Log($"[PartyManager] {fellow.name}: CompanionData 런타임 생성 (data 가 null 이었음)");
+                    CompanionData c = null;
+
+                    if (dbReady)
+                    {
+                        string roleStr = fellow.positionStack.ToString();
+                        var def = FellowDatabase.Instance.GetRandomFellow(roleStr);
+                        if (def != null)
+                        {
+                            c = FellowDatabase.CreateCompanionData(def, CardAffinity.Gambler);
+                            Debug.Log($"[PartyManager] {fellow.name}: FellowDatabase 에서 CompanionData 생성 ({def.id})");
+                        }
+                    }
+
+                    if (c == null)
+                    {
+                        c               = ScriptableObject.CreateInstance<CompanionData>();
+                        c.id            = fellow.name;
+                        c.displayName   = fellow.name;
+                        c.role          = (CompanionRole)(int)fellow.positionStack;
+                        c.affinity      = CardAffinity.Gambler;
+                        c.maxHp         = 80;
+                        c.stressResist  = 0;
+                        c.recruitCost   = 30;
+                        c.requiredStack = 3;
+                        Debug.Log($"[PartyManager] {fellow.name}: CompanionData 런타임 생성 (폴백)");
+                    }
+
+                    fellow.data = c;
                 }
 
                 _activeFellows.Add(fellow);
@@ -172,31 +243,49 @@ public class PartyManager : Singleton<PartyManager>
             return;
         }
 
-        // ── SO 에셋 없음: 런타임 임시 파티 생성 (기존 방식) ─────
-        // TODO: 나중에 모집 시스템으로 교체하고 이 블록은 삭제하세요.
-        var defaultMembers = new[]
+        // ── SO 에셋 없음: FellowDatabase 또는 런타임 임시 파티 생성 ─────
+        bool fellowDbReady = FellowDatabase.Instance != null;
+
+        var defaultIds = new[]
         {
-            ("딜러A",   CompanionRole.Dealer,  CardAffinity.Gambler,     "Characters/test_allies_dealer"),
-            ("탱커A",   CompanionRole.Tanker,  CardAffinity.Safety,      "Characters/test_allies_tank"),
-            ("딜러B",   CompanionRole.Dealer,  CardAffinity.Opportunist, "Characters/test_allies_dealer"),
-            ("서포터A", CompanionRole.Support, CardAffinity.Optimist,    "Characters/test_allies_support"),
+            ("ally_caster_01",   CardAffinity.Gambler,  "Characters/test_allies_dealer"),
+            ("ally_defender_01", CardAffinity.Safety,   "Characters/test_allies_tank"),
+            ("ally_priest_01",   CardAffinity.Optimist, "Characters/test_allies_support"),
         };
 
-        foreach (var (name, role, affinity, path) in defaultMembers)
+        foreach (var (id, affinity, spritePath) in defaultIds)
         {
-            var c = ScriptableObject.CreateInstance<CompanionData>();
-            c.id            = name;
-            c.displayName   = name;
-            c.role          = role;
-            c.affinity      = affinity;
-            c.spritePath    = path;
-            c.maxHp         = 30;
-            c.requiredStack = 3;
+            CompanionData c;
+
+            if (fellowDbReady)
+            {
+                var def = FellowDatabase.Instance.GetFellow(id);
+                if (def == null)
+                {
+                    Debug.LogWarning($"[PartyManager] FellowDatabase 에서 '{id}' 를 찾을 수 없음 — 건너뜀.");
+                    continue;
+                }
+                c = FellowDatabase.CreateCompanionData(def, affinity);
+            }
+            else
+            {
+                // FellowDatabase 없음: 최소 폴백 데이터
+                c               = ScriptableObject.CreateInstance<CompanionData>();
+                c.id            = id;
+                c.displayName   = id;
+                c.affinity      = affinity;
+                c.maxHp         = 80;
+                c.stressResist  = 0;
+                c.recruitCost   = 30;
+                c.requiredStack = 3;
+                Debug.LogWarning($"[PartyManager] FellowDatabase 없음 — '{id}' 폴백 CompanionData 생성.");
+            }
+
+            c.spritePath = spritePath;
 
             var fellow = ScriptableObject.CreateInstance<FellowData>();
             fellow.data          = c;
-            fellow.positionStack = (StackType)(int)role;
-
+            fellow.positionStack = (StackType)(int)c.role;
             _activeFellows.Add(fellow);
         }
 

@@ -65,5 +65,6 @@ public partial class FellowData
     // ── 런타임 전용 (NonSerialized) ──────────────────────────────
     [System.NonSerialized] public System.Action<int>        OnHpChanged;
     [System.NonSerialized] public System.Action             OnDied;
+    [System.NonSerialized] public System.Action             OnShieldChanged;
     [System.NonSerialized] public UnityEngine.UI.Slider     HpSlider;
 }

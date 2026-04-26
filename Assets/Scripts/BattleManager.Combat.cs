@@ -5,13 +5,13 @@
 //
 // [이 파일이 하는 일]
 //   실제 전투 계산과 관련된 모든 로직이 담겨 있습니다:
-//   - 선공 판정 (DecideInitiative)
-//   - 행동 실행 (ExecuteAction): 스택 소비 및 스킬 실행
-//   - 데미지 적용 (ApplyDamageToAlly): HP 감소 + UI 업데이트
+//   - 선공 판정 (DecideInitiative): 아군 스킬 코스트 합 vs enemyPowerScore
+//   - 행동 실행 (ExecuteAction): 패닉 체크 + 스택 소비 + 스킬 실행
+//   - 데미지 적용 (ApplyDamageToAlly): 실드 흡수 → HP 감소 → 스트레스 증가
+//   - 패닉 처리 (TriggerPanicIfNeeded): 스트레스 100 → 공포경직 or 과호흡
 //   - 카드 풀 생성 (GenerateCardPool)
 //   - 사망/스트레스 처리 (ProcessDeathAndStress)
 //   - 전투 종료 판정 (CheckBattleEndCondition)
-//   - 에디터 테스트 메서드
 //
 // [이 파일에는 없는 것]
 //   필드 선언, 초기화, 공개 API → BattleManager.cs
@@ -28,35 +28,42 @@ public partial class BattleManager
 {
     // ===========================================================
     // 선공 판정
-    // 기획서: 아군 점수 = Σ(동료 스택) + 이번 턴 카드 스택 합
+    // 아군 살아있는 동료 스킬 코스트 합 vs enemyPowerScore 비교.
+    // 동점이면 코인 토스.
     // ===========================================================
 
     /// <summary>
-    /// 아군과 적의 스택 점수를 비교하여 선공을 결정한다.
-    /// 현재: 프로토타입 — 아군 선공 고정.
-    /// TODO: 실제 스택 합산 비교 로직으로 교체 예정.
+    /// 아군 스킬 코스트 합과 enemyPowerScore 를 비교하여 선공을 결정한다.
     /// </summary>
     private void DecideInitiative()
     {
-        // 프로토타입: 아군 선공 고정
-        isAllyFirstAttacker = true;
-        Debug.Log("[선공 판정] 프로토타입 — 아군 선공 고정");
+        int allyScore = allies
+            .Where(a => !a.isDead)
+            .SelectMany(a => a.GetSkills())
+            .Sum(s => s.costAmount);
 
-        // TODO: 아래 실제 판정 로직 (스택 합산 구현 후 활성화)
-        // int allyTotalStack = allies.Where(a => !a.isDead).Sum(a => a.currentStack);
-        // if      (allyTotalStack > enemyPowerScore) isAllyFirstAttacker = true;
-        // else if (allyTotalStack < enemyPowerScore) isAllyFirstAttacker = false;
-        // else
-        // {
-        //     isAllyFirstAttacker = Random.value > 0.5f;
-        //     Debug.Log($"동점 → 코인 토스: {(isAllyFirstAttacker ? "아군 선공" : "적 선공")}");
-        // }
+        if (allyScore > enemyPowerScore)
+        {
+            isAllyFirstAttacker = true;
+        }
+        else if (allyScore < enemyPowerScore)
+        {
+            isAllyFirstAttacker = false;
+        }
+        else
+        {
+            isAllyFirstAttacker = Random.value > 0.5f;
+            Debug.Log($"[선공 판정] 동점({allyScore}:{enemyPowerScore}) → 코인 토스: {(isAllyFirstAttacker ? "아군" : "적")} 선공");
+            return;
+        }
+
+        Debug.Log($"[선공 판정] 아군 스킬 코스트 합:{allyScore} vs 적:{enemyPowerScore} → {(isAllyFirstAttacker ? "아군" : "적")} 선공");
     }
 
     // ===========================================================
     // 행동 실행
-    // - 아군 턴: 스택이 충분하면 행동, 부족하면 이월 보너스 +1
-    // - 적군 턴: 랜덤 아군에게 attackPower 데미지
+    // - 아군 턴: 패닉 체크 → 스택 확인 → 스킬 실행 / 이월
+    // - 적군 턴: 살아있는 적 순서대로 아군[0] 에게 공격
     // ===========================================================
 
     /// <summary>
@@ -66,51 +73,51 @@ public partial class BattleManager
     {
         if (isAllyTurn)
         {
-            // 살아있는 아군 각각 행동 처리
             foreach (var ally in allies.Where(a => !a.isDead))
             {
-                StackType allyRole  = ally.positionStack;
-                int roleStack    = PlayerRoleCost.Instance.GetAmount(ally.positionStack);
-                //int totalStack   = roleStack + ally.currentStack;  // 이월 스택 포함
-                int required     = ally.data?.requiredStack ?? 3;
-
-                //if (totalStack >= required)
-                if(roleStack >= required)
+                // 공포 경직: 이번 턴 행동 불가
+                if (ally.isFrozen)
                 {
-                    // 스택 충분: 행동 실행
-                    //Debug.Log($"[아군 행동] {allyName} — 스택({totalStack}/{required}) 충족, 행동 실행!");
-                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{required}) 충족, 행동 실행!");
-                    PlayerRoleCost.Instance.Use(ally.positionStack, required);
-                    //ally.currentStack = 0;  // 이월 스택 소모
+                    ally.isFrozen = false;
+                    Debug.Log($"[공포 경직] {ally.positionStack} — 이번 턴 행동 불가");
+                    continue;
+                }
 
-                    // ── 스킬 실행 ────────────────────────────────
-                    var skills = ally.GetSkills();
-                    if (skills.Count > 0)
-                    {
-                        UseSkill(ally, skills[0]);                               // 스킬 1 — 활성
-                        // if (skills.Count > 1) UseSkill(ally, skills[1]);     // 스킬 2 — 테스트용 주석 처리
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[BattleManager] {allyRole} — 사용 가능한 스킬 없음.");
-                    }
+                StackType allyRole = ally.positionStack;
+                int roleStack      = PlayerRoleCost.Instance.GetAmount(allyRole);
+                var skills         = ally.GetSkills();
 
+                if (skills.Count == 0)
+                {
+                    Debug.LogWarning($"[BattleManager] {allyRole} — 사용 가능한 스킬 없음.");
+                    continue;
+                }
+
+                var skill          = skills[0];
+                int required       = skill.costAmount;
+                int panicCostBonus = ally.isOverBreathing ? 1 : 0;
+                if (ally.isOverBreathing) ally.isOverBreathing = false;
+
+                int effectiveCost = required + panicCostBonus;
+
+                if (roleStack >= effectiveCost)
+                {
+                    PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
+                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{effectiveCost}) 충족, 스킬 실행 (과호흡 보너스: {panicCostBonus})");
+                    UseSkill(ally, skill);
                     yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
                 {
-                    // 스택 부족: 스킵 + 이월 보너스 +1
-                   //ally.currentStack += 1;
-                   PlayerRoleCost.Instance.Add(allyRole, 1);
-                   //Debug.Log($"[아군 스킵] {allyName} — 스택 부족 ({totalStack}/{required}) → 이월 보너스 +1 (누적: {ally.currentStack})");
-                   Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({PlayerRoleCost.Instance.GetAmount(allyRole)}/{required}) → 이월 보너스 +1)");
+                    _carryoverBonus.TryGetValue(allyRole, out int prev);
+                    _carryoverBonus[allyRole] = prev + 1;
+                    Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({roleStack}/{effectiveCost}) → 다음 턴 이월 +1");
                 }
             }
         }
         else
         {
-            // ── 살아있는 적 목록 기준으로 순서대로 공격 ─────────────
-            // 주의: enemies[0] 고정이 아닌 liveEnemies 순서대로 처리
+            // 살아있는 적 순서대로 아군[0] 공격
             var liveEnemies = enemies.Where(e => !e.isDead).ToList();
             Debug.Log($"[적 행동] 살아있는 적 수: {liveEnemies.Count}");
 
@@ -129,24 +136,46 @@ public partial class BattleManager
 
     // ===========================================================
     // 데미지 적용
-    // FellowData.CurrentHp 에 데미지를 적용하고 UI 를 갱신한다.
+    // 실드 → HP 순서로 데미지를 흡수하고 스트레스를 증가시킨다.
     // ===========================================================
 
     /// <summary>
-    /// 아군에게 데미지를 입히고 HP 슬라이더 UI 를 업데이트한다.
-    /// DefaultSetting.cs 에서 InitHp(slider) 로 슬라이더를 연결한 후 호출된다.
+    /// 아군에게 데미지를 입힌다.
+    /// 실드가 있으면 먼저 소모하고, 남은 데미지를 HP 에 적용한다.
+    /// 피격 시 스트레스가 증가하며 100 도달 시 패닉이 발동된다.
     /// </summary>
     private void ApplyDamageToAlly(FellowData target, int damage)
     {
-        // CurrentHp setter 가 자동으로 Clamp, OnHpChanged 이벤트, 사망 처리를 담당
-        target.CurrentHp = Mathf.Max(0, target.CurrentHp - damage);
-        UpdateAllyHpUI(target);
-        Debug.Log($"[HP 변화] {target.positionStack} HP: {target.CurrentHp}");
+        int remaining = damage;
+
+        // ── 실드 흡수 ────────────────────────────────────────────
+        if (target.shield > 0)
+        {
+            int absorbed  = Mathf.Min(target.shield, remaining);
+            target.shield -= absorbed;
+            remaining     -= absorbed;
+            target.OnShieldChanged?.Invoke();
+            Debug.Log($"[실드] {target.positionStack} — {absorbed} 흡수 (남은 실드: {target.shield})");
+        }
+
+        // ── HP 감소 ──────────────────────────────────────────────
+        if (remaining > 0)
+        {
+            target.CurrentHp = Mathf.Max(0, target.CurrentHp - remaining);
+            UpdateAllyHpUI(target);
+            Debug.Log($"[HP 변화] {target.positionStack} HP: {target.CurrentHp}");
+        }
+
+        // ── 스트레스 증가 (기획서 §스트레스: damage×0.25 - stressResist, 최소 0) ──
+        int stressGain = Mathf.Max(0, Mathf.RoundToInt(damage * 0.25f) - target.stressResist);
+        target.currentStress = Mathf.Min(100, target.currentStress + stressGain);
+        Debug.Log($"[스트레스] {target.positionStack} +{stressGain} → 현재: {target.currentStress}");
+
+        TriggerPanicIfNeeded(target);
     }
 
     /// <summary>
     /// 아군 HP 슬라이더 UI 를 현재 HP 값으로 갱신한다.
-    /// HpSlider 가 null 이면 경고 출력.
     /// </summary>
     private void UpdateAllyHpUI(FellowData target)
     {
@@ -157,13 +186,38 @@ public partial class BattleManager
     }
 
     // ===========================================================
+    // 패닉 처리
+    // 스트레스 100 도달 시 공포 경직 or 과호흡 중 하나를 발동한다.
+    // ===========================================================
+
+    /// <summary>
+    /// 스트레스가 100 이상이면 패닉을 발동한다.
+    /// 스트레스를 50 으로 줄이고 50% 확률로 공포 경직 / 과호흡 중 하나 적용.
+    /// </summary>
+    private void TriggerPanicIfNeeded(FellowData ally)
+    {
+        if (ally.currentStress < 100) return;
+
+        ally.currentStress = 50;
+
+        if (Random.value > 0.5f)
+        {
+            ally.isFrozen = true;
+            Debug.Log($"[패닉] {ally.positionStack} — 공포 경직 발동! (다음 턴 행동 불가)");
+        }
+        else
+        {
+            ally.isOverBreathing = true;
+            Debug.Log($"[패닉] {ally.positionStack} — 과호흡 발동! (다음 턴 스킬 코스트 +1)");
+        }
+    }
+
+    // ===========================================================
     // 카드 풀 생성
-    // 역할별 더미 CardData 를 런타임에 생성합니다.
     // ===========================================================
 
     /// <summary>
     /// 역할별 더미 CardData 를 런타임에 생성하여 카드 풀을 반환한다.
-    /// DeckBuilder 에 전달하여 파티 덱을 구성한다.
     /// </summary>
     private List<CardData> GenerateCardPool()
     {
@@ -174,9 +228,9 @@ public partial class BattleManager
             for (int i = 0; i < 10; i++)
             {
                 var card = ScriptableObject.CreateInstance<CardData>();
-                card.id        = $"card_{role}_{i}";
-                card.stackType = role;
-                card.stackDelta = 0; // 실제 스택 값은 성향 기반으로 런타임 생성됨
+                card.id         = $"card_{role}_{i}";
+                card.stackType  = role;
+                card.stackDelta = 0;
                 pool.Add(card);
             }
         }
@@ -191,12 +245,9 @@ public partial class BattleManager
 
     /// <summary>
     /// 이번 턴에 HP 가 0 이하가 된 아군/적군을 처리한다.
-    /// - 아군 사망: isDead=true, 덱 카드 제거, 생존자 스트레스 +20
-    /// - 적 사망: isDead=true
     /// </summary>
     private void ProcessDeathAndStress()
     {
-        // 이번 사이클에서 새로 사망한 아군 목록
         var dyingAllies = allies.Where(a => a.isDead && a.CurrentHp <= 0).ToList();
 
         foreach (var ally in dyingAllies)
@@ -204,27 +255,20 @@ public partial class BattleManager
             ally.isDead = true;
             Debug.Log($"[사망] {ally.positionStack} 사망 처리됨.");
 
-            // 덱에서 해당 동료 카드 제거
             if (ally.data != null)
                 GameManager.Instance?.RemoveCardsOfCompanion(ally.data);
 
-            // PartyManager 에 사망 통보 — 스킬 초기화(ClearSkills) 포함
             PartyManager.Instance?.RemoveFellow(ally);
 
-            // 생존 아군 전원 스트레스 +20
             foreach (var survivor in allies.Where(a => !a.isDead))
             {
-                survivor.currentStress += 20;
-                Debug.Log($"[스트레스] {survivor.positionStack} +20 (동료 사망 패널티)");
+                survivor.currentStress = Mathf.Min(100, survivor.currentStress + 20);
+                TriggerPanicIfNeeded(survivor);
+                Debug.Log($"[스트레스] {survivor.positionStack} +20 (동료 사망 패널티) → {survivor.currentStress}");
             }
         }
 
-        // ── 적 사망 처리 ─────────────────────────────────────────
-        // CurrentHp setter가 isDead=true를 설정하므로 isDead만 체크
-        // ※ CurrentHp=0 이지만 InitHp() 미호출된 적 오감지 방지:
-        //    → isDead가 true인 것만 처리 (setter 경유 사망만 유효)
         var dyingEnemies = enemies.Where(e => e.isDead && e.CurrentHp <= 0).ToList();
-
         Debug.Log($"[ProcessDeath] 이번 턴 사망한 적: {dyingEnemies.Count}명");
         foreach (var enemy in dyingEnemies)
             Debug.Log($"  └ {enemy.displayName} | HP:{enemy.CurrentHp} | isDead:{enemy.isDead}");
@@ -235,29 +279,20 @@ public partial class BattleManager
     // ===========================================================
 
     /// <summary>
-    /// 전투 종료 조건을 판정한다.
     /// 적 전멸 또는 아군 전멸 시 true 를 반환한다.
     /// </summary>
     private bool CheckBattleEndCondition()
     {
-        // ── 디버깅: 전투 종료 판정 전 전체 적 상태 출력 ──────────
         DebugPrintEnemyStates("[CheckBattleEnd]");
 
         bool allEnemiesDead = enemies.Count > 0 && enemies.All(e => e.isDead);
         bool allAlliesDead  = allies.Count  > 0 && allies.All(a  => a.isDead);
 
-        if (allEnemiesDead)
-            Debug.Log("[CheckBattleEnd] → 적 전멸 조건 충족!");
-        if (allAlliesDead)
-            Debug.Log("[CheckBattleEnd] → 아군 전멸 조건 충족!");
+        if (allEnemiesDead) Debug.Log("[CheckBattleEnd] → 적 전멸 조건 충족!");
+        if (allAlliesDead)  Debug.Log("[CheckBattleEnd] → 아군 전멸 조건 충족!");
 
         return allEnemiesDead || allAlliesDead;
     }
-
-    // ===========================================================
-    // [ContextMenu] 에디터 테스트 메서드
-    // Inspector 에서 컴포넌트 우클릭 → TEST 항목으로 실행
-    // ===========================================================
 
     // ===========================================================
     // 스킬 실행
@@ -268,9 +303,19 @@ public partial class BattleManager
     {
         string userName = user.data?.displayName ?? user.positionStack.ToString();
 
+        // ── [강화 시스템 TODO] 성급 스킬 파워 배율 ─────────────────
+        // 현재는 skill.power 를 그대로 사용한다.
+        // 성급 시스템 구현 후 아래 코드로 교체할 것:
+        //
+        //   int scaledPower = Mathf.RoundToInt(skill.power * user.skillPowerMultiplier);
+        //
+        // 이후 ApplySkillDamage / ApplySkillHeal 호출 시
+        // skill.power 대신 scaledPower 를 전달하도록 오버로드를 추가한다.
+        // (SkillData SO 는 공유 객체이므로 skill.power 직접 수정 금지)
+
         Debug.Log($"┌─────────────────────────────────────────");
-        Debug.Log($"│ [스킬 사용] {userName}  →  {skill.displayName}");
-        Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}");
+        Debug.Log($"│ [스킬 사용] {userName} ({user.starLevel}★)  →  {skill.displayName}");
+        Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}  (배율: ×{user.skillPowerMultiplier:F2})");
         Debug.Log($"│  설명: {skill.description}");
         if (skill.statusEffect != "None")
             Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");
@@ -357,14 +402,13 @@ public partial class BattleManager
                 Debug.LogError($"  [{i}] NULL ← Inspector 리스트에 빈 슬롯 있음!");
                 continue;
             }
-            string status = e.isDead ? "💀 사망" : "✅ 생존";
+            string status = e.isDead ? "사망" : "생존";
             Debug.Log($"  [{i}] {e.displayName} | HP:{e.CurrentHp}/{e.maxHp} | isDead:{e.isDead} | {status}");
         }
     }
-    
+
     // ===========================================================
     // [ContextMenu] 에디터 테스트 메서드
-    // Inspector 에서 컴포넌트 우클릭 → TEST 항목으로 실행
     // ===========================================================
 
     /// <summary>[에디터 테스트] 살아있는 아군 전체에게 10 데미지를 입힌다.</summary>
@@ -394,7 +438,7 @@ public partial class BattleManager
     {
         Debug.Log($"[BattleManager] 아군 HP 상태 ({allies.Count}명):");
         foreach (var ally in allies)
-            Debug.Log($"  {ally.positionStack} | HP: {ally.CurrentHp}/{ally.data?.maxHp ?? 0} | 사망: {ally.isDead} | 스트레스: {ally.currentStress}");
+            Debug.Log($"  {ally.positionStack} | HP: {ally.CurrentHp}/{ally.data?.maxHp ?? 0} | 사망: {ally.isDead} | 스트레스: {ally.currentStress} | 실드: {ally.shield}");
     }
 
     /// <summary>[에디터 테스트] 현재 전투 페이즈 및 선공 정보를 출력한다.</summary>
@@ -430,12 +474,12 @@ public partial class BattleManager
             for (int i = 0; i < skills.Count; i++)
             {
                 string tag = (i == 0) ? "[활성]         " : "[비활성-테스트용]";
-                Debug.Log($"    {tag} {skills[i].displayName}  |  {skills[i].effectType}  {skills[i].targeting}  파워:{skills[i].power}");
+                Debug.Log($"    {tag} {skills[i].displayName}  |  {skills[i].effectType}  {skills[i].targeting}  파워:{skills[i].power}  코스트:{skills[i].costAmount}");
             }
         }
 
-        if (errors == 0) Debug.Log($"[BattleManager] ✓ 무결성 검사 통과! ({allies.Count}명)");
-        else             Debug.LogError($"[BattleManager] ✗ 무결성 검사 실패: {errors}개 오류.");
+        if (errors == 0) Debug.Log($"[BattleManager] 무결성 검사 통과! ({allies.Count}명)");
+        else             Debug.LogError($"[BattleManager] 무결성 검사 실패: {errors}개 오류.");
     }
 
     /// <summary>[에디터 테스트] 아군 [0] 스킬 강제 실행.</summary>
@@ -447,5 +491,16 @@ public partial class BattleManager
         var skills = live[0].GetSkills();
         if (skills.Count == 0) { Debug.LogWarning("[BattleManager] 배정된 스킬 없음."); return; }
         UseSkill(live[0], skills[0]);
+    }
+
+    /// <summary>[에디터 테스트] 아군 [0] 에게 패닉 강제 발동.</summary>
+    [ContextMenu("TEST / 아군 [0] 패닉 강제 발동")]
+    private void TestForcePanic()
+    {
+        var live = allies.Where(a => !a.isDead).ToList();
+        if (live.Count == 0) { Debug.LogWarning("[BattleManager] 살아있는 아군 없음."); return; }
+        live[0].currentStress = 100;
+        TriggerPanicIfNeeded(live[0]);
+        Debug.Log($"[TEST] {live[0].positionStack} — 패닉 발동 (경직:{live[0].isFrozen} 과호흡:{live[0].isOverBreathing})");
     }
 }
