@@ -98,14 +98,14 @@ public static class AffinityHelper
         => Labels.TryGetValue(affinity, out var label) ? label : "없음";
 
     // -----------------------------------------------------------
-    // 2. 성향별 스택 생성 범위
+    // 2. 성향별 스택 생성 범위 (하위 호환용)
     // -----------------------------------------------------------
     private static readonly Dictionary<CardAffinity, AffinityRange> Ranges = new()
     {
         { CardAffinity.Gambler,     new AffinityRange(-5, 5, extremeOnly: true) },
-        { CardAffinity.Safety,      new AffinityRange(-1, 3) },
-        { CardAffinity.Opportunist, new AffinityRange(-3, 4) },
-        { CardAffinity.Optimist,    new AffinityRange(-5, 5) },
+        { CardAffinity.Safety,      new AffinityRange(-1, 2) },
+        { CardAffinity.Opportunist, new AffinityRange(-2, 3) },
+        { CardAffinity.Optimist,    new AffinityRange(-3, 4) },
         { CardAffinity.None,        new AffinityRange( 0, 0) },
     };
 
@@ -113,23 +113,31 @@ public static class AffinityHelper
     public static AffinityRange GetRange(CardAffinity affinity)
         => Ranges.TryGetValue(affinity, out var range) ? range : new AffinityRange(0, 0);
 
+    // 0을 제외한 명시적 값 세트 (기획서 §동료 성향 세부기준 확정값)
+    private static readonly Dictionary<CardAffinity, int[]> ValueSets = new()
+    {
+        { CardAffinity.Safety,      new[] { -1, 1, 2 } },
+        { CardAffinity.Opportunist, new[] { -2, -1, 1, 2, 3 } },
+        { CardAffinity.Optimist,    new[] { -3, -2, -1, 1, 2, 3, 4 } },
+    };
+
     /// <summary>
-    /// 성향 규칙에 따라 스택 기여량을 랜덤 생성한다.
-    /// 도박사: -5 또는 +5 중 하나 (50:50).
-    /// 나머지: 범위 내 균등 확률.
+    /// 성향 규칙에 따라 스택 기여량을 랜덤 생성한다. (0 제외)
+    /// 도박사: -5 또는 +5 (50:50).
+    /// 안전주의자: -1, 1, 2 균등.
+    /// 기회주의자: -2, -1, 1, 2, 3 균등.
+    /// 낙천가: -3, -2, -1, 1, 2, 3, 4 균등.
     /// </summary>
     public static int GenerateStack(CardAffinity affinity)
     {
-        var range = GetRange(affinity);
+        if (affinity == CardAffinity.Gambler)
+            return Random.value < 0.5f ? -5 : 5;
 
-        if (range.extremeOnly)
-        {
-            // 도박사: 극단값 2개 중 균등 선택 (min=-5, max=+5)
-            return Random.value < 0.5f ? range.min : range.max;
-        }
+        if (ValueSets.TryGetValue(affinity, out var values))
+            return values[Random.Range(0, values.Length)];
 
-        // 나머지 성향: 범위 내 균등 확률 (min~max 포함)
-        return Random.Range(range.min, range.max + 1);
+        // None: 0 반환
+        return 0;
     }
 
     // -----------------------------------------------------------

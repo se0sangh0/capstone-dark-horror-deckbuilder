@@ -66,12 +66,20 @@ public partial class BattleManager
 
     // ----------------------------------------------------------
     // 3. 선공 판정 페이즈
-    // 아군과 적군 중 누가 먼저 행동할지 결정합니다.
+    // 전투 1회에 한해 선공을 결정한다. 이미 결정된 경우 유지.
     // ----------------------------------------------------------
     private void HandleInitiativeCheck()
     {
         Debug.Log("--- [3] 선공 판정 ---");
-        DecideInitiative();
+        if (!_initiativeDecided)
+        {
+            DecideInitiative();
+            _initiativeDecided = true;
+        }
+        else
+        {
+            Debug.Log($"[선공 판정] 이미 결정됨 — {(isAllyFirstAttacker ? "아군" : "적")} 선공 유지");
+        }
         currentPhase = BattlePhase.FirstAction;
     }
 
@@ -96,10 +104,17 @@ public partial class BattleManager
         Debug.Log("--- [6] 결과 처리 ---");
         ProcessDeathAndStress();
 
-        // 이번 턴 스택 전부 초기화
-        // PlayerRoleCost.Instance.SetAmount(StackType.Dealer,  0);
-        // PlayerRoleCost.Instance.SetAmount(StackType.Tank,    0);
-        // PlayerRoleCost.Instance.SetAmount(StackType.Support, 0);
+        // 스택 리셋: 이월 보너스만 다음 턴으로 넘기고 나머지는 0 으로 초기화
+        if (PlayerRoleCost.Instance != null)
+        {
+            foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
+            {
+                _carryoverBonus.TryGetValue(role, out int carryover);
+                PlayerRoleCost.Instance.SetAmount(role, carryover);
+            }
+            _carryoverBonus.Clear();
+            Debug.Log("[결과 처리] 스택 리셋 완료 (이월 보너스 반영)");
+        }
 
         // 전투 종료 여부 판정
         if (CheckBattleEndCondition())
@@ -138,6 +153,7 @@ public partial class BattleManager
         {
             Debug.Log("[BattleManager] 아군 전멸! 게임 오버 씬으로 전환합니다.");
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+            PartyManager.Instance?.ResetGame();
             SceneManager.LoadScene(gameOverSceneName);
         }
         

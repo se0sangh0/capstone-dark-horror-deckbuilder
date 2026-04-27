@@ -66,14 +66,18 @@ public class ShieldBarUI : MonoBehaviour
 
         _shieldImage.gameObject.SetActive(true);
 
-        // HP 끝 지점부터 shield 범위만큼 파란 바 표시
         float hpRatio     = Mathf.Clamp01((float)hp / maxHp);
         float shieldRatio = Mathf.Clamp01((float)shield / maxHp);
-        float endRatio    = Mathf.Min(1f, hpRatio + shieldRatio);
+
+        // Max HP 포함 모든 상황에서 실드를 표시:
+        // shieldEnd를 먼저 1f로 클램프하고, shieldStart를 오른쪽 기준으로 역산.
+        // HP=Max일 때 실드가 HP바 우측부터 왼쪽으로 파란 영역으로 표시됨.
+        float shieldEnd   = Mathf.Min(1f, hpRatio + shieldRatio);
+        float shieldStart = Mathf.Max(0f, shieldEnd - shieldRatio);
 
         var rt       = _shieldImage.rectTransform;
-        rt.anchorMin = new Vector2(hpRatio, 0f);
-        rt.anchorMax = new Vector2(endRatio, 1f);
+        rt.anchorMin = new Vector2(shieldStart, 0f);
+        rt.anchorMax = new Vector2(shieldEnd, 1f);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
     }
