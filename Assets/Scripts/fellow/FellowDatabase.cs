@@ -146,7 +146,6 @@ public class FellowDatabase : Singleton<FellowDatabase>
         c.affinity      = affinity;
         c.stressResist  = def.stressResist;
         c.recruitCost   = def.recruitCost;
-        c.requiredStack = 3;
         c.skillIds      = def.skillIds ?? new string[0];
         c.starLevel     = def.starLevel > 0 ? def.starLevel : 1;
 

@@ -246,7 +246,6 @@ public class PartyManager : Singleton<PartyManager>
                         c.maxHp         = 80;
                         c.stressResist  = 0;
                         c.recruitCost   = 30;
-                        c.requiredStack = 3;
                     }
 
                     fellow.data = c;
@@ -302,7 +301,6 @@ public class PartyManager : Singleton<PartyManager>
                 c.maxHp         = 80;
                 c.stressResist  = 0;
                 c.recruitCost   = 30;
-                c.requiredStack = 3;
 
                 var fellow = ScriptableObject.CreateInstance<FellowData>();
                 fellow.data          = c;
@@ -322,7 +320,6 @@ public class PartyManager : Singleton<PartyManager>
                 c.maxHp         = 80;
                 c.stressResist  = 0;
                 c.recruitCost   = 30;
-                c.requiredStack = 3;
 
                 var fellow = ScriptableObject.CreateInstance<FellowData>();
                 fellow.data          = c;
