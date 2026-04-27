@@ -2,63 +2,58 @@
   "fellows": [
     {
       "id": "ally_caster_01",
-      "jobClass": "Caster",
+      "jobClass": "캐스터",
       "displayName": "캐스터",
       "role": "Dealer",
       "maxHp": 100,
       "stressResist": 0,
       "recruitCost": 30,
+      "starLevel": 1,
       "skillIds": ["skill_magic_missile", "skill_fireball"]
     },
     {
       "id": "ally_offender_01",
-      "jobClass": "Offender",
+      "jobClass": "오펜더",
       "displayName": "오펜더",
       "role": "Dealer",
       "maxHp": 150,
       "stressResist": 5,
       "recruitCost": 30,
+      "starLevel": 1,
       "skillIds": ["skill_draw", "skill_flash"]
     },
     {
       "id": "ally_defender_01",
-      "jobClass": "Defender",
+      "jobClass": "디펜더",
       "displayName": "디펜더",
       "role": "Tanker",
       "maxHp": 200,
       "stressResist": 10,
       "recruitCost": 40,
+      "starLevel": 1,
       "skillIds": ["skill_guard", "skill_battle_stance"]
     },
     {
       "id": "ally_attacker_01",
-      "jobClass": "Attacker",
+      "jobClass": "어택커",
       "displayName": "어택커",
       "role": "Tanker",
       "maxHp": 150,
       "stressResist": 10,
       "recruitCost": 40,
+      "starLevel": 1,
       "skillIds": ["skill_reckless", "skill_indomitable"]
     },
     {
       "id": "ally_priest_01",
-      "jobClass": "Priest",
+      "jobClass": "프리스트",
       "displayName": "프리스트",
       "role": "Support",
       "maxHp": 100,
       "stressResist": 0,
       "recruitCost": 35,
+      "starLevel": 1,
       "skillIds": ["skill_starlight", "skill_prayer"]
-    },
-    {
-      "id": "ally_shaman_01",
-      "jobClass": "Shaman",
-      "displayName": "샤먼",
-      "role": "Support",
-      "maxHp": 100,
-      "stressResist": 10,
-      "recruitCost": 35,
-      "skillIds": []
     }
   ]
 }
