@@ -298,7 +298,7 @@ public partial class BattleManager
     // 스킬 실행
     // ===========================================================
 
-    /// <summary>동료가 스킬을 사용한다. effectType 에 따라 Damage / Heal / Shield 분기.</summary>
+    /// <summary>동료가 스킬을 사용한다. SkillExecutor가 skill.id로 구현체를 찾아 실행한다.</summary>
     private void UseSkill(FellowData user, SkillData skill)
     {
         string userName = user.data?.displayName ?? user.positionStack.ToString();

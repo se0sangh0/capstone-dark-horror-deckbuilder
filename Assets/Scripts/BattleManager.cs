@@ -361,12 +361,3 @@ public partial class BattleManager : Singleton<BattleManager>
     // }*/
    // BattleManager.cs 하단에 추가
 }
-
-// ============================================================
-// EnemyEntity — 적 런타임 엔티티 데이터 (직렬화 가능)
-// ============================================================
-
-/// <summary>
-/// 런타임 적 엔티티 데이터.
-/// Inspector 에서 enemies 리스트에 직접 입력할 수 있습니다.
-/// </summary>

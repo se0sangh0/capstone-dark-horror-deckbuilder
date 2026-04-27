@@ -13,7 +13,7 @@
 //
 // ── 호출 위치 ──────────────────────────────────────────────────
 //   InitHp()         : DefaultSetting.cs 의 SpawnCard() 에서 호출
-//   CurrentHp setter : BattleManager 의 ApplyDamageToAlly / ApplySkillHeal 에서 호출
+//   CurrentHp setter : BattleManager 의 ApplyDamageToAlly / 각 SkillEffect 구현체에서 호출
 
 using UnityEngine;
 
@@ -50,7 +50,12 @@ public partial class FellowData
     {
         HpSlider = slider;
         int maxHp = data != null ? data.maxHp : 100;
-        _currentHp = maxHp;
+
+        // SO 에셋에서 미리 설정된 값이 있으면 유지, 없으면(0 이하) maxHp로 초기화
+        if (_currentHp <= 0)
+            _currentHp = maxHp;
+        else
+            _currentHp = Mathf.Clamp(_currentHp, 1, maxHp);
 
         if (HpSlider != null)
         {
@@ -60,6 +65,14 @@ public partial class FellowData
 
         OnHpChanged += hp => { if (HpSlider != null) HpSlider.value = hp; };
         OnDied      += () => Debug.Log($"[사망] {data?.displayName ?? positionStack.ToString()}");
+    }
+
+    // ── 실드 ──────────────────────────────────────────────────────
+    /// <summary>실드를 추가하고 OnShieldChanged 이벤트를 발생시킨다.</summary>
+    public void AddShield(int amount)
+    {
+        shield += amount;
+        OnShieldChanged?.Invoke();
     }
 
     // ── 런타임 전용 (NonSerialized) ──────────────────────────────

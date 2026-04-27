@@ -17,7 +17,11 @@ MonoBehaviour:
   fellowSprite: {fileID: 3793062149320369958, guid: 31aba1a6b700ca5488eb5293fa8a22b9, type: 3}
   currentStress: 0
   isDead: 0
-  _currentHp: 20
+<<<<<<< HEAD
+  _currentHp: 100
+=======
+  _currentHp: 150
+>>>>>>> origin/feat/Skill
   _persistedSkillIds:
   - skill_magic_missile
   - skill_draw

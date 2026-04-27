@@ -1,18 +1,18 @@
 {
   "skills": [
     {
-      "id": "skill_magic_missile",
-      "displayName": "매직 미사일",
+      "id": "skill_draw",
+      "displayName": "발도",
       "skillGroup": "단일",
       "costType": "Dealer",
-      "costAmount": 1,
+      "costAmount": 2,
       "targeting": "SingleEnemy",
       "effectType": "Damage",
-      "power": 15,
+      "power": 25,
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "마법 화살을 날려 적 1명에게 15의 데미지를 입힌다."
+      "description": "적 1명에게 25의 데미지를 입힌다."
     },
     {
       "id": "skill_fireball",
@@ -26,21 +26,7 @@
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "화염구를 폭발시켜 모든 적에게 35의 데미지를 분산하여 입힌다."
-    },
-    {
-      "id": "skill_draw",
-      "displayName": "발도",
-      "skillGroup": "단일",
-      "costType": "Dealer",
-      "costAmount": 2,
-      "targeting": "SingleEnemy",
-      "effectType": "Damage",
-      "power": 25,
-      "aiPriority": 0,
-      "statusEffect": "None",
-      "statusValue": 0,
-      "description": "순간적으로 칼을 뽑아 적 1명에게 25의 데미지를 입힌다."
+      "description": "모든 적에게 35의 데미지를 입힌다."
     },
     {
       "id": "skill_flash",
@@ -54,21 +40,21 @@
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "번개처럼 빠른 일격으로 적 1명에게 50의 데미지를 입힌다."
+      "description": "적 1명에게 50의 강력한 데미지를 입힌다."
     },
     {
-      "id": "skill_guard",
-      "displayName": "방어 준비",
-      "skillGroup": "범위",
-      "costType": "Tank",
-      "costAmount": 2,
-      "targeting": "AllAllies",
-      "effectType": "Shield",
-      "power": 20,
+      "id": "skill_magic_missile",
+      "displayName": "매직 미사일",
+      "skillGroup": "단일",
+      "costType": "Dealer",
+      "costAmount": 1,
+      "targeting": "SingleEnemy",
+      "effectType": "Damage",
+      "power": 15,
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "방패를 들어 모든 아군에게 20의 실드를 부여한다."
+      "description": "적 1명에게 15의 데미지를 입힌다."
     },
     {
       "id": "skill_battle_stance",
@@ -82,21 +68,21 @@
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "강화된 전투 태세로 모든 아군에게 40의 실드를 부여한다."
+      "description": "아군 전체에게 40의 실드를 부여한다."
     },
     {
-      "id": "skill_reckless",
-      "displayName": "무모한 강타",
-      "skillGroup": "단일",
+      "id": "skill_guard",
+      "displayName": "방어 준비",
+      "skillGroup": "범위",
       "costType": "Tank",
-      "costAmount": 1,
-      "targeting": "SingleEnemy",
-      "effectType": "Damage",
-      "power": 15,
+      "costAmount": 2,
+      "targeting": "AllAllies",
+      "effectType": "Shield",
+      "power": 20,
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "무모하게 돌진하여 적 1명에게 15의 데미지를 입힌다."
+      "description": "아군 전체에게 20의 실드를 부여한다."
     },
     {
       "id": "skill_indomitable",
@@ -110,21 +96,21 @@
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "불굴의 의지로 모든 아군의 HP를 34 회복시킨다."
+      "description": "아군 전체의 HP를 34 회복한다."
     },
     {
-      "id": "skill_starlight",
-      "displayName": "별부름",
+      "id": "skill_reckless",
+      "displayName": "무모한 강타",
       "skillGroup": "단일",
-      "costType": "Support",
-      "costAmount": 3,
-      "targeting": "SingleAlly",
-      "effectType": "Heal",
-      "power": 35,
+      "costType": "Tank",
+      "costAmount": 1,
+      "targeting": "SingleEnemy",
+      "effectType": "Damage",
+      "power": 15,
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "별빛을 불러 아군 1명의 HP를 35 회복시킨다."
+      "description": "적 1명에게 15의 데미지를 입힌다."
     },
     {
       "id": "skill_prayer",
@@ -138,7 +124,21 @@
       "aiPriority": 0,
       "statusEffect": "None",
       "statusValue": 0,
-      "description": "신성한 기원으로 모든 아군의 HP를 40 회복시킨다."
+      "description": "아군 전체의 HP를 40 회복한다."
+    },
+    {
+      "id": "skill_starlight",
+      "displayName": "별부름",
+      "skillGroup": "단일",
+      "costType": "Support",
+      "costAmount": 3,
+      "targeting": "SingleAlly",
+      "effectType": "Heal",
+      "power": 35,
+      "aiPriority": 0,
+      "statusEffect": "None",
+      "statusValue": 0,
+      "description": "HP가 가장 낮은 아군 1명의 HP를 35 회복한다."
     }
   ]
 }

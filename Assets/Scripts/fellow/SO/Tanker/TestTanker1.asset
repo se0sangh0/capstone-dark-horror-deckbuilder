@@ -17,7 +17,11 @@ MonoBehaviour:
   fellowSprite: {fileID: 831289140848118484, guid: a617893bc8711ab47b41627deac13cb0, type: 3}
   currentStress: 0
   isDead: 0
-  _currentHp: 30
+<<<<<<< HEAD
+  _currentHp: 100
+=======
+  _currentHp: 150
+>>>>>>> origin/feat/Skill
   _persistedSkillIds:
   - skill_indomitable
   - skill_guard
