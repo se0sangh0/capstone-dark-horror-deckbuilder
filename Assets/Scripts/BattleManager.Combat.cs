@@ -325,7 +325,7 @@ public partial class BattleManager
         {
             case "Damage": ApplySkillDamage(skill);        break;
             case "Heal":   ApplySkillHeal(user, skill);    break;
-            case "Shield": Debug.Log($"[UseSkill] Shield — 추후 구현 예정 (파워: {skill.power})");            break;
+            case "Shield": ApplySkillShield(user, skill);  break;
             case "Buff":   Debug.Log($"[UseSkill] Buff — 추후 구현 예정 (상태이상: {skill.statusEffect})");   break;
             case "Debuff": Debug.Log($"[UseSkill] Debuff — 추후 구현 예정 (상태이상: {skill.statusEffect})"); break;
             default:       Debug.LogWarning($"[UseSkill] 알 수 없는 effectType: '{skill.effectType}'");       break;
@@ -387,6 +387,39 @@ public partial class BattleManager
                 break;
             default:
                 Debug.LogWarning($"[ApplySkillHeal] 미지원 targeting: '{skill.targeting}'");
+                break;
+        }
+    }
+
+    /// <summary>실드 스킬 적용. targeting 에 따라 Self / SingleAlly / AllAllies 분기.</summary>
+    private void ApplySkillShield(FellowData user, SkillData skill)
+    {
+        var liveAllies = allies.Where(a => !a.isDead).ToList();
+
+        switch (skill.targeting)
+        {
+            case "Self":
+                user.shield += skill.power;
+                user.OnShieldChanged?.Invoke();
+                Debug.Log($"[ApplySkillShield] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{skill.power} 실드 (현재: {user.shield})");
+                break;
+            case "SingleAlly":
+                if (liveAllies.Count == 0) break;
+                var shieldTarget = liveAllies[Random.Range(0, liveAllies.Count)];
+                shieldTarget.shield += skill.power;
+                shieldTarget.OnShieldChanged?.Invoke();
+                Debug.Log($"[ApplySkillShield] {shieldTarget.data?.displayName ?? shieldTarget.positionStack.ToString()} +{skill.power} 실드 (현재: {shieldTarget.shield})");
+                break;
+            case "AllAllies":
+                foreach (var ally in liveAllies)
+                {
+                    ally.shield += skill.power;
+                    ally.OnShieldChanged?.Invoke();
+                    Debug.Log($"[ApplySkillShield] {ally.data?.displayName ?? ally.positionStack.ToString()} +{skill.power} 실드 (현재: {ally.shield})");
+                }
+                break;
+            default:
+                Debug.LogWarning($"[ApplySkillShield] 미지원 targeting: '{skill.targeting}'");
                 break;
         }
     }

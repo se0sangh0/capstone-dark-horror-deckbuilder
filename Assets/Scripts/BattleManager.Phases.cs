@@ -153,6 +153,7 @@ public partial class BattleManager
         {
             Debug.Log("[BattleManager] 아군 전멸! 게임 오버 씬으로 전환합니다.");
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+            PartyManager.Instance?.ResetGame();
             SceneManager.LoadScene(gameOverSceneName);
         }
         

@@ -63,6 +63,9 @@ public class PartyManager : Singleton<PartyManager>
     [Tooltip("현재 파티에 있는 동료 FellowData 목록 (런타임에서 관리됨)")]
     private List<FellowData> _activeFellows = new();
 
+    // 사망한 동료 보관소 — 게임 리셋 전까지 유지
+    private List<FellowData> _deadFellowArchive = new();
+
     // ----------------------------------------------------------
     // Awake — 싱글톤 등록 + 씬 유지
     // InitDefaultParty 는 Start() 에서 호출한다.
@@ -120,16 +123,31 @@ public class PartyManager : Singleton<PartyManager>
     }
 
     /// <summary>
-    /// 동료를 파티에서 제거한다. (사망 또는 이탈 시 BattleManager 가 호출)
-    /// ClearSkills() 를 함께 호출하여 스킬을 초기화한다.
+    /// 동료를 파티에서 제거하고 보관소에 저장한다. (사망 또는 이탈 시 BattleManager 가 호출)
     /// </summary>
     public void RemoveFellow(FellowData fellow)
     {
         if (fellow == null) return;
         fellow.ClearSkills();
         _activeFellows.Remove(fellow);
-        Debug.Log($"[PartyManager] 동료 사망/이탈: {fellow.data?.displayName ?? fellow.name} | 잔여: {_activeFellows.Count}명");
+        _deadFellowArchive.Add(fellow);
+        Debug.Log($"[PartyManager] 동료 사망/이탈: {fellow.data?.displayName ?? fellow.name} | 잔여: {_activeFellows.Count}명 | 보관: {_deadFellowArchive.Count}명");
     }
+
+    /// <summary>
+    /// 게임을 리셋한다. 사망 보관소를 지우고 4명의 랜덤 파티를 새로 생성한다.
+    /// BattleManager 가 아군 전멸 시 게임 오버 씬 전환 직전에 호출한다.
+    /// </summary>
+    public void ResetGame()
+    {
+        _deadFellowArchive.Clear();
+        _activeFellows.Clear();
+        GenerateRandomParty(4);
+        Debug.Log($"[PartyManager] 게임 리셋 완료. 새 파티 {_activeFellows.Count}명 생성.");
+    }
+
+    /// <summary>보관소에 있는 사망 동료 수</summary>
+    public int DeadCount => _deadFellowArchive.Count;
 
     /// <summary>
     /// 하위 호환용 — CompanionData 로 동료를 찾아 RemoveFellow 를 호출한다.
@@ -188,7 +206,7 @@ public class PartyManager : Singleton<PartyManager>
     // ----------------------------------------------------------
     // 기본 파티 생성
     // SO 에셋이 Inspector 에 연결되어 있으면 그것을 사용하고,
-    // 없으면 기존처럼 런타임 임시 인스턴스를 생성합니다.
+    // 없으면 FellowDatabase 에서 랜덤 4명을 생성한다.
     // ----------------------------------------------------------
     private void InitDefaultParty()
     {
@@ -203,7 +221,6 @@ public class PartyManager : Singleton<PartyManager>
             {
                 if (fellow == null) continue;
 
-                // CompanionData 가 없으면 FellowDatabase 또는 positionStack 기반으로 생성
                 if (fellow.data == null)
                 {
                     CompanionData c = null;
@@ -214,7 +231,7 @@ public class PartyManager : Singleton<PartyManager>
                         var def = FellowDatabase.Instance.GetRandomFellow(roleStr);
                         if (def != null)
                         {
-                            c = FellowDatabase.CreateCompanionData(def, CardAffinity.Gambler);
+                            c = FellowDatabase.CreateCompanionData(def, RandomAffinity());
                             Debug.Log($"[PartyManager] {fellow.name}: FellowDatabase 에서 CompanionData 생성 ({def.id})");
                         }
                     }
@@ -225,12 +242,11 @@ public class PartyManager : Singleton<PartyManager>
                         c.id            = fellow.name;
                         c.displayName   = fellow.name;
                         c.role          = (CompanionRole)(int)fellow.positionStack;
-                        c.affinity      = CardAffinity.Gambler;
+                        c.affinity      = RandomAffinity();
                         c.maxHp         = 80;
                         c.stressResist  = 0;
                         c.recruitCost   = 30;
                         c.requiredStack = 3;
-                        Debug.Log($"[PartyManager] {fellow.name}: CompanionData 런타임 생성 (폴백)");
                     }
 
                     fellow.data = c;
@@ -243,53 +259,97 @@ public class PartyManager : Singleton<PartyManager>
             return;
         }
 
-        // ── SO 에셋 없음: FellowDatabase 또는 런타임 임시 파티 생성 ─────
-        bool fellowDbReady = FellowDatabase.Instance != null;
+        // ── SO 에셋 없음: 랜덤 4명 생성 ─────────────────────────
+        GenerateRandomParty(4);
+    }
 
-        var defaultIds = new[]
+    // ----------------------------------------------------------
+    // 랜덤 파티 생성 — FellowDatabase 에서 count 명을 랜덤 선택.
+    // 각 동료의 성향은 생성 시 랜덤으로 고정된다.
+    // ----------------------------------------------------------
+    private void GenerateRandomParty(int count)
+    {
+        bool dbReady = FellowDatabase.Instance != null;
+
+        if (dbReady)
         {
-            ("ally_caster_01",   CardAffinity.Gambler,  "Characters/test_allies_dealer"),
-            ("ally_defender_01", CardAffinity.Safety,   "Characters/test_allies_tank"),
-            ("ally_priest_01",   CardAffinity.Optimist, "Characters/test_allies_support"),
-        };
+            // 전체 동료 목록을 섞어서 count 명 선택
+            var allDefs = new List<FellowDef>();
+            foreach (var role in new[] { "Dealer", "Tanker", "Support" })
+                allDefs.AddRange(FellowDatabase.Instance.GetFellowsByRole(role));
 
-        foreach (var (id, affinity, spritePath) in defaultIds)
-        {
-            CompanionData c;
+            Shuffle(allDefs);
 
-            if (fellowDbReady)
+            int added = 0;
+            for (int i = 0; i < allDefs.Count && added < count; i++)
             {
-                var def = FellowDatabase.Instance.GetFellow(id);
-                if (def == null)
-                {
-                    Debug.LogWarning($"[PartyManager] FellowDatabase 에서 '{id}' 를 찾을 수 없음 — 건너뜀.");
-                    continue;
-                }
-                c = FellowDatabase.CreateCompanionData(def, affinity);
+                var def    = allDefs[i];
+                var c      = FellowDatabase.CreateCompanionData(def, RandomAffinity());
+                var fellow = ScriptableObject.CreateInstance<FellowData>();
+                fellow.data          = c;
+                fellow.positionStack = (StackType)(int)c.role;
+                _activeFellows.Add(fellow);
+                added++;
             }
-            else
+
+            // DB 에 동료가 부족하면 폴백으로 채움
+            while (_activeFellows.Count < count)
             {
-                // FellowDatabase 없음: 최소 폴백 데이터
-                c               = ScriptableObject.CreateInstance<CompanionData>();
-                c.id            = id;
-                c.displayName   = id;
-                c.affinity      = affinity;
+                var c = ScriptableObject.CreateInstance<CompanionData>();
+                c.id            = $"fallback_{_activeFellows.Count}";
+                c.displayName   = $"동료 {_activeFellows.Count + 1}";
+                c.affinity      = RandomAffinity();
                 c.maxHp         = 80;
                 c.stressResist  = 0;
                 c.recruitCost   = 30;
                 c.requiredStack = 3;
-                Debug.LogWarning($"[PartyManager] FellowDatabase 없음 — '{id}' 폴백 CompanionData 생성.");
+
+                var fellow = ScriptableObject.CreateInstance<FellowData>();
+                fellow.data          = c;
+                fellow.positionStack = StackType.Dealer;
+                _activeFellows.Add(fellow);
             }
+        }
+        else
+        {
+            // FellowDatabase 없음: 최소 폴백
+            for (int i = 0; i < count; i++)
+            {
+                var c = ScriptableObject.CreateInstance<CompanionData>();
+                c.id            = $"fallback_{i}";
+                c.displayName   = $"동료 {i + 1}";
+                c.affinity      = RandomAffinity();
+                c.maxHp         = 80;
+                c.stressResist  = 0;
+                c.recruitCost   = 30;
+                c.requiredStack = 3;
 
-            c.spritePath = spritePath;
-
-            var fellow = ScriptableObject.CreateInstance<FellowData>();
-            fellow.data          = c;
-            fellow.positionStack = (StackType)(int)c.role;
-            _activeFellows.Add(fellow);
+                var fellow = ScriptableObject.CreateInstance<FellowData>();
+                fellow.data          = c;
+                fellow.positionStack = StackType.Dealer;
+                _activeFellows.Add(fellow);
+            }
+            Debug.LogWarning("[PartyManager] FellowDatabase 없음 — 폴백 파티 생성.");
         }
 
-        Debug.Log($"[PartyManager] 런타임 기본 파티 생성 완료: {_activeFellows.Count}명");
+        Debug.Log($"[PartyManager] 랜덤 파티 생성 완료: {_activeFellows.Count}명");
+    }
+
+    // Fisher-Yates 셔플
+    private static void Shuffle<T>(List<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+    }
+
+    // 랜덤 성향 — None 제외 4종 중 균등 선택
+    private static CardAffinity RandomAffinity()
+    {
+        var values = new[] { CardAffinity.Gambler, CardAffinity.Safety, CardAffinity.Opportunist, CardAffinity.Optimist };
+        return values[UnityEngine.Random.Range(0, values.Length)];
     }
 
     // ----------------------------------------------------------
