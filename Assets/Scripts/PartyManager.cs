@@ -45,15 +45,16 @@ using UnityEngine;
 /// </summary>
 public class PartyManager : Singleton<PartyManager>
 {
+    //임시주석처리(삭제예정)
     // ----------------------------------------------------------
     // [SO 에셋 연결] — Inspector 에서 FellowData SO 에셋을 여기에 드래그
     // ----------------------------------------------------------
-    [Header("동료 SO 에셋 (Inspector 에서 드래그로 연결)")]
-    [Tooltip("기본 파티 FellowData SO 에셋 목록.\n"
+    //[Header("동료 SO 에셋 (Inspector 에서 드래그로 연결)")]
+    /*[Tooltip("기본 파티 FellowData SO 에셋 목록.\n"
            + "비어 있으면 런타임에 임시 인스턴스를 생성합니다.\n"
-           + "예: TestDealer1, TestTanker1, TestSupporter1")]
-    [SerializeField]
-    private List<FellowData> _defaultFellowAssets = new();
+           + "예: TestDealer1, TestTanker1, TestSupporter1")]*/
+    //[SerializeField]
+    //private List<FellowData> _defaultFellowAssets = new();
 
     // ----------------------------------------------------------
     // [_activeFellows] — 현재 살아있는 동료 FellowData 목록
@@ -211,9 +212,9 @@ public class PartyManager : Singleton<PartyManager>
     private void InitDefaultParty()
     {
         if (_activeFellows.Count > 0) return;
-
+        //임시주석처리(삭제예정)
         // ── SO 에셋이 있으면 우선 사용 ──────────────────────────
-        if (_defaultFellowAssets != null && _defaultFellowAssets.Count > 0)
+        /*if (_defaultFellowAssets != null && _defaultFellowAssets.Count > 0)
         {
             bool dbReady = FellowDatabase.Instance != null;
 
@@ -256,7 +257,7 @@ public class PartyManager : Singleton<PartyManager>
 
             Debug.Log($"[PartyManager] SO 에셋 파티 로드 완료: {_activeFellows.Count}명");
             return;
-        }
+        }*/
 
         // ── SO 에셋 없음: 랜덤 4명 생성 ─────────────────────────
         GenerateRandomParty(4);
@@ -278,15 +279,25 @@ public class PartyManager : Singleton<PartyManager>
                 allDefs.AddRange(FellowDatabase.Instance.GetFellowsByRole(role));
 
             Shuffle(allDefs);
-
+            
             int added = 0;
-            for (int i = 0; i < allDefs.Count && added < count; i++)
+            //임시주석처리(삭제예정)
+            /*for (int i = 0; i < allDefs.Count && added < count; i++)
             {
                 var def    = allDefs[i];
                 var c      = FellowDatabase.CreateCompanionData(def, RandomAffinity());
-                var fellow = ScriptableObject.CreateInstance<FellowData>();
+                //임시주석처리(삭제예정)
+                /*var fellow = ScriptableObject.CreateInstance<FellowData>();
                 fellow.data          = c;
                 fellow.positionStack = (StackType)(int)c.role;
+                _activeFellows.Add(fellow);*/
+                //FellowDatabase.CreateRuntimeFellow(def, RandomAffinity());
+                //added++;
+            //}
+            for (int i = 0; i < allDefs.Count && added < count; i++)
+            {
+                var def    = allDefs[i];
+                var fellow = FellowDatabase.CreateRuntimeFellow(def, RandomAffinity());
                 _activeFellows.Add(fellow);
                 added++;
             }
@@ -374,5 +385,14 @@ public class PartyManager : Singleton<PartyManager>
         _activeFellows.Clear();
         InitDefaultParty();
         Debug.Log("[PartyManager] 기본 파티로 초기화 완료.");
+    }
+    //신규추가(모집용 공개 API(용병소 노드가 부를 단일 진입점))
+    public bool RecruitById(string fellowId, CardAffinity affinity)
+    {
+        var def = FellowDatabase.Instance?.GetFellow(fellowId);
+        if (def == null) return false;
+        var fellow = FellowDatabase.CreateRuntimeFellow(def, affinity);
+        RecruitFellow(fellow);
+        return true;
     }
 }

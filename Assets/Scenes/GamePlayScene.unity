@@ -1359,15 +1359,8 @@ MonoBehaviour:
   persistAcrossScenes: 0
   currentPhase: 0
   isAllyFirstAttacker: 0
-  allies:
-  - {fileID: 11400000, guid: a6faa0bc91059bc4c8ba4898e83877b1, type: 2}
-  - {fileID: 11400000, guid: a6faa0bc91059bc4c8ba4898e83877b1, type: 2}
-  - {fileID: 11400000, guid: 31b0e2111bf899146810b82ccc210702, type: 2}
-  - {fileID: 11400000, guid: f31f56624c4f6e241a2d437e79760eed, type: 2}
-  enemies:
-  - {fileID: 11400000, guid: 02d0badc4e74bef44ab7375a382b0057, type: 2}
-  - {fileID: 11400000, guid: 02d0badc4e74bef44ab7375a382b0057, type: 2}
-  - {fileID: 11400000, guid: 02d0badc4e74bef44ab7375a382b0057, type: 2}
+  allies: []
+  enemies: []
   allCards: []
   enemyPowerScore: 5
   gameOverSceneName: GameStartScene
@@ -2697,6 +2690,9 @@ PrefabInstance:
       insertIndex: 0
       addedObject: {fileID: 390679774}
     - targetCorrespondingSourceObject: {fileID: 4892005142267747716, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
+      insertIndex: 1
+      addedObject: {fileID: 1736202875}
+    - targetCorrespondingSourceObject: {fileID: 4892005142267747716, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1777614769}
     - targetCorrespondingSourceObject: {fileID: 3301522918356318719, guid: 3608ba8fc6fcd154fbded12b86110637, type: 3}
@@ -3544,7 +3540,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PartyManager
   persistAcrossScenes: 0
-  _defaultFellowAssets: []
   _activeFellows: []
 --- !u!4 &650857865
 Transform:
@@ -6571,6 +6566,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1031026162}
   m_CullTransparentMesh: 1
+--- !u!1 &1060534956
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1060534958}
+  - component: {fileID: 1060534957}
+  m_Layer: 0
+  m_Name: EnemyDatabase
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1060534957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1060534956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67a1b886f1821904bbb03848a14af497, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDatabase
+  persistAcrossScenes: 0
+--- !u!4 &1060534958
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1060534956}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 960, y: -20, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1191756674
 GameObject:
   m_ObjectHideFlags: 0
@@ -7037,8 +7077,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DefaultSetting
   factionType: 0
-  cardPrefab: {fileID: 5214129751848754868, guid: ec137b0e40ce9a24a81e4c083ab6beae, type: 3}
-  cardCount: 4
+  ObjectPrefab: {fileID: 5214129751848754868, guid: ec137b0e40ce9a24a81e4c083ab6beae, type: 3}
+  ObjectCount: 4
   startX: 2
   spacingX: 1.25
 --- !u!1 &1437968590
@@ -7376,8 +7416,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DefaultSetting
   factionType: 1
-  cardPrefab: {fileID: 5917696149376670484, guid: 0df0609182b9f6f419f5b9b2ea093fbb, type: 3}
-  cardCount: 3
+  ObjectPrefab: {fileID: 5917696149376670484, guid: 0df0609182b9f6f419f5b9b2ea093fbb, type: 3}
+  ObjectCount: 3
   startX: 4
   spacingX: 1.25
 --- !u!1 &1520871999 stripped
@@ -8072,6 +8112,53 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1730192359}
   m_CullTransparentMesh: 1
+--- !u!1 &1736202873
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1736202875}
+  - component: {fileID: 1736202874}
+  m_Layer: 0
+  m_Name: EnemySpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1736202874
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736202873}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57acd2c2f15b1244eb0eda5854e7fc8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
+  enemyIds: []
+  randomTier: 1
+  randomCount: 3
+--- !u!4 &1736202875
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1736202873}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -300, y: -560, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1497648772}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1773020309
 GameObject:
   m_ObjectHideFlags: 0
@@ -9477,3 +9564,4 @@ SceneRoots:
   - {fileID: 650857865}
   - {fileID: 1727168536}
   - {fileID: 139481931}
+  - {fileID: 1060534958}

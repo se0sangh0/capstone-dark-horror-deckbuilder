@@ -161,6 +161,7 @@ public class FellowDatabase : Singleton<FellowDatabase>
         //   float mult  = Mathf.Pow(1.5f, c.starLevel - 1);
         //   c.maxHp     = Mathf.RoundToInt(baseHp * mult);
         c.maxHp = def.maxHp > 0 ? def.maxHp : 80;
+        c.spritePath = def.spritePath;
 
         return c;
     }
@@ -213,5 +214,16 @@ public class FellowDatabase : Singleton<FellowDatabase>
 
         if (errors == 0) Debug.Log($"[FellowDatabase] ✓ 무결성 검사 통과! ({_fellowMap.Count}개)");
         else             Debug.LogError($"[FellowDatabase] ✗ 무결성 검사 실패: {errors}개 오류.");
+    }
+    
+    //모집 / 시작 파티 둘다 여기 부름
+    public static FellowData CreateRuntimeFellow(FellowDef def, CardAffinity affinity)
+    {
+        var c = CreateCompanionData(def, affinity);
+        var fellow = ScriptableObject.CreateInstance<FellowData>();
+        fellow.data = c;
+        fellow.positionStack = (StackType)(int)c.role;
+        fellow.starLevel = c.starLevel;
+        return fellow;
     }
 }
