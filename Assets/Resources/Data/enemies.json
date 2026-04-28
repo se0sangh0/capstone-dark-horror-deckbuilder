@@ -1,0 +1,14 @@
+﻿{
+  "enemies": [
+    {
+      "id": "enemy_goblin_01",
+      "displayName": "고블린",
+      "tier": "Normal",
+      "maxHp": 50,
+      "attackPower": 15,
+      "attackCost": 1,
+      "skillId": "",
+      "spritePath": "Characters/test_enemy_goblin"
+    }
+  ]
+}

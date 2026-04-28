@@ -14,7 +14,6 @@ public enum EnemyTier
     Boss   = 2,
 }
 
-[CreateAssetMenu(menuName = "DarkHorror/EnemyData", fileName = "enemy_new")]
 public partial class EnemyData : ScriptableObject
 {
     // ── 정의 데이터 ──────────────────────────────────────────────
@@ -42,7 +41,7 @@ public partial class EnemyData : ScriptableObject
     // ── 런타임 상태 ──────────────────────────────────────────────
     [Header("런타임 상태")]
     public bool   isDead      = false;
-    public Sprite enemySprite;          // 기존 EnemyRuntime.enemySprite 이전
-
+    public Sprite enemySprite;
+    
     public int StackValue => attackCost;
 }
