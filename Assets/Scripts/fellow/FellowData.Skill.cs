@@ -88,9 +88,8 @@ public partial class FellowData
         {
             var skill = SkillDatabase.Instance.GetSkill(_persistedSkillIds[i]);
             if (skill == null) { lines.Add($"  스킬{i + 1}: ID '{_persistedSkillIds[i]}' 없음"); continue; }
-
-            string tag = (i == 0) ? "[활성]         " : "[비활성-테스트용]";
-            lines.Add($"{tag} 스킬{i + 1}: {skill.displayName}");
+            
+            lines.Add($"  스킬{i + 1}: {skill.displayName}");
             lines.Add($"   효과: {skill.effectType}  대상: {skill.targeting}  파워: {skill.power}");
             lines.Add($"   설명: {skill.description}");
         }

@@ -134,7 +134,7 @@ public class NodeSystem : MonoBehaviour
             if (nodeRows[r].rowParent == null) continue;
 
             // 부모 하위의 모든 Button 을 계층 순서대로 가져옴
-            Button[] childButtons = nodeRows[r].rowParent.GetComponentsInChildren<Button>();
+            Button[] childButtons = nodeRows[r].rowParent.GetComponentsInChildren<Button>(true);
             nodeRows[r].buttons.AddRange(childButtons);
 
             int row = r;

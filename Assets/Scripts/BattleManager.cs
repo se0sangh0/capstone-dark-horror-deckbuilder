@@ -151,6 +151,8 @@ public partial class BattleManager : Singleton<BattleManager>
     {
         // 전투 재진입 시 이전 전투의 BattleEnd 상태가 남지 않도록 페이즈를 리셋
         currentPhase = BattlePhase.DrawPhase;
+		foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
+    		PlayerRoleCost.Instance.SetAmount(role, 0);
 
         if (PartyManager.Instance == null)
         {
@@ -177,7 +179,7 @@ public partial class BattleManager : Singleton<BattleManager>
                 Debug.LogWarning($"[BattleManager] {fellow.name}: data(CompanionData) 가 null — 전투에서 제외됨.");
                 continue;
             }
-
+			
             // ── 상태 초기화 (HP·사망·스트레스·패닉) — 스킬은 유지 ──
             fellow.isDead          = false;
             fellow.currentStress   = 0;
@@ -199,7 +201,8 @@ public partial class BattleManager : Singleton<BattleManager>
             fellow.skillPowerMultiplier = UnityEngine.Mathf.Pow(1.5f, fellow.starLevel - 1);
 
             // HP 는 data.maxHp (이미 성급 배율 반영) 를 그대로 사용
-            fellow.CurrentHp = fellow.data.maxHp;
+			// 노드 변경시 에러가 남 사용금지
+            //fellow.CurrentHp = fellow.data.maxHp;
 
             // 스프라이트 로드
             if (!string.IsNullOrEmpty(fellow.data.spritePath) && fellow.fellowSprite == null)
