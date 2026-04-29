@@ -69,11 +69,31 @@ public class DefaultSetting : MonoBehaviour
     public float spacingX = 0.15f;
 
     // ----------------------------------------------------------
-    // Start — 씬 시작 시 카드 생성
+    // OnEnable — 화면이 다시 켜질 때마다 카드 오브젝트 재생성
     // ----------------------------------------------------------
-    void Start()
+    void OnEnable()
     {
+        if (BattleManager.Instance == null)
+        {
+            Debug.LogWarning("[DefaultSetting] BattleManager.Instance 가 없어 스폰을 건너뜁니다.");
+            return;
+        }
+
+        ClearSpawnedObjects();
         SpawnObject();
+    }
+
+    /// <summary>
+    /// 기존에 생성해둔 카드 오브젝트를 정리한다.
+    /// (전투 재진입 시 중복 생성 방지)
+    /// </summary>
+    void ClearSpawnedObjects()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i).gameObject;
+            Destroy(child);
+        }
     }
 
     // ----------------------------------------------------------
