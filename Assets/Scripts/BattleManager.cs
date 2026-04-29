@@ -149,6 +149,9 @@ public partial class BattleManager : Singleton<BattleManager>
     // ----------------------------------------------------------
     private void InitBattle()
     {
+        // 전투 재진입 시 이전 전투의 BattleEnd 상태가 남지 않도록 페이즈를 리셋
+        currentPhase = BattlePhase.DrawPhase;
+
         if (PartyManager.Instance == null)
         {
             Debug.LogError("[BattleManager] PartyManager 가 없습니다! 씬에 PartyManager 를 배치하세요.");

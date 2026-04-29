@@ -31,11 +31,6 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        if (bm.enemies != null && bm.enemies.Count > 0) {
-            Debug.Log("[EnemySpawner] BattleManager.enemies 가 이미 존재 — JSON 주입 생략.");
-            return;
-        }
-
         var spawned = new List<EnemyData>();
         if (enemyIds != null && enemyIds.Count > 0) {
             foreach (var id in enemyIds) {
@@ -48,7 +43,8 @@ public class EnemySpawner : MonoBehaviour
                 if (def != null) spawned.Add(EnemyDatabase.CreateRuntimeEnemy(def));
             }
         }
-        bm.enemies = spawned;       // BattleManager.Instance.enemies → bm.enemies
-        Debug.Log($"[EnemySpawner] JSON 적 {spawned.Count}마리 주입 완료.");
+        bm.enemies = spawned;
+        Debug.Log($"[EnemySpawner] JSON 적 {spawned.Count}마리 주입 완료 (기존 목록 덮어씀).");
     }
 }
+
