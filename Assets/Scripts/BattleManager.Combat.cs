@@ -71,7 +71,7 @@ public partial class BattleManager
     /// </summary>
     private IEnumerator ExecuteAction(bool isAllyTurn)
     {
-        if (isAllyTurn)
+    	if (isAllyTurn)
         {
             foreach (var ally in allies.Where(a => !a.isDead))
             {
@@ -84,7 +84,6 @@ public partial class BattleManager
                 }
 
                 StackType allyRole = ally.positionStack;
-                int roleStack      = PlayerRoleCost.Instance.GetAmount(allyRole);
                 var skills         = ally.GetSkills();
 
                 if (skills.Count == 0)
@@ -93,25 +92,43 @@ public partial class BattleManager
                     continue;
                 }
 
-                var skill          = skills[0];
-                int required       = skill.costAmount;
+                // 과호흡 페널티: 이번 턴 첫 스킬 시도에만 +1, 이후 해소
                 int panicCostBonus = ally.isOverBreathing ? 1 : 0;
                 if (ally.isOverBreathing) ally.isOverBreathing = false;
 
-                int effectiveCost = required + panicCostBonus;
+                // 이번 턴에 이 동료가 스킬을 하나라도 발동했는지 추적
+                bool usedAny = false;
 
-                if (roleStack >= effectiveCost)
+                // 보유 스킬을 순서대로 시도
+                foreach (var skill in skills)
                 {
-                    PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
-                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{effectiveCost}) 충족, 스킬 실행 (과호흡 보너스: {panicCostBonus})");
-                    UseSkill(ally, skill);
-                    yield return new WaitForSeconds(actionDelayTime);
+                    int roleStack     = PlayerRoleCost.Instance.GetAmount(allyRole);
+                    int required      = skill.costAmount;
+                    int effectiveCost = required + panicCostBonus;
+
+                    if (roleStack >= effectiveCost)
+                    {
+                        PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
+                        Debug.Log($"[아군 행동] {allyRole} {skill.displayName} — 스택({roleStack}/{effectiveCost}) 충족, 스킬 실행 (과호흡 보너스: {panicCostBonus})");
+                        UseSkill(ally, skill);
+                        usedAny = true;
+                        yield return new WaitForSeconds(actionDelayTime);
+                    }
+                    else
+                    {
+                        Debug.Log($"[아군 스킵-개별스킬] {allyRole} {skill.displayName} — 스택 부족 ({roleStack}/{effectiveCost})");
+                    }
+
+                    // 과호흡 페널티는 첫 시도에만 적용
+                    panicCostBonus = 0;
                 }
-                else
+
+                // 어떤 스킬도 발동 못 한 경우에만 미행동 보너스 +1 (기획 §109)
+                if (!usedAny)
                 {
                     _carryoverBonus.TryGetValue(allyRole, out int prev);
                     _carryoverBonus[allyRole] = prev + 1;
-                    Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({roleStack}/{effectiveCost}) → 다음 턴 이월 +1");
+                    Debug.Log($"[아군 미행동] {allyRole} — 모든 스킬 발동 불가 → 다음 턴 이월 +1");
                 }
             }
         }

@@ -104,17 +104,16 @@ public partial class BattleManager
         Debug.Log("--- [6] 결과 처리 ---");
         ProcessDeathAndStress();
 
-        // 스택 리셋: 이월 보너스만 다음 턴으로 넘기고 나머지는 0 으로 초기화
-        if (PlayerRoleCost.Instance != null)
-        {
-            foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
-            {
-                _carryoverBonus.TryGetValue(role, out int carryover);
-                PlayerRoleCost.Instance.SetAmount(role, carryover);
-            }
-            _carryoverBonus.Clear();
-            Debug.Log("[결과 처리] 스택 리셋 완료 (이월 보너스 반영)");
-        }
+        // 매 턴 끝: 잔여 스택은 유지, 이월 보너스(+1)만 더해줌
+		if (PlayerRoleCost.Instance != null)
+		{	
+    		foreach (var kv in _carryoverBonus)
+    		{
+        		PlayerRoleCost.Instance.Add(kv.Key, kv.Value);  // SET이 아니라 ADD
+    		}
+    		_carryoverBonus.Clear();
+    		Debug.Log("[결과 처리] 미행동 보너스 반영 (스택 누적 유지)");
+		}
 
         // 전투 종료 여부 판정
         if (CheckBattleEndCondition())
