@@ -9,11 +9,9 @@
 //   - 동료 사망/이탈 (RemoveFellow) — 스킬도 함께 초기화됨
 //   - 현재 살아있는 동료 목록 조회 (GetActiveFellows)
 //
-// [SO 에셋 사용 방법]
-//   Inspector 에서 _defaultFellowAssets 에 FellowData SO 에셋을
-//   (TestDealer1, TestTanker1, TestSupporter1 등) 연결하면
-//   런타임에 그 에셋이 그대로 파티 멤버로 사용됩니다.
-//   비어 있으면 기존처럼 런타임에 임시 인스턴스를 생성합니다.
+// [기본 파티 생성]
+//   InitDefaultParty() 가 Start() 에서 호출되어
+//   FellowDatabase 에서 랜덤으로 4명을 골라 파티를 구성합니다.
 //
 // [스킬 영속 구조]
 //   FellowData 인스턴스 자체를 파티 전체에서 공유합니다.
@@ -45,17 +43,6 @@ using UnityEngine;
 /// </summary>
 public class PartyManager : Singleton<PartyManager>
 {
-    //임시주석처리(삭제예정)
-    // ----------------------------------------------------------
-    // [SO 에셋 연결] — Inspector 에서 FellowData SO 에셋을 여기에 드래그
-    // ----------------------------------------------------------
-    //[Header("동료 SO 에셋 (Inspector 에서 드래그로 연결)")]
-    /*[Tooltip("기본 파티 FellowData SO 에셋 목록.\n"
-           + "비어 있으면 런타임에 임시 인스턴스를 생성합니다.\n"
-           + "예: TestDealer1, TestTanker1, TestSupporter1")]*/
-    //[SerializeField]
-    //private List<FellowData> _defaultFellowAssets = new();
-
     // ----------------------------------------------------------
     // [_activeFellows] — 현재 살아있는 동료 FellowData 목록
     // ----------------------------------------------------------
@@ -212,55 +199,8 @@ public class PartyManager : Singleton<PartyManager>
     private void InitDefaultParty()
     {
         if (_activeFellows.Count > 0) return;
-        //임시주석처리(삭제예정)
-        // ── SO 에셋이 있으면 우선 사용 ──────────────────────────
-        /*if (_defaultFellowAssets != null && _defaultFellowAssets.Count > 0)
-        {
-            bool dbReady = FellowDatabase.Instance != null;
 
-            foreach (var fellow in _defaultFellowAssets)
-            {
-                if (fellow == null) continue;
-
-                if (fellow.data == null)
-                {
-                    CompanionData c = null;
-
-                    if (dbReady)
-                    {
-                        string roleStr = fellow.positionStack.ToString();
-                        var def = FellowDatabase.Instance.GetRandomFellow(roleStr);
-                        if (def != null)
-                        {
-                            c = FellowDatabase.CreateCompanionData(def, RandomAffinity());
-                            Debug.Log($"[PartyManager] {fellow.name}: FellowDatabase 에서 CompanionData 생성 ({def.id})");
-                        }
-                    }
-
-                    if (c == null)
-                    {
-                        c               = ScriptableObject.CreateInstance<CompanionData>();
-                        c.id            = fellow.name;
-                        c.displayName   = fellow.name;
-                        c.role          = (CompanionRole)(int)fellow.positionStack;
-                        c.affinity      = RandomAffinity();
-                        c.maxHp         = 80;
-                        c.stressResist  = 0;
-                        c.recruitCost   = 30;
-                        c.requiredStack = 3;
-                    }
-
-                    fellow.data = c;
-                }
-
-                _activeFellows.Add(fellow);
-            }
-
-            Debug.Log($"[PartyManager] SO 에셋 파티 로드 완료: {_activeFellows.Count}명");
-            return;
-        }*/
-
-        // ── SO 에셋 없음: 랜덤 4명 생성 ─────────────────────────
+        // FellowDatabase 에서 랜덤 4명을 생성한다.
         GenerateRandomParty(4);
     }
 
@@ -282,19 +222,6 @@ public class PartyManager : Singleton<PartyManager>
             Shuffle(allDefs);
             
             int added = 0;
-            //임시주석처리(삭제예정)
-            /*for (int i = 0; i < allDefs.Count && added < count; i++)
-            {
-                var def    = allDefs[i];
-                var c      = FellowDatabase.CreateCompanionData(def, RandomAffinity());
-                //임시주석처리(삭제예정)
-                /*var fellow = ScriptableObject.CreateInstance<FellowData>();
-                fellow.data          = c;
-                fellow.positionStack = (StackType)(int)c.role;
-                _activeFellows.Add(fellow);*/
-                //FellowDatabase.CreateRuntimeFellow(def, RandomAffinity());
-                //added++;
-            //}
             for (int i = 0; i < allDefs.Count && added < count; i++)
             {
                 var def    = allDefs[i];
@@ -313,7 +240,6 @@ public class PartyManager : Singleton<PartyManager>
                 c.maxHp         = 80;
                 c.stressResist  = 0;
                 c.recruitCost   = 30;
-                c.requiredStack = 3;
 
                 var fellow = ScriptableObject.CreateInstance<FellowData>();
                 fellow.data          = c;
@@ -333,8 +259,7 @@ public class PartyManager : Singleton<PartyManager>
                 c.maxHp         = 80;
                 c.stressResist  = 0;
                 c.recruitCost   = 30;
-                c.requiredStack = 3;
-
+             
                 var fellow = ScriptableObject.CreateInstance<FellowData>();
                 fellow.data          = c;
                 fellow.positionStack = StackType.Dealer;
@@ -361,6 +286,42 @@ public class PartyManager : Singleton<PartyManager>
     {
         var values = new[] { CardAffinity.Gambler, CardAffinity.Safety, CardAffinity.Opportunist, CardAffinity.Optimist };
         return values[UnityEngine.Random.Range(0, values.Length)];
+    }
+
+    // ----------------------------------------------------------
+    // ✨ 다수파(과반수) 성향 계산
+    // ----------------------------------------------------------
+    /// <summary>
+    /// 살아있는 파티 동료들의 성향을 카운트하여 가장 많이 등장한 성향을 반환한다.
+    /// 게임 디자인 룰: "어떤 성향이 많냐에 따라 스택 카드의 범위가 결정된다."
+    ///
+    /// 동률 처리(현재 정책): 가장 먼저 발견된 성향을 반환한다.
+    ///   - Dictionary 순회 순서이므로 호출마다 결정적이지는 않지만,
+    ///     파티 구성이 바뀔 때까지는 결과가 안정적이다.
+    ///   - 동률 정책을 바꾸려면 OrderByDescending 뒤에 ThenBy 를 추가하면 된다.
+    ///
+    /// 살아있는 동료가 0명이거나 모두 None 성향이면 Optimist 로 폴백.
+    /// </summary>
+    public CardAffinity GetMajorityAffinity()
+    {
+        if (_activeFellows == null || _activeFellows.Count == 0)
+            return CardAffinity.Optimist;
+
+        var counts = new Dictionary<CardAffinity, int>();
+        foreach (var f in _activeFellows)
+        {
+            if (f == null || f.isDead || f.data == null) continue;
+            var aff = f.data.affinity;
+            if (aff == CardAffinity.None) continue;
+
+            counts.TryGetValue(aff, out int c);
+            counts[aff] = c + 1;
+        }
+
+        if (counts.Count == 0) return CardAffinity.Optimist;
+
+        // 가장 많이 등장한 성향 (동률이면 첫 발견)
+        return counts.OrderByDescending(kv => kv.Value).First().Key;
     }
 
     // ----------------------------------------------------------

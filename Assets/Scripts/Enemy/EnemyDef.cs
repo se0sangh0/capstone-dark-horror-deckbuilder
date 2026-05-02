@@ -9,7 +9,8 @@ public class EnemyDef
     public int    maxHp;
     public int    attackPower;
     public int    attackCost;
-    public string skillId;
+    public string skillId;     // (구) 단일 스킬 — 호환을 위해 보존, 신규 데이터는 skillIds 사용
+    public string[] skillIds;  // (신규) 다중 적 스킬 ID 배열 — enemy_skills.json 의 id 와 매칭
     public string spritePath;  // Resources 기준, 확장자 X
 }
 

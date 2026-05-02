@@ -84,7 +84,6 @@ public partial class BattleManager
                 }
 
                 StackType allyRole = ally.positionStack;
-                int roleStack      = PlayerRoleCost.Instance.GetAmount(allyRole);
                 var skills         = ally.GetSkills();
 
                 if (skills.Count == 0)
@@ -93,42 +92,63 @@ public partial class BattleManager
                     continue;
                 }
 
-                var skill          = skills[0];
-                int required       = skill.costAmount;
+                // 과호흡 페널티: 이번 턴 첫 스킬 시도에만 +1, 이후 해소
                 int panicCostBonus = ally.isOverBreathing ? 1 : 0;
                 if (ally.isOverBreathing) ally.isOverBreathing = false;
 
-                int effectiveCost = required + panicCostBonus;
+                // 이번 턴에 이 동료가 스킬을 하나라도 발동했는지 추적
+                bool usedAny = false;
 
-                if (roleStack >= effectiveCost)
+                // ── ✨ 스킬 선택 — 발동 가능한 것 중 코스트가 가장 높은 1개 ──
+                // 기획 §스택 소비 & 스킬 발동 규칙:
+                //   "보유 스킬 중 공용 스택으로 발동 가능한 것 중 가장 높은 스킬 코스트 우선"
+                // 또한 §MVP 고정 항목: "동료/적 모두 기본 턴당 1회 행동"
+                // → foreach 모든 스킬 시도 ❌ → 단일 best skill 만 발동 ✅
+                int currentStack = PlayerRoleCost.Instance.GetAmount(allyRole);
+
+                SkillData bestSkill = skills
+                    .Where(s => currentStack >= s.costAmount + panicCostBonus)
+                    .OrderByDescending(s => s.costAmount)
+                    .FirstOrDefault();
+
+                if (bestSkill != null)
                 {
+                    int effectiveCost = bestSkill.costAmount + panicCostBonus;
                     PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
-                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{effectiveCost}) 충족, 스킬 실행 (과호흡 보너스: {panicCostBonus})");
-                    UseSkill(ally, skill);
+                    Debug.Log($"[아군 행동] {allyRole} {bestSkill.displayName} — 스택({currentStack}/{effectiveCost}) 충족, 최고 코스트 우선 선택 (과호흡 보너스: {panicCostBonus})");
+                    UseSkill(ally, bestSkill);
+                    usedAny = true;
                     yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
                 {
+                    // 발동 가능한 스킬이 하나도 없으면 어떤 스킬이 왜 막혔는지 로그
+                    foreach (var s in skills)
+                        Debug.Log($"[아군 스킵-개별스킬] {allyRole} {s.displayName} — 스택 부족 ({currentStack}/{s.costAmount + panicCostBonus})");
+                }
+
+                // 어떤 스킬도 발동 못 한 경우에만 미행동 보너스 +1 (기획)
+                if (!usedAny)
+                {
                     _carryoverBonus.TryGetValue(allyRole, out int prev);
                     _carryoverBonus[allyRole] = prev + 1;
-                    Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({roleStack}/{effectiveCost}) → 다음 턴 이월 +1");
+                    Debug.Log($"[아군 미행동] {allyRole} — 모든 스킬 발동 불가 → 다음 턴 이월 +1");
                 }
             }
         }
         else
         {
-            // 살아있는 적 순서대로 아군[0] 공격
+            // ── 적 턴: 살아있는 적 순서대로 가중치 랜덤 스킬 발동 ──
+            // 실제 행동 로직은 BattleManager.EnemyAction.cs (partial) 의 ExecuteEnemyTurn 으로 분리됨.
+            // 여기서는 흐름만 제어하고 스킬 선택/타겟팅/데미지는 그쪽에서 처리.
             var liveEnemies = enemies.Where(e => !e.isDead).ToList();
             Debug.Log($"[적 행동] 살아있는 적 수: {liveEnemies.Count}");
 
             foreach (var enemy in liveEnemies)
             {
-                var targets = allies.Where(a => !a.isDead).ToList();
-                if (targets.Count == 0) break;
+                if (allies.All(a => a.isDead)) break;
 
-                var target = targets[0];
-                ApplyDamageToAlly(target, enemy.attackPower);
-                Debug.Log($"[적 행동] {enemy.displayName} → {target.positionStack} 에게 {enemy.attackPower} 데미지");
+                ExecuteEnemyTurn(enemy);
                 yield return new WaitForSeconds(actionDelayTime);
             }
         }
@@ -316,6 +336,7 @@ public partial class BattleManager
         Debug.Log($"┌─────────────────────────────────────────");
         Debug.Log($"│ [스킬 사용] {userName} ({user.starLevel}★)  →  {skill.displayName}");
         Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}  (배율: ×{user.skillPowerMultiplier:F2})");
+        Debug.Log($"│  코스트: {skill.costAmount} ({skill.costType})  |  사용 스택값: {skill.costAmount}");
         Debug.Log($"│  설명: {skill.description}");
         if (skill.statusEffect != "None")
             Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");

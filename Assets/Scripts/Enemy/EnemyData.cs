@@ -28,7 +28,8 @@ public partial class EnemyData : ScriptableObject
     public int       attackCost  = 1;
 
     [Header("스킬")]
-    public string skillId;
+    public string skillId;              // (구) 단일 스킬 — 호환 유지용
+    public string[] skillIds;           // (신규) 다중 적 스킬 ID — BattleManager.EnemyAction 가 가중치 랜덤 선택
 
     [Header("시각")]
     public Sprite portrait;

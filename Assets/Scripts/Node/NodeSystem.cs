@@ -62,6 +62,11 @@ public class NodeSystem : MonoBehaviour
     /// <summary>현재 진행 중인 층 인덱스</summary>
     private int currentRowIndex = 0;
 
+    // ── 외부 노출 (EnemySpawner 의 층 기반 tier 결정용) ──
+    // 정적 참조: 씬에 NodeSystem 이 1개만 존재한다는 가정을 따른다.
+    public static NodeSystem Current { get; private set; }
+    public int CurrentFloor => currentRowIndex;
+
     // ----------------------------------------------------------
     // [선 렌더링 — 현재 주석 처리됨 (추후 활성화)]
     // ----------------------------------------------------------
@@ -109,8 +114,17 @@ public class NodeSystem : MonoBehaviour
     // ----------------------------------------------------------
     void Awake()
     {
+        // 정적 참조 등록 (EnemySpawner 가 NodeSystem.Current.CurrentFloor 로 조회)
+        Current = this;
+
         // 모든 층의 버튼을 자동 등록하고 클릭 이벤트 연결
         SetupNodeData();
+    }
+
+    void OnDestroy()
+    {
+        // 씬 전환 시 정적 참조 누적 방지
+        if (Current == this) Current = null;
     }
 
     void Start()
@@ -133,8 +147,8 @@ public class NodeSystem : MonoBehaviour
         {
             if (nodeRows[r].rowParent == null) continue;
 
-            // 부모 하위의 모든 Button 을 계층 순서대로 가져옴
-            Button[] childButtons = nodeRows[r].rowParent.GetComponentsInChildren<Button>();
+            // 부모 하위의 모든 Button 을 계층 순서대로 가져옴 (true: 비활성 버튼도 포함)
+            Button[] childButtons = nodeRows[r].rowParent.GetComponentsInChildren<Button>(true);
             nodeRows[r].buttons.AddRange(childButtons);
 
             int row = r;

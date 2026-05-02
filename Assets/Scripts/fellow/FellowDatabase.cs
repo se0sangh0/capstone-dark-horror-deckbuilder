@@ -146,7 +146,6 @@ public class FellowDatabase : Singleton<FellowDatabase>
         c.affinity      = affinity;
         c.stressResist  = def.stressResist;
         c.recruitCost   = def.recruitCost;
-        c.requiredStack = 3;
         c.skillIds      = def.skillIds ?? new string[0];
         c.starLevel     = def.starLevel > 0 ? def.starLevel : 1;
 
@@ -220,6 +219,8 @@ public class FellowDatabase : Singleton<FellowDatabase>
     //모집 / 시작 파티 둘다 여기 부름
     public static FellowData CreateRuntimeFellow(FellowDef def, CardAffinity affinity)
     {
+        // 성향은 호출자가 결정한다 (PartyManager.RandomAffinity 또는 모집 UI 입력).
+        // 직업과 무관한 랜덤 성향이 게임 디자인이므로 JSON 에서 읽지 않는다.
         var c = CreateCompanionData(def, affinity);
         var fellow = ScriptableObject.CreateInstance<FellowData>();
         fellow.data = c;

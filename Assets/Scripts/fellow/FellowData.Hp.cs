@@ -50,7 +50,10 @@ public partial class FellowData
     {
         HpSlider = slider;
         int maxHp = data != null ? data.maxHp : 100;
-        _currentHp = maxHp;
+
+        // ⚠️ 매 전투마다 SpawnCard → InitHp 호출되므로 무조건 maxHp 로 채우면 HP 가 회복돼버림.
+        // _currentHp 가 미초기화(0 이하) 인 경우에만 풀로 시작, 이미 값이 있으면 유지.
+        if (_currentHp <= 0) _currentHp = maxHp;
 
         if (HpSlider != null)
         {

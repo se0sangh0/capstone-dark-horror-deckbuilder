@@ -104,16 +104,16 @@ public partial class BattleManager
         Debug.Log("--- [6] 결과 처리 ---");
         ProcessDeathAndStress();
 
-        // 스택 리셋: 이월 보너스만 다음 턴으로 넘기고 나머지는 0 으로 초기화
+        // 매 턴 끝: 잔여 스택은 유지, 이월 보너스(+1)만 더해줌
+        // ⚠️ SET 이 아니라 ADD — SET 으로 덮으면 미행동 보너스가 잔여 스택을 날려버림
         if (PlayerRoleCost.Instance != null)
         {
-            foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
+            foreach (var kv in _carryoverBonus)
             {
-                _carryoverBonus.TryGetValue(role, out int carryover);
-                PlayerRoleCost.Instance.SetAmount(role, carryover);
+                PlayerRoleCost.Instance.Add(kv.Key, kv.Value);  // SET이 아니라 ADD
             }
             _carryoverBonus.Clear();
-            Debug.Log("[결과 처리] 스택 리셋 완료 (이월 보너스 반영)");
+            Debug.Log("[결과 처리] 미행동 보너스 반영 (스택 누적 유지)");
         }
 
         // 전투 종료 여부 판정
@@ -145,7 +145,7 @@ public partial class BattleManager
         if (allEnemiesDead)
         {
             Debug.Log("[BattleManager] 전투 승리!");
-            // TODO: 승리 처리 로직 (보상, 다음 씬 이동 등)
+            GrantBattleReward();   // ✨ 승리 보상 지급
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
             DisplayChange.Instance.ToggleDisplay();
         }
@@ -156,6 +156,48 @@ public partial class BattleManager
             PartyManager.Instance?.ResetGame();
             SceneManager.LoadScene(gameOverSceneName);
         }
-        
+
+    }
+
+    // ============================================================
+    // ✨ 전투 승리 보상 지급
+    // ============================================================
+    //
+    // [기획 상태]
+    //   기획서(README §전투 결과 / 02_MVP_노드_설계 §전투)에는 "보상 처리" 컨셉만 있고
+    //   구체 수치는 미정. 아래는 MVP 임시값 — 추후 밸런스 단계에서 조정.
+    //
+    // [임시 보상표 — 층별 차등]
+    //   1~2층 (일반 전투)        → 영혼석 +20
+    //   3층  (엘리트 전투)       → 영혼석 +50
+    //   4층  (휴식급 전투)       → 영혼석 +20
+    //   5층 이상 (보스 전투)     → 영혼석 +100, 마나스톤 +10
+    //
+    // [수치 변경 시]
+    //   이 메서드의 if 분기만 조정하면 됨. 다른 코드 영향 없음.
+    // ============================================================
+    private void GrantBattleReward()
+    {
+        int floor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
+
+        int soulReward = 20;   // 기본 보상 (일반 전투)
+        int manaReward = 0;
+
+        if (floor >= 5)        // 보스
+        {
+            soulReward = 100;
+            manaReward = 10;
+        }
+        else if (floor == 3)   // 엘리트 (약탈자 3마리)
+        {
+            soulReward = 50;
+        }
+
+        if (SoulstoneManager.Instance != null && soulReward > 0)
+            SoulstoneManager.Instance.Add(soulReward);
+        if (ManastoneManager.Instance != null && manaReward > 0)
+            ManastoneManager.Instance.Add(manaReward);
+
+        Debug.Log($"[BattleManager] 보상 지급 (층 {floor}): 영혼석+{soulReward}{(manaReward > 0 ? $", 마나스톤+{manaReward}" : "")}");
     }
 }

@@ -80,9 +80,6 @@ public class CompanionData : ScriptableObject
     [Tooltip("최대 HP")]
     public int maxHp = 30;
 
-    [Tooltip("행동에 필요한 최소 스택 (이 수치 이상이면 행동 가능)")]
-    public int requiredStack = 3;
-
     [Tooltip("스트레스 저항값. 피격 시 스트레스 증가량에서 차감됩니다.")]
     public int stressResist = 0;
 
@@ -141,7 +138,4 @@ public class CompanionData : ScriptableObject
 
     /// <summary>성향별 UI 색상. 동료 슬롯 테두리 색상에 적용.</summary>
     public UnityEngine.Color AffinityColor => AffinityHelper.GetColor(affinity);
-
-    /// <summary>현재 스택이 행동 가능 스택 이상인지 확인한다.</summary>
-    public bool CanAct(int currentStack) => currentStack >= requiredStack;
 }

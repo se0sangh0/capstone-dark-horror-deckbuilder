@@ -69,11 +69,28 @@ public class DefaultSetting : MonoBehaviour
     public float spacingX = 0.15f;
 
     // ----------------------------------------------------------
-    // Start — 씬 시작 시 카드 생성
+    // OnEnable — 활성화될 때마다 카드 생성 (씬 재진입 / DisplayChanger 재활성화 대응)
     // ----------------------------------------------------------
-    void Start()
+    // (옛 Start() → OnEnable() 변경: 1차 전투 종료 후 2차 전투 진입 시 카드 재생성 보장)
+    void OnEnable()
     {
+        // 재진입 시 이전 카드가 자식으로 남아있을 수 있으므로 정리 후 재생성
+        ClearSpawnedObjects();
         SpawnCard();
+    }
+
+    /// <summary>
+    /// 이전에 생성된 자식 카드 오브젝트를 모두 제거한다.
+    /// (OnEnable 재호출 시 중복 생성을 막기 위해 사용)
+    /// </summary>
+    void ClearSpawnedObjects()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i);
+            if (Application.isPlaying) Destroy(child.gameObject);
+            else                       DestroyImmediate(child.gameObject);
+        }
     }
 
     // ----------------------------------------------------------

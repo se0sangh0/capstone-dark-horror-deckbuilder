@@ -54,6 +54,8 @@ public class FellowDef
 
     public string[] skillIds;
     public string spritePath;
+    // 참고: 성향(Affinity) 은 직업과 무관하게 모집 시 RandomAffinity() 로 부여된다.
+    //       (PartyManager.cs 참조) 따라서 JSON 에는 성향 필드를 두지 않는다.
 }
 
 [System.Serializable]
