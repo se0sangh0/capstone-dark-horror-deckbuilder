@@ -75,7 +75,8 @@ public class DefaultSetting : MonoBehaviour
     {
         if (BattleManager.Instance == null)
         {
-            Debug.LogWarning("[DefaultSetting] BattleManager.Instance 가 없어 스폰을 건너뜁니다.");
+            // 로그 주석 처리 (사용자 요청)
+            // Debug.LogWarning("[DefaultSetting] BattleManager.Instance 가 없어 스폰을 건너뜁니다.");
             return;
         }
 
@@ -146,7 +147,8 @@ public class DefaultSetting : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
+                    // 로그 주석 처리 (사용자 요청)
+                    // Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
                 }
             }
             // ── 적군 HP 슬라이더 연결 ────────────────────────────
@@ -162,11 +164,13 @@ public class DefaultSetting : MonoBehaviour
                     enemies[i].InitHp(slider);
                     slider.maxValue = enemies[i].maxHp;
                     slider.value    = enemies[i].CurrentHp;
-                    Debug.Log($"[DefaultSetting] {newObj.name} hp 동기화");
+                    // 로그 주석 처리 (사용자 요청)
+                    // Debug.Log($"[DefaultSetting] {newObj.name} hp 동기화");
                 }
                 else
                 {
-                    Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
+                    // 로그 주석 처리 (사용자 요청)
+                    // Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
                 }
             }
         }
@@ -187,7 +191,8 @@ public class DefaultSetting : MonoBehaviour
             if (index < allies.Count && allies[index] != null && allies[index].fellowSprite != null)
             {
                 renderer.material.mainTexture = allies[index].fellowSprite.texture;
-                Debug.Log($"[DefaultSetting] 아군 이미지 적용 성공: {objName}");
+                // 로그 주석 처리 (사용자 요청)
+                // Debug.Log($"[DefaultSetting] 아군 이미지 적용 성공: {objName}");
             }
         }
         else if (factionType == FactionType.Enemy)

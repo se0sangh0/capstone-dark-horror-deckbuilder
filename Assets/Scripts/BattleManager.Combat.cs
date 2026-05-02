@@ -99,28 +99,32 @@ public partial class BattleManager
                 // 이번 턴에 이 동료가 스킬을 하나라도 발동했는지 추적
                 bool usedAny = false;
 
-                // 보유 스킬을 순서대로 시도
-                foreach (var skill in skills)
+                // ── ✨ 스킬 선택 — 발동 가능한 것 중 코스트가 가장 높은 1개 ──
+                // 기획 §스택 소비 & 스킬 발동 규칙: "보유 스킬 중 공용 스택으로 발동 가능한 것 중 가장 높은 스킬 코스트 우선"
+                // 또한 §MVP 고정: "동료/적 모두 기본 턴당 1회 행동"
+                // → foreach 모든 스킬 시도 ❌ → 단일 best skill 만 발동 ✅
+                int currentStack = PlayerRoleCost.Instance.GetAmount(allyRole);
+
+                SkillData bestSkill = skills
+                    .Where(s => currentStack >= s.costAmount + panicCostBonus)
+                    .OrderByDescending(s => s.costAmount)
+                    .FirstOrDefault();
+
+                if (bestSkill != null)
                 {
-                    int roleStack     = PlayerRoleCost.Instance.GetAmount(allyRole);
-                    int required      = skill.costAmount;
-                    int effectiveCost = required + panicCostBonus;
-
-                    if (roleStack >= effectiveCost)
-                    {
-                        PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
-                        Debug.Log($"[아군 행동] {allyRole} {skill.displayName} — 스택({roleStack}/{effectiveCost}) 충족, 스킬 실행 (과호흡 보너스: {panicCostBonus})");
-                        UseSkill(ally, skill);
-                        usedAny = true;
-                        yield return new WaitForSeconds(actionDelayTime);
-                    }
-                    else
-                    {
-                        Debug.Log($"[아군 스킵-개별스킬] {allyRole} {skill.displayName} — 스택 부족 ({roleStack}/{effectiveCost})");
-                    }
-
-                    // 과호흡 페널티는 첫 시도에만 적용
-                    panicCostBonus = 0;
+                    int effectiveCost = bestSkill.costAmount + panicCostBonus;
+                    PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
+                    string allyName = ally.data != null ? ally.data.displayName : allyRole.ToString();
+                    int afterStack  = currentStack - effectiveCost;
+                    Debug.Log($"[아군 행동] {allyName} ({allyRole}) → {bestSkill.displayName}  (스택 {effectiveCost} 사용 / {currentStack}→{afterStack}{(panicCostBonus > 0 ? $", 과호흡 +{panicCostBonus}" : "")})");
+                    UseSkill(ally, bestSkill);
+                    usedAny = true;
+                    yield return new WaitForSeconds(actionDelayTime);
+                }
+                else
+                {
+                    foreach (var s in skills)
+                        Debug.Log($"[아군 스킵-개별스킬] {allyRole} {s.displayName} — 스택 부족 ({currentStack}/{s.costAmount + panicCostBonus})");
                 }
 
                 // 어떤 스킬도 발동 못 한 경우에만 미행동 보너스 +1 (기획 §109)
@@ -164,6 +168,8 @@ public partial class BattleManager
     private void ApplyDamageToAlly(FellowData target, int damage)
     {
         int remaining = damage;
+        // 동료 표시명 — data.displayName 우선, 없으면 역할명
+        string targetName = target.data != null ? target.data.displayName : target.positionStack.ToString();
 
         // ── 실드 흡수 ────────────────────────────────────────────
         if (target.shield > 0)
@@ -172,21 +178,23 @@ public partial class BattleManager
             target.shield -= absorbed;
             remaining     -= absorbed;
             target.OnShieldChanged?.Invoke();
-            Debug.Log($"[실드] {target.positionStack} — {absorbed} 흡수 (남은 실드: {target.shield})");
+            Debug.Log($"  └ [실드 흡수] {targetName} — {absorbed} 흡수 (남은 실드: {target.shield})");
         }
 
         // ── HP 감소 ──────────────────────────────────────────────
         if (remaining > 0)
         {
+            int beforeHp = target.CurrentHp;
+            int maxHp    = target.data != null ? target.data.maxHp : 100;
             target.CurrentHp = Mathf.Max(0, target.CurrentHp - remaining);
             UpdateAllyHpUI(target);
-            Debug.Log($"[HP 변화] {target.positionStack} HP: {target.CurrentHp}");
+            Debug.Log($"  └ [데미지] {targetName} ({target.positionStack}) ← {remaining} 데미지  (HP: {beforeHp} → {target.CurrentHp}/{maxHp})");
         }
 
         // ── 스트레스 증가 (기획서 §스트레스: damage×0.25 - stressResist, 최소 0) ──
         int stressGain = Mathf.Max(0, Mathf.RoundToInt(damage * 0.25f) - target.stressResist);
         target.currentStress = Mathf.Min(100, target.currentStress + stressGain);
-        Debug.Log($"[스트레스] {target.positionStack} +{stressGain} → 현재: {target.currentStress}");
+        Debug.Log($"  └ [스트레스] {targetName} +{stressGain} → {target.currentStress}");
 
         TriggerPanicIfNeeded(target);
     }
@@ -333,6 +341,7 @@ public partial class BattleManager
         Debug.Log($"┌─────────────────────────────────────────");
         Debug.Log($"│ [스킬 사용] {userName} ({user.starLevel}★)  →  {skill.displayName}");
         Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}  (배율: ×{user.skillPowerMultiplier:F2})");
+        Debug.Log($"│  사용 스택값: {skill.costAmount} ({skill.costType})");
         Debug.Log($"│  설명: {skill.description}");
         if (skill.statusEffect != "None")
             Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");
@@ -359,14 +368,16 @@ public partial class BattleManager
         {
             case "SingleEnemy":
                 var target = liveEnemies[Random.Range(0, liveEnemies.Count)];
+                int beforeHp = target.CurrentHp;
                 target.CurrentHp -= skill.power;
-                Debug.Log($"[ApplySkillDamage] {target.name} → {skill.power} 데미지 (남은 HP: {target.CurrentHp})");
+                Debug.Log($"  └ [데미지] {target.displayName} ← {skill.power} 데미지  (HP: {beforeHp} → {target.CurrentHp}/{target.maxHp})");
                 break;
             case "AllEnemies":
                 foreach (var e in liveEnemies)
                 {
+                    int beforeE = e.CurrentHp;
                     e.CurrentHp -= skill.power;
-                    Debug.Log($"[ApplySkillDamage] {e.name} → {skill.power} 데미지 (남은 HP: {e.CurrentHp})");
+                    Debug.Log($"  └ [데미지] {e.displayName} ← {skill.power} 데미지  (HP: {beforeE} → {e.CurrentHp}/{e.maxHp})");
                 }
                 break;
             default:

@@ -291,6 +291,32 @@ public class PartyManager : Singleton<PartyManager>
     }
 
     // ----------------------------------------------------------
+    // ✨ 다수파(과반수) 성향 계산
+    // ----------------------------------------------------------
+    /// <summary>
+    /// 살아있는 파티 동료들의 성향을 카운트하여 가장 많이 등장한 성향을 반환.
+    /// 게임 디자인 룰: "어떤 성향이 많냐에 따라 스택 카드의 범위가 결정된다."
+    /// 동률 시 첫 발견 / 살아있는 동료 0명이면 Optimist 폴백.
+    /// </summary>
+    public CardAffinity GetMajorityAffinity()
+    {
+        if (_activeFellows == null || _activeFellows.Count == 0)
+            return CardAffinity.Optimist;
+
+        var counts = new Dictionary<CardAffinity, int>();
+        foreach (var f in _activeFellows)
+        {
+            if (f == null || f.isDead || f.data == null) continue;
+            var aff = f.data.affinity;
+            if (aff == CardAffinity.None) continue;
+            counts.TryGetValue(aff, out int c);
+            counts[aff] = c + 1;
+        }
+        if (counts.Count == 0) return CardAffinity.Optimist;
+        return counts.OrderByDescending(kv => kv.Value).First().Key;
+    }
+
+    // ----------------------------------------------------------
     // [ContextMenu] 무결성 테스트
     // ----------------------------------------------------------
 

@@ -144,7 +144,7 @@ public partial class BattleManager
         if (allEnemiesDead)
         {
             Debug.Log("[BattleManager] 전투 승리!");
-            // TODO: 승리 처리 로직 (보상, 다음 씬 이동 등)
+            GrantBattleReward();   // ✨ 승리 보상 지급
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
             DisplayChange.Instance.ToggleDisplay();
         }
@@ -155,6 +155,32 @@ public partial class BattleManager
             PartyManager.Instance?.ResetGame();
             SceneManager.LoadScene(gameOverSceneName);
         }
-        
+
+    }
+
+    // ============================================================
+    // ✨ 전투 승리 보상 지급 (기획 README §전투 결과 — 수치 미정, MVP 임시값)
+    // ============================================================
+    //   1~2층 (일반 전투)        → 영혼석 +20
+    //   3층  (엘리트 전투)       → 영혼석 +50
+    //   4층  (휴식급 전투)       → 영혼석 +20
+    //   5층 이상 (보스 전투)     → 영혼석 +100, 마나스톤 +10
+    // ============================================================
+    private void GrantBattleReward()
+    {
+        int floor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
+
+        int soulReward = 20;
+        int manaReward = 0;
+
+        if (floor >= 5)        { soulReward = 100; manaReward = 10; }   // 보스
+        else if (floor == 3)   { soulReward = 50; }                      // 엘리트
+
+        if (SoulstoneManager.Instance != null && soulReward > 0)
+            SoulstoneManager.Instance.Add(soulReward);
+        if (ManastoneManager.Instance != null && manaReward > 0)
+            ManastoneManager.Instance.Add(manaReward);
+
+        Debug.Log($"[BattleManager] 보상 지급 (층 {floor}): 영혼석+{soulReward}{(manaReward > 0 ? $", 마나스톤+{manaReward}" : "")}");
     }
 }

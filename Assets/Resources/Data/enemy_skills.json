@@ -1,0 +1,74 @@
+{
+  "enemySkills": [
+    {
+      "id": "enemy_skill_goblin_dagger",
+      "displayName": "단검 휘두르기",
+      "skillGroup": "단일",
+      "targeting": "FrontFirst",
+      "effectType": "Damage",
+      "power": 15,
+      "weight": 70,
+      "description": "전열 1번 아군에게 15 데미지. (기획 §10_적_스킬_시트 1번 — 70%)"
+    },
+    {
+      "id": "enemy_skill_goblin_poison",
+      "displayName": "독침 쏘기",
+      "skillGroup": "단일",
+      "targeting": "BackLast",
+      "effectType": "Damage",
+      "power": 30,
+      "weight": 30,
+      "description": "후열 마지막 아군에게 30 데미지. 도트 효과는 백로그. (기획 §10 1번 — 30%)"
+    },
+    {
+      "id": "enemy_skill_raider_swing",
+      "displayName": "도끼 휘두르기",
+      "skillGroup": "단일",
+      "targeting": "FrontFirst",
+      "effectType": "Damage",
+      "power": 20,
+      "weight": 50,
+      "description": "전열 1번에게 20 데미지. (기획 §10_적_스킬_시트 2번 — 50%)"
+    },
+    {
+      "id": "enemy_skill_raider_smash",
+      "displayName": "도끼 내려찍기",
+      "skillGroup": "단일",
+      "targeting": "FrontFirst",
+      "effectType": "Damage",
+      "power": 40,
+      "weight": 50,
+      "description": "전열 1번에게 40 강화 데미지. (기획 §10 2번 — 50%)"
+    },
+    {
+      "id": "enemy_skill_raider_throw",
+      "displayName": "도끼 던지기",
+      "skillGroup": "단일",
+      "targeting": "FrontFirst",
+      "effectType": "Damage",
+      "power": 60,
+      "weight": 1,
+      "description": "전열 1번에게 60 데미지. 본래 HP30%이하 강제 발동/1회 한정 — MVP 백로그, 일단 저가중치로 가끔 발동."
+    },
+    {
+      "id": "enemy_skill_reaper_swing",
+      "displayName": "휘두르기",
+      "skillGroup": "광역",
+      "targeting": "FrontTwo",
+      "effectType": "Damage",
+      "power": 30,
+      "weight": 60,
+      "description": "전열 1·2번 동시에 각 30 데미지. (기획 §10_적_스킬_시트 3번 — 60%)"
+    },
+    {
+      "id": "enemy_skill_reaper_summon",
+      "displayName": "까마귀 부름",
+      "skillGroup": "광역",
+      "targeting": "AllAllies",
+      "effectType": "Damage",
+      "power": 20,
+      "weight": 40,
+      "description": "파티 전체에 20 분산 데미지로 단순화. 본래 까마귀 소환체 메커니즘은 백로그. (기획 §10 3번 — 40%)"
+    }
+  ]
+}

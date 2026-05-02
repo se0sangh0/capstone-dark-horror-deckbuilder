@@ -99,14 +99,16 @@ public class GameManager : Singleton<GameManager>
     /// </summary>
     public void StartMyTurn()
     {
-        Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
+        // 매 턴 반복되어 주석 처리
+        // Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
 
         for (int i = 0; i < myCards.Length; i++)
         {
             // 이미 카드가 세팅되어 있고 아직 사용하지 않은 슬롯 → 그대로 유지
             if (myCards[i].owner != null && !myCards[i].isUsed)
             {
-                Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
+                // 매 턴 반복되어 주석 처리
+                // Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
                 continue;
             }
 
@@ -120,10 +122,19 @@ public class GameManager : Singleton<GameManager>
             var (cardData, owner) = drawDeck[currentDrawIndex];
             currentDrawIndex++;
 
-            int stackValue = GenerateStackValue(owner.affinity);
+            // ── ✨ 카드 스택 범위는 "파티의 다수파 성향" 으로 통일 결정 ──
+            // 게임 디자인 룰: 어떤 성향이 많냐에 따라 모든 카드의 스택 범위가 정해진다.
+            // PartyManager 가 없으면 카드 소유자 affinity 로 폴백.
+            CardAffinity affinityForStack =
+                PartyManager.Instance != null
+                    ? PartyManager.Instance.GetMajorityAffinity()
+                    : owner.affinity;
+
+            int stackValue = GenerateStackValue(affinityForStack);
             myCards[i].SetupCard(stackValue, owner);
             myCards[i].gameObject.SetActive(true);
-            Debug.Log($"[GameManager] myCards[{i}] 새 카드 드로우 → {stackValue:+#;-#;0} ({owner.displayName})");
+            // 매 턴 반복되어 주석 처리
+            // Debug.Log($"[GameManager] myCards[{i}] 새 카드 드로우 → {stackValue:+#;-#;0} ({owner.displayName}, 다수파 성향: {AffinityHelper.GetLabel(affinityForStack)})");
         }
     }
 
@@ -172,6 +183,38 @@ public class GameManager : Singleton<GameManager>
         // 스택 관리 권한: PlayerRoleCost
         if (PlayerRoleCost.Instance != null)
             PlayerRoleCost.Instance.Add(usedCard.stackType, usedCard.stackDelta);
+
+        // ── ✨ 자동 턴 종료 — "덱 고갈 + 손패 모두 사용" 조건일 때만 ──
+        // 평소엔 사용자가 직접 [턴 종료] 를 눌러야 함. 덱이 모두 소진된 상태에서
+        // 손패까지 다 사용했다면 누를 카드가 없으므로 자동 진행.
+        // (기획 §전투_시스템_명세 / 덱 고갈 & Hand Empty 항목 반영)
+        if (IsDeckExhausted() && AreAllActiveCardsUsed())
+        {
+            Debug.Log("[GameManager] 덱 고갈 + 손패 전부 사용됨 → 자동 턴 종료");
+            EndMyTurn();
+        }
+    }
+
+    /// <summary>드로우 덱이 끝까지 소진되었는지 여부.</summary>
+    private bool IsDeckExhausted()
+    {
+        return currentDrawIndex >= drawDeck.Count;
+    }
+
+    /// <summary>
+    /// 화면에 활성화된 카드 슬롯 중 아직 사용 안 한 게 있는지 확인.
+    /// 빈 슬롯(SetActive(false))은 무시.
+    /// </summary>
+    private bool AreAllActiveCardsUsed()
+    {
+        if (myCards == null || myCards.Length == 0) return false;
+        foreach (var card in myCards)
+        {
+            if (card == null) continue;
+            if (!card.gameObject.activeSelf) continue;
+            if (!card.isUsed) return false;
+        }
+        return true;
     }
 
     /// <summary>

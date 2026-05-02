@@ -51,6 +51,7 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.attackPower = def.attackPower;
         e.attackCost  = def.attackCost;
         e.skillId     = def.skillId;
+        e.skillIds    = def.skillIds;     // 신규: JSON 의 다중 스킬 ID 배열 복사
         e.spritePath  = def.spritePath;
         e.isDead      = false;
 

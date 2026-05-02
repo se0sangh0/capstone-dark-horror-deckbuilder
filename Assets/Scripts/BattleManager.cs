@@ -126,6 +126,9 @@ public partial class BattleManager : Singleton<BattleManager>
     /// <summary>스택 부족으로 스킵한 역할의 이월 보너스 (턴 종료 시 다음 턴으로 전달)</summary>
     private readonly Dictionary<StackType, int> _carryoverBonus = new();
 
+    /// <summary>InitBattle 정보 로그를 첫 전투에서만 출력하기 위한 플래그</summary>
+    private static bool _firstInitLogged = false;
+
 
     // ----------------------------------------------------------
     // Start — 전투 초기화 및 메인 루프 시작
@@ -163,7 +166,7 @@ public partial class BattleManager : Singleton<BattleManager>
         // FellowData 인스턴스를 새로 만들지 않고 PartyManager 의 것을 재사용한다.
         // → 스킬이 이미 배정된 동료는 기존 스킬을 유지한다.
         var fellows = PartyManager.Instance.GetActiveFellows();
-        Debug.Log($"[BattleManager] 전투 시작 — 동료 {fellows.Count}명");
+        if (!_firstInitLogged) Debug.Log($"[BattleManager] 전투 시작 — 동료 {fellows.Count}명");
 
         _initiativeDecided = false;
         _carryoverBonus.Clear();
@@ -180,9 +183,10 @@ public partial class BattleManager : Singleton<BattleManager>
                 continue;
             }
 			
-            // ── 상태 초기화 (HP·사망·스트레스·패닉) — 스킬은 유지 ──
+            // ── 상태 초기화 — 스킬·HP·스트레스는 유지, 일시 상태(실드/패닉)만 리셋 ──
+            // (HP/스트레스는 기획상 화톳불 노드에서만 회복되므로 전투 진입 때 리셋 안 함)
             fellow.isDead          = false;
-            fellow.currentStress   = 0;
+            // fellow.currentStress = 0;   ← 매 전투 리셋 안 함 (스트레스 유지)
             fellow.shield          = 0;
             fellow.isFrozen        = false;
             fellow.isOverBreathing = false;
@@ -200,9 +204,10 @@ public partial class BattleManager : Singleton<BattleManager>
             fellow.starLevel            = fellow.data.starLevel;
             fellow.skillPowerMultiplier = UnityEngine.Mathf.Pow(1.5f, fellow.starLevel - 1);
 
-            // HP 는 data.maxHp (이미 성급 배율 반영) 를 그대로 사용
-			// 노드 변경시 에러가 남 사용금지
-            //fellow.CurrentHp = fellow.data.maxHp;
+            // HP 유지 — 매 전투마다 풀 회복하면 안 됨 (이전 전투 HP 유지가 정상)
+            // CurrentHp 가 0(미초기화) 일 때만 maxHp 로 시작, 이미 값 있으면 그대로
+            if (fellow.CurrentHp <= 0)
+                fellow.CurrentHp = fellow.data.maxHp;
 
             // 스프라이트 로드
             if (!string.IsNullOrEmpty(fellow.data.spritePath) && fellow.fellowSprite == null)
@@ -224,7 +229,7 @@ public partial class BattleManager : Singleton<BattleManager>
                 else
                 {
                     // 이미 배정된 스킬 유지 — Inspector 표시만 갱신
-                    Debug.Log($"[BattleManager] {fellow.data.displayName} — 기존 스킬 유지 (재배정 없음)");
+                    if (!_firstInitLogged) Debug.Log($"[BattleManager] {fellow.data.displayName} — 기존 스킬 유지 (재배정 없음)");
                     fellow.RefreshSkillInfo();
                 }
             }
@@ -251,7 +256,7 @@ public partial class BattleManager : Singleton<BattleManager>
             runtimeEnemy.InitHp();                          // 복사본 HP 초기화
 
             enemies.Add(runtimeEnemy);
-            Debug.Log($"[BattleManager] 적 런타임 인스턴스 생성: {runtimeEnemy.displayName} | HP:{runtimeEnemy.CurrentHp}/{runtimeEnemy.maxHp}");
+            if (!_firstInitLogged) Debug.Log($"[BattleManager] 적 런타임 인스턴스 생성: {runtimeEnemy.displayName} | HP:{runtimeEnemy.CurrentHp}/{runtimeEnemy.maxHp}");
         }
 
         // 카드 풀 생성 → 덱 구성 → GameManager 에 주입
@@ -259,7 +264,10 @@ public partial class BattleManager : Singleton<BattleManager>
         var pool = GenerateCardPool();
         var deck = DeckBuilder.BuildPartyDeck(companions, pool);
         GameManager.Instance.InjectDeck(deck);
-        Debug.Log($"[BattleManager] 덱 주입 완료: {deck.Count}장");
+        if (!_firstInitLogged) Debug.Log($"[BattleManager] 덱 주입 완료: {deck.Count}장");
+
+        // 첫 전투 정보 로그는 1회만 출력 (반복 노이즈 제거)
+        _firstInitLogged = true;
     }
 
     // ----------------------------------------------------------

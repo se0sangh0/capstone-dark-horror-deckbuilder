@@ -91,6 +91,7 @@ public partial class FellowData
             
             lines.Add($"  스킬{i + 1}: {skill.displayName}");
             lines.Add($"   효과: {skill.effectType}  대상: {skill.targeting}  파워: {skill.power}");
+            lines.Add($"   사용 스택값: {skill.costAmount} ({skill.costType})");
             lines.Add($"   설명: {skill.description}");
         }
 
