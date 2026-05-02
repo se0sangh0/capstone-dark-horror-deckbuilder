@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< Updated upstream:Assets/Scripts/Enemy/SO.meta
-guid: 64a18e2afe9ff43c8892ee978511886c
-========
 guid: 0dd44415171e144b780663d7a3cb0595
->>>>>>>> Stashed changes:Assets/Scripts/Enemy_Skill.meta
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}
