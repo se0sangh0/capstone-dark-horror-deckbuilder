@@ -42,9 +42,11 @@ public class SoulstoneManager : BaseCurrency<SoulstoneManager>
     protected override string SaveKey => "SoulStone";
 
     // ----------------------------------------------------------
-    // [StartingAmount] — 게임 시작 시 기본 영혼석 개수
+    // [StartingAmount] — 게임 시작 시 기본 영혼석 개수 (기획자 요청 — 100)
     // ----------------------------------------------------------
-    protected override int StartingAmount => 10;
+    // ⚠️ PlayerPrefs("SoulStone") 에 이미 저장된 값이 있으면 그 값이 우선됨.
+    //    초기값 100을 즉시 반영하려면 PlayerPrefs 삭제 필요.
+    protected override int StartingAmount => 100;
 
     // ----------------------------------------------------------
     // UpdateText — 영혼석 값이 바뀔 때마다 화면 텍스트 갱신

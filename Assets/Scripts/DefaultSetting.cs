@@ -114,15 +114,20 @@ public class DefaultSetting : MonoBehaviour
         for (int i = 0; i < ObjectCount; i++)
         {
             // ✨ 적 측인데 실제 적 수보다 많은 슬롯은 생성 자체 스킵 (흰 배경 빈 카드 방지)
-            // 이유: ObjectCount 는 Inspector 에서 고정값(예: 4) 인데 실제 적이 1~2 마리만 등장하면
-            //      나머지 슬롯이 빈 카드로 흰 배경 발생. 메모리 절약 + 사용자 시각적 노이즈 제거.
-            if (factionType == FactionType.Enemy && i >= enemies.Count) continue;
+			// 이유: ObjectCount 는 Inspector 에서 고정값(예: 4) 인데 실제 적이 1~2 마리만 등장하면
+			//나머지 슬롯이 빈 카드로 흰 배경 발생. 메모리 절약 + 사용자 시각적 노이즈 제거.
+			if (factionType == FactionType.Enemy && i >= enemies.Count) continue;
+
+			// ✨ 아군 측도 동일 — 살아있는 동료 수보다 많은 슬롯은 생성 안 함 (흰 배경 방지)
+			// 이유: 동료 사망 후 다음 노드 진입 시 ObjectCount(4) > allies.Count(3) → 빈 카드 1개 생성됨.
+			//적 측과 같은 패턴으로 가드 추가해 동료 수만큼만 카드 생성.
+			if (factionType == FactionType.Ally && i >= allies.Count) continue;
 
             // startX 부터 spacingX 간격으로 X 위치 계산
             // 중앙을 기준으로 아군은 오른쪽에서 왼쪽으로 배치, 적군은 왼쪽에서 오른쪽으로 배치
             float currentX   = startX + (factionType == FactionType.Ally ? -1 : 1) * (spacingX * i);
             Vector3 newPos   = transform.position + new Vector3(currentX, 0f, 0f);
-
+			
             // 카드 프리팹 생성
             GameObject newObj = Instantiate(ObjectPrefab, newPos, Quaternion.identity);
             newObj.transform.parent = this.transform;
