@@ -113,6 +113,11 @@ public class DefaultSetting : MonoBehaviour
 
         for (int i = 0; i < ObjectCount; i++)
         {
+            // ✨ 적 측인데 실제 적 수보다 많은 슬롯은 생성 자체 스킵 (흰 배경 빈 카드 방지)
+            // 이유: ObjectCount 는 Inspector 에서 고정값(예: 4) 인데 실제 적이 1~2 마리만 등장하면
+            //      나머지 슬롯이 빈 카드로 흰 배경 발생. 메모리 절약 + 사용자 시각적 노이즈 제거.
+            if (factionType == FactionType.Enemy && i >= enemies.Count) continue;
+
             // startX 부터 spacingX 간격으로 X 위치 계산
             // 중앙을 기준으로 아군은 오른쪽에서 왼쪽으로 배치, 적군은 왼쪽에서 오른쪽으로 배치
             float currentX   = startX + (factionType == FactionType.Ally ? -1 : 1) * (spacingX * i);
@@ -144,6 +149,13 @@ public class DefaultSetting : MonoBehaviour
                     var shieldBarUI = newObj.GetComponentInChildren<ShieldBarUI>();
                     if (shieldBarUI != null)
                         shieldBarUI.Init(allies[i], slider);
+
+                    // ✨ 사망 시 카드 자동 비활성화 컴포넌트 부착 (흰 배경 빈 카드 방지)
+                    // 이유: HP 0 도달 시 FellowData.OnDied 이벤트 발동 → 이 컴포넌트가
+                    //       즉시 GameObject SetActive(false) 처리. ClearSpawnedObjects 시
+                    //       OnDestroy 에서 이벤트 자동 해제되어 메모리 누수 방지.
+                    var deathHider = newObj.AddComponent<AllyCardDeathHider>();
+                    deathHider.Bind(allies[i]);
                 }
                 else
                 {

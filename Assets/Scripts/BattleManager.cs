@@ -222,8 +222,14 @@ public partial class BattleManager : Singleton<BattleManager>
             {
                 if (!fellow.HasSkills)
                 {
-                    // 최초 배정: 역할에 맞는 스킬 2개를 랜덤으로 선택
-                    var ids = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
+                    // ✨ 최초 배정 — fellow.data.skillIds 가 있으면 그것을 우선 사용 (기획 §10 동료별 고정 스킬)
+                    // 이유: 기획 §10_동료_스킬_데이터 4번 표는 동료별 스킬을 고정 배정하도록 명시
+                    //       (캐스터→magic_missile/fireball, 오펜더→draw/flash 등).
+                    //       랜덤 배정은 기획 위반. 단 fellow.data.skillIds 가 비어있으면(모집 등 동적 생성)
+                    //       기존 랜덤 폴백을 유지해 호환성 보존.
+                    string[] ids = (fellow.data.skillIds != null && fellow.data.skillIds.Length > 0)
+                        ? fellow.data.skillIds
+                        : SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
                     fellow.AssignSkills(ids);
                 }
                 else
