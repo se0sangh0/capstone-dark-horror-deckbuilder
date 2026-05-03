@@ -137,16 +137,11 @@ public class GameManager : Singleton<GameManager>
             // 사용됐거나 초기화되지 않은 슬롯에만 새 카드 드로우
             var (cardData, owner) = drawDeck[currentDrawIndex];
             currentDrawIndex++;
-
-            // ── ✨ 카드 스택 범위는 "파티의 다수파 성향" 으로 통일 결정 ──
-            // 게임 디자인 룰: 어떤 성향이 많냐에 따라 모든 카드의 스택 범위가 정해진다.
-            // PartyManager 가 없으면 카드 소유자 affinity 로 폴백.
-            CardAffinity affinityForStack =
-                PartyManager.Instance != null
-                    ? PartyManager.Instance.GetMajorityAffinity()
-                    : owner.affinity;
-
-            int stackValue = GenerateStackValue(affinityForStack);
+          
+            // ── 카드 스택 범위는 "카드 소유자(동료)의 성향" 으로 결정 ──
+			// 기획 README §성향: "스택값은 성향 4종에 따라 동료마다 다르게 해석된다."
+			// 즉 동료 A 의 카드는 A 의 affinity, B 의 카드는 B 의 affinity 로 범위 산출.
+			int stackValue = GenerateStackValue(owner.affinity);
             myCards[i].SetupCard(stackValue, owner);
             myCards[i].gameObject.SetActive(true);
             // 매 턴 반복되어 주석 처리
