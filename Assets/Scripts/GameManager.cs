@@ -102,16 +102,32 @@ public class GameManager : Singleton<GameManager>
         // 매 턴 반복되어 주석 처리
         // Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
 
+        // ✨ 살아있는 동료 수만큼만 손패 슬롯 활성화
+        // 기획 §03_카드_설계_프레임: "손패 유지량 = 배치된 동료의 수와 동일"
+        // → 동료 4명 = 4슬롯, 3명 = 3슬롯. 사망 동료가 생길 때마다 슬롯 1개 영구 비활성.
+        int aliveCompanionCount = PartyManager.Instance != null
+            ? PartyManager.Instance.CompanionCount
+            : myCards.Length;
+
         for (int i = 0; i < myCards.Length; i++)
         {
-            // 이미 카드가 세팅되어 있고 아직 사용하지 않은 슬롯 → 그대로 유지
-            if (myCards[i].owner != null && !myCards[i].isUsed)
+            // ① 인덱스가 살아있는 동료 수 이상이면 영구 비활성 (사망 동료의 자리)
+            //    이 분기가 핵심 — 사망한 동료의 슬롯에 다른 동료 카드가 들어오는 것 방지.
+            if (i >= aliveCompanionCount)
+            {
+                myCards[i].gameObject.SetActive(false);
+                continue;
+            }
+
+            // ② 활성 + owner + 미사용 → 유지 (이전 턴에 뽑혔는데 안 쓴 카드)
+            if (myCards[i].gameObject.activeSelf && myCards[i].owner != null && !myCards[i].isUsed)
             {
                 // 매 턴 반복되어 주석 처리
                 // Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
                 continue;
             }
 
+            // ③ 그 외 (비활성이거나 사용된 슬롯) → 새 카드 뽑기
             if (currentDrawIndex >= drawDeck.Count)
             {
                 myCards[i].gameObject.SetActive(false);
