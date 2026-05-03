@@ -169,7 +169,26 @@ public class GameManager : Singleton<GameManager>
         // 이미 지나간 인덱스도 당겨지므로 보정
         currentDrawIndex = Mathf.Max(0, currentDrawIndex - removedBeforeIndex);
 
-        Debug.Log($"[GameManager] {deadCompanion.displayName} 카드 {removedCount}장 제거 | 잔여 덱: {drawDeck.Count}장");
+        // ✨ 현재 손패에서도 사망 동료 카드 비활성화 (drawDeck 정리만 하면 손패에 남아있음)
+        // 이유: 손패에 죽은 동료 카드가 남아있으면
+        //   1) 사용자가 클릭 시 NullReferenceException 위험 (사망한 fellow 참조)
+        //   2) 자동 턴 종료 로직(AreAllActiveCardsUsed) 이 잘못 판정될 수 있음
+        //   3) 시각적으로도 죽은 동료의 카드가 떠있어 혼란
+        int handRemoved = 0;
+        if (myCards != null)
+        {
+            foreach (var card in myCards)
+            {
+                if (card == null) continue;
+                if (card.owner == deadCompanion)
+                {
+                    card.gameObject.SetActive(false);
+                    handRemoved++;
+                }
+            }
+        }
+
+        Debug.Log($"[GameManager] {deadCompanion.displayName} 카드 제거 | 덱 -{removedCount}장, 손패 -{handRemoved}장 | 잔여 덱: {drawDeck.Count}장");
     }
 
     /// <summary>
