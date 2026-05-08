@@ -8,6 +8,7 @@
       "effectType": "Damage",
       "power": 15,
       "weight": 70,
+      "costAmount": 2,
       "description": "전열 1번 아군에게 15 데미지. (기획 §10_적_스킬_시트 1번 — 70%)"
     },
     {
@@ -18,6 +19,7 @@
       "effectType": "Damage",
       "power": 30,
       "weight": 30,
+      "costAmount": 1,
       "description": "후열 마지막 아군에게 30 데미지. 도트 효과는 백로그. (기획 §10 1번 — 30%)"
     },
     {
@@ -28,6 +30,7 @@
       "effectType": "Damage",
       "power": 20,
       "weight": 50,
+      "costAmount": 2,
       "description": "전열 1번에게 20 데미지. (기획 §10_적_스킬_시트 2번 — 50%)"
     },
     {
@@ -38,6 +41,7 @@
       "effectType": "Damage",
       "power": 40,
       "weight": 50,
+      "costAmount": 2,
       "description": "전열 1번에게 40 강화 데미지. (기획 §10 2번 — 50%)"
     },
     {
@@ -48,6 +52,7 @@
       "effectType": "Damage",
       "power": 60,
       "weight": 1,
+      "costAmount": 1,
       "description": "전열 1번에게 60 데미지. 본래 HP30%이하 강제 발동/1회 한정 — MVP 백로그, 일단 저가중치로 가끔 발동."
     },
     {
@@ -58,6 +63,7 @@
       "effectType": "Damage",
       "power": 30,
       "weight": 60,
+      "costAmount": 5,
       "description": "전열 1·2번 동시에 각 30 데미지. (기획 §10_적_스킬_시트 3번 — 60%)"
     },
     {
@@ -68,6 +74,7 @@
       "effectType": "Damage",
       "power": 20,
       "weight": 40,
+      "costAmount": 3,
       "description": "파티 전체에 20 분산 데미지로 단순화. 본래 까마귀 소환체 메커니즘은 백로그. (기획 §10 3번 — 40%)"
     }
   ]
