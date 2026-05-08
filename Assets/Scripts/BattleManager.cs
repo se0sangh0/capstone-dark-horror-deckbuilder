@@ -8,7 +8,7 @@
 //
 //   BattleManager.cs (이 파일)
 //     → 필드 선언, 초기화(InitBattle), 메인 루프(BattleLoop),
-//       공개 API (FinishPlayerTurn, PlayCardOnStack)
+//       공개 API (FinishPlayerTurn)
 //
 //   BattleManager.Phases.cs
 //     → 각 페이즈 핸들러 (드로우, 카드플레이, 선공판정, 행동, 결과처리)
@@ -91,13 +91,6 @@ public partial class BattleManager : Singleton<BattleManager>
     public List<CardData> allCards = new();
 
     // ----------------------------------------------------------
-    // [적 기본 스택]
-    // ----------------------------------------------------------
-    [Header("적 설정 (Enemy)")]
-    [Tooltip("적의 선공 판정 기준 스택. 일반 적=3, 보스=8 (기획서 §선공판정 참조)")]
-    public int enemyPowerScore = 3;
-
-    // ----------------------------------------------------------
     // [타이밍 설정]
     // ----------------------------------------------------------
     [Header("타이밍 설정 (Timers)")]
@@ -114,6 +107,17 @@ public partial class BattleManager : Singleton<BattleManager>
     public float gameOverDelay = 1.5f;
 
     // ----------------------------------------------------------
+    // [탈진 페널티]
+    // 기획 §02_전투_시스템_명세 §1) Hand Empty — "데미지 또는 스트레스" (OR)
+    // 기획 §03_카드_설계_프레임 §탈진 — "1차 밸런스 단계 예정"
+    // → OR 해석에 따라 스트레스만 채택. 수치는 임시값(밸런스 후 재조정).
+    // 변수명은 기획 미명시 → 임의 (exhaustionStressPenalty).
+    // ----------------------------------------------------------
+    [Header("탈진 페널티 (Exhaustion — 임시값)")]
+    [Tooltip("덱 고갈 + 손패 모두 사용한 턴의 결과 처리 시 살아있는 동료 전원에게 적용되는 스트레스 증가량")]
+    public int exhaustionStressPenalty = 5;
+
+    // ----------------------------------------------------------
     // [내부 상태]
     // ----------------------------------------------------------
 
@@ -125,6 +129,13 @@ public partial class BattleManager : Singleton<BattleManager>
 
     /// <summary>스택 부족으로 스킵한 역할의 이월 보너스 (턴 종료 시 다음 턴으로 전달)</summary>
     private readonly Dictionary<StackType, int> _carryoverBonus = new();
+
+    /// <summary>
+    /// 이번 턴 미행동한 동료들 — 다음 턴 결과 처리 시 allies 리스트의 앞으로 재정렬.
+    /// 기획 §코어루프 §동료 행동 — "예시: 1-2-3-4 → 3 미행동 → 다음 턴 3-1-2-4"
+    /// 복수 미행동 시 미행동 발생 순서대로 앞에 stable 정렬 (기획 미명시 → 자연 확장).
+    /// </summary>
+    private readonly List<FellowData> _carryoverOrderList = new();
 
     /// <summary>InitBattle 정보 로그를 첫 전투에서만 출력하기 위한 플래그</summary>
     private static bool _firstInitLogged = false;
@@ -193,16 +204,17 @@ public partial class BattleManager : Singleton<BattleManager>
             fellow.stressResist    = fellow.data.stressResist;
             fellow.positionStack   = (StackType)(int)fellow.data.role;
 
-            // ── [강화 시스템 TODO] 성급 초기화 ──────────────────────
+            // ── 성급 배율 (기획 백로그 §5 성급 설계안) ─────────────────
             // data.starLevel / data.maxHp 는 FellowDatabase.CreateCompanionData()
             // 또는 UpgradeStar() 에서 이미 올바른 값으로 설정되어 있다.
             // → 여기서는 런타임 필드를 data 에서 동기화만 한다.
             // → maxHp 에 배율을 다시 곱하면 이중 스케일링 발생 → 절대 금지.
             //
-            // 스킬 파워 배율 (UseSkill 에서 사용):
-            //   1★ → ×1.00   2★ → ×1.50   3★ → ×2.25
+            //  데미지 배율 1.25^(star-1) → UseSkill 에서 skill.power 에 곱해짐
+            //  체력 배율  1.4^(star-1)  → data.maxHp 에 이미 곱해져 있음 (정보용으로 동기화만)
             fellow.starLevel            = fellow.data.starLevel;
-            fellow.skillPowerMultiplier = UnityEngine.Mathf.Pow(1.5f, fellow.starLevel - 1);
+            fellow.skillPowerMultiplier = UnityEngine.Mathf.Pow(1.25f, fellow.starLevel - 1);
+            fellow.hpMultiplier         = UnityEngine.Mathf.Pow(1.4f,  fellow.starLevel - 1);
 
             // HP 유지 — 매 전투마다 풀 회복하면 안 됨 (이전 전투 HP 유지가 정상)
             // CurrentHp 가 0(미초기화) 일 때만 maxHp 로 시작, 이미 값 있으면 그대로
@@ -330,20 +342,6 @@ public partial class BattleManager : Singleton<BattleManager>
             Debug.Log("[BattleManager] 플레이어 턴 종료 신호 수신.");
         }
     }
-
-    /// <summary>
-    /// Inspector 에서 CardData SO 를 직접 사용하는 경로.
-    /// stackDelta 로 역할별 스택에 반영한다.
-    /// </summary>
-    public void PlayCardOnStack(CardData cardData, StackType targetStack)
-    {
-        PlayerRoleCost.Instance.Add(targetStack, cardData.stackDelta);
-        Debug.Log($"[BattleManager] 카드 사용됨: id={cardData.id} type={targetStack} delta={cardData.stackDelta:+#;-#;0}");
-    }
-
-    /// <summary>
-    /// StackCardController → BattleManager 직접 반영 경로 (GameManager.OnCardUsed에서 호출).
-    /// </summary>
 
    /* // -------------------------------------------------------
     // 내부 유틸리티

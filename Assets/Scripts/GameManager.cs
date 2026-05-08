@@ -232,6 +232,12 @@ public class GameManager : Singleton<GameManager>
     }
 
     /// <summary>
+    /// 탈진 상태 — 덱 고갈 + 활성 손패 모두 사용 (기획 §02 §1) Hand Empty).
+    /// BattleManager.HandleResultProcessing 에서 호출되어 페널티 적용 여부 판정.
+    /// </summary>
+    public bool IsExhausted() => IsDeckExhausted() && AreAllActiveCardsUsed();
+
+    /// <summary>
     /// 화면에 활성화된 카드 슬롯 중 아직 사용 안 한 게 있는지 확인.
     /// 빈 슬롯(SetActive(false))은 무시.
     /// </summary>

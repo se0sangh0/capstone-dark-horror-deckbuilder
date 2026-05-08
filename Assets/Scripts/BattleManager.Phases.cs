@@ -106,7 +106,7 @@ public partial class BattleManager
 
         // 매 턴 끝: 잔여 스택은 유지, 이월 보너스(+1)만 더해줌
 		if (PlayerRoleCost.Instance != null)
-		{	
+		{
     		foreach (var kv in _carryoverBonus)
     		{
         		PlayerRoleCost.Instance.Add(kv.Key, kv.Value);  // SET이 아니라 ADD
@@ -114,6 +114,21 @@ public partial class BattleManager
     		_carryoverBonus.Clear();
     		Debug.Log("[결과 처리] 미행동 보너스 반영 (스택 누적 유지)");
 		}
+
+        // 미행동자 순서 재정렬 — 기획 §코어루프 §동료 행동
+        //   "미행동 보상: 해당 스택 +1, 다음 턴 순서 우선"
+        //   적 타겟팅도 새 순서를 따라가 "먼저 행동·먼저 피격" 트레이드 자동 반영.
+        if (_carryoverOrderList.Count > 0)
+        {
+            var aliveCarryover = _carryoverOrderList.Where(a => !a.isDead).ToList();
+            foreach (var ally in aliveCarryover) allies.Remove(ally);
+            allies.InsertRange(0, aliveCarryover);
+            Debug.Log($"[결과 처리] 미행동자 {aliveCarryover.Count}명 → 다음 턴 순서 우선 재정렬");
+            _carryoverOrderList.Clear();
+        }
+
+        // 탈진 페널티 (기획 §02 §1) Hand Empty / §03 §탈진 — 손패 0 + 덱 0 시 스트레스 페널티)
+        ApplyExhaustionPenaltyIfNeeded();
 
         // 전투 종료 여부 판정
         if (CheckBattleEndCondition())
@@ -145,6 +160,7 @@ public partial class BattleManager
         {
             Debug.Log("[BattleManager] 전투 승리!");
             GrantBattleReward();   // ✨ 승리 보상 지급
+            GrantStressRecovery();
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
             DisplayChange.Instance.ToggleDisplay();
         }
@@ -182,5 +198,13 @@ public partial class BattleManager
             ManastoneManager.Instance.Add(manaReward);
 
         Debug.Log($"[BattleManager] 보상 지급 (층 {floor}): 영혼석+{soulReward}{(manaReward > 0 ? $", 마나스톤+{manaReward}" : "")}");
+    }
+    
+    // 기획 §스트레스 §기본 회복 — 전투 승리: -10
+    private void GrantStressRecovery()
+    {
+        foreach (var ally in allies.Where(a => !a.isDead))
+            ally.currentStress = Mathf.Max(0, ally.currentStress - 10);
+        Debug.Log("[BattleManager] 전투 승리 보상 — 생존 동료 스트레스 -10");
     }
 }

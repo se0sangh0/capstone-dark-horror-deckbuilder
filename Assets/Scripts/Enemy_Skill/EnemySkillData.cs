@@ -58,6 +58,9 @@ public class EnemySkillData
     /// 예) 고블린: 단검(70) + 독침(30) → 단검 70% / 독침 30%
     /// </summary>
     public int weight;
+    
+    // ── 코스트 (기획 §선공 판정 — 적 스킬 코스트 합산용) ──
+    public int costAmount; 
 
     // ── 설명 ───────────────────────────────────────────────
     /// <summary>인게임/디버그 설명</summary>

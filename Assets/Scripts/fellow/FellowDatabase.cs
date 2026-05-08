@@ -149,18 +149,17 @@ public class FellowDatabase : Singleton<FellowDatabase>
         c.skillIds      = def.skillIds ?? new string[0];
         c.starLevel     = def.starLevel > 0 ? def.starLevel : 1;
 
-        // ── [강화 시스템 TODO] ──────────────────────────────────────
-        // 성급에 따라 maxHp 를 배율로 계산한다.
-        //   1★ → baseHp × 1.00
-        //   2★ → baseHp × 1.50
-        //   3★ → baseHp × 2.25
+        // ── 성급 체력 배율 (기획 백로그 §5 성급 설계안) ──────────────
+        // 1★ → baseHp × 1.00
+        // 2★ → baseHp × 1.40   (체력 +40%)
+        // 3★ → baseHp × 1.96   (1.4 × 1.4, 2★ 대비 +40%)
         //
-        // 현재는 JSON 의 maxHp 가 1★ 기준값이므로 직접 할당.
-        // 승급 시 PartyManager.UpgradeStar() 에서 아래 로직으로 재계산:
-        //   int baseHp  = FellowDatabase.Instance.GetFellow(c.id)?.maxHp ?? c.maxHp;
-        //   float mult  = Mathf.Pow(1.5f, c.starLevel - 1);
-        //   c.maxHp     = Mathf.RoundToInt(baseHp * mult);
-        c.maxHp = def.maxHp > 0 ? def.maxHp : 80;
+        // JSON 의 maxHp 는 1★ 기준값. 여기서 한 번만 배율 적용.
+        // BattleManager.InitBattle 은 data.maxHp 를 그대로 사용 (이중 스케일링 금지).
+        // 승급 시 PartyManager.TryUpgradeStar() 에서도 같은 식으로 재계산해야 한다.
+        int baseHp  = def.maxHp > 0 ? def.maxHp : 80;
+        float mult  = Mathf.Pow(1.4f, c.starLevel - 1);
+        c.maxHp     = Mathf.RoundToInt(baseHp * mult);
         c.spritePath = def.spritePath;
 
         return c;
