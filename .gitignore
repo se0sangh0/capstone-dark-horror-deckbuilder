@@ -14,6 +14,7 @@
 # ===== Obsidian (device-local UI state only) =====
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
+.obsidian/
 
 # ===== Unity (keep only source-of-truth files) =====
 # Ignore generated/local cache
@@ -41,9 +42,10 @@ UserSettings/
 *.booproj
 *.svd
 *.pdb
-*.mdb
+*.mdc
 *.opendb
 *.VC.db
+
 
 # Crash reports
 sysinfo.txt
