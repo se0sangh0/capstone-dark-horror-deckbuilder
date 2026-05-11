@@ -15,12 +15,11 @@
 // [어디서 쓰이나요?]
 //   - Card/DeckBuilder.cs : 파티 덱 구성 시 카드 필터링에 사용
 //   - GameManager.cs : 드로우 덱에 저장됨 (card, owner) 쌍
-//   - StackCardController.cs : 카드 UI 세팅 시 stackType, stackDelta 참조
+//   - StackCardController.cs : 카드 UI 세팅 시 stackType 참조
 //   - BattleManager.cs : GenerateCardPool() 에서 런타임 생성
 // ============================================================
 
 using UnityEngine;
-using UnityEngine.Serialization;
 
 /// <summary>
 /// 카드 1장의 ScriptableObject 정의 (CardDefinition v0).
@@ -41,14 +40,12 @@ public class CardData : ScriptableObject
 
     // ----------------------------------------------------------
     // [스택]
+    // 기획 §03_카드_설계_프레임 — 카드는 스택 생성 전용. 수치는 동료 성향이 결정.
+    // 따라서 카드 SO 자체는 stackType(역할 매칭용) 만 보유한다.
     // ----------------------------------------------------------
     [Header("스택 (Stack)")]
     [Tooltip("카드가 기여하는 스택 유형 (Dealer / Tank / Support)")]
     public StackType stackType;
-
-    [Tooltip("스택 기여량. 양수=스택 증가, 음수=스택 감소. 예: +2, -1")]
-    [FormerlySerializedAs("cardPower")]   // 기존 SO 에셋 직렬화 호환 유지
-    public int stackDelta;
 
     // ----------------------------------------------------------
     // [에셋 (선택)]

@@ -1,0 +1,37 @@
+{
+  "enemies": [
+    {
+      "id": "enemy_goblin_01",
+      "displayName": "고블린",
+      "tier": "Weak",
+      "maxHp": 150,
+      "attackPower": 15,
+      "attackCost": 1,
+      "skillId": "",
+      "skillIds": ["enemy_skill_goblin_dagger", "enemy_skill_goblin_poison"],
+      "spritePath": "Characters/test_enemy_goblin"
+    },
+    {
+      "id": "enemy_raider_01",
+      "displayName": "약탈자",
+      "tier": "Normal",
+      "maxHp": 300,
+      "attackPower": 20,
+      "attackCost": 2,
+      "skillId": "",
+      "skillIds": ["enemy_skill_raider_swing", "enemy_skill_raider_smash", "enemy_skill_raider_throw"],
+      "spritePath": "Characters/test_enemy_goblin"
+    },
+    {
+      "id": "enemy_reaper_boss",
+      "displayName": "거두는 자",
+      "tier": "Boss",
+      "maxHp": 450,
+      "attackPower": 30,
+      "attackCost": 4,
+      "skillId": "",
+      "skillIds": ["enemy_skill_reaper_swing", "enemy_skill_reaper_summon"],
+      "spritePath": "Characters/test_enemy_goblin"
+    }
+  ]
+}

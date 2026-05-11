@@ -69,11 +69,32 @@ public class DefaultSetting : MonoBehaviour
     public float spacingX = 0.15f;
 
     // ----------------------------------------------------------
-    // Start — 씬 시작 시 카드 생성
+    // OnEnable — 화면이 다시 켜질 때마다 카드 오브젝트 재생성
     // ----------------------------------------------------------
-    void Start()
+    void OnEnable()
     {
+        if (BattleManager.Instance == null)
+        {
+            // 로그 주석 처리 (사용자 요청)
+            // Debug.LogWarning("[DefaultSetting] BattleManager.Instance 가 없어 스폰을 건너뜁니다.");
+            return;
+        }
+
+        ClearSpawnedObjects();
         SpawnObject();
+    }
+
+    /// <summary>
+    /// 기존에 생성해둔 카드 오브젝트를 정리한다.
+    /// (전투 재진입 시 중복 생성 방지)
+    /// </summary>
+    void ClearSpawnedObjects()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            var child = transform.GetChild(i).gameObject;
+            Destroy(child);
+        }
     }
 
     // ----------------------------------------------------------
@@ -92,11 +113,21 @@ public class DefaultSetting : MonoBehaviour
 
         for (int i = 0; i < ObjectCount; i++)
         {
+            // ✨ 적 측인데 실제 적 수보다 많은 슬롯은 생성 자체 스킵 (흰 배경 빈 카드 방지)
+			// 이유: ObjectCount 는 Inspector 에서 고정값(예: 4) 인데 실제 적이 1~2 마리만 등장하면
+			//나머지 슬롯이 빈 카드로 흰 배경 발생. 메모리 절약 + 사용자 시각적 노이즈 제거.
+			if (factionType == FactionType.Enemy && i >= enemies.Count) continue;
+
+			// ✨ 아군 측도 동일 — 살아있는 동료 수보다 많은 슬롯은 생성 안 함 (흰 배경 방지)
+			// 이유: 동료 사망 후 다음 노드 진입 시 ObjectCount(4) > allies.Count(3) → 빈 카드 1개 생성됨.
+			//적 측과 같은 패턴으로 가드 추가해 동료 수만큼만 카드 생성.
+			if (factionType == FactionType.Ally && i >= allies.Count) continue;
+
             // startX 부터 spacingX 간격으로 X 위치 계산
             // 중앙을 기준으로 아군은 오른쪽에서 왼쪽으로 배치, 적군은 왼쪽에서 오른쪽으로 배치
             float currentX   = startX + (factionType == FactionType.Ally ? -1 : 1) * (spacingX * i);
             Vector3 newPos   = transform.position + new Vector3(currentX, 0f, 0f);
-
+			
             // 카드 프리팹 생성
             GameObject newObj = Instantiate(ObjectPrefab, newPos, Quaternion.identity);
             newObj.transform.parent = this.transform;
@@ -123,10 +154,18 @@ public class DefaultSetting : MonoBehaviour
                     var shieldBarUI = newObj.GetComponentInChildren<ShieldBarUI>();
                     if (shieldBarUI != null)
                         shieldBarUI.Init(allies[i], slider);
+
+                    // ✨ 사망 시 카드 자동 비활성화 컴포넌트 부착 (흰 배경 빈 카드 방지)
+                    // 이유: HP 0 도달 시 FellowData.OnDied 이벤트 발동 → 이 컴포넌트가
+                    //       즉시 GameObject SetActive(false) 처리. ClearSpawnedObjects 시
+                    //       OnDestroy 에서 이벤트 자동 해제되어 메모리 누수 방지.
+                    var deathHider = newObj.AddComponent<AllyCardDeathHider>();
+                    deathHider.Bind(allies[i]);
                 }
                 else
                 {
-                    Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
+                    // 로그 주석 처리 (사용자 요청)
+                    // Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
                 }
             }
             // ── 적군 HP 슬라이더 연결 ────────────────────────────
@@ -142,11 +181,13 @@ public class DefaultSetting : MonoBehaviour
                     enemies[i].InitHp(slider);
                     slider.maxValue = enemies[i].maxHp;
                     slider.value    = enemies[i].CurrentHp;
-                    Debug.Log($"[DefaultSetting] {newObj.name} hp 동기화");
+                    // 로그 주석 처리 (사용자 요청)
+                    // Debug.Log($"[DefaultSetting] {newObj.name} hp 동기화");
                 }
                 else
                 {
-                    Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
+                    // 로그 주석 처리 (사용자 요청)
+                    // Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
                 }
             }
         }
@@ -167,7 +208,8 @@ public class DefaultSetting : MonoBehaviour
             if (index < allies.Count && allies[index] != null && allies[index].fellowSprite != null)
             {
                 renderer.material.mainTexture = allies[index].fellowSprite.texture;
-                Debug.Log($"[DefaultSetting] 아군 이미지 적용 성공: {objName}");
+                // 로그 주석 처리 (사용자 요청)
+                // Debug.Log($"[DefaultSetting] 아군 이미지 적용 성공: {objName}");
             }
         }
         else if (factionType == FactionType.Enemy)

@@ -5,7 +5,7 @@
 //
 // [이 파일이 하는 일]
 //   실제 전투 계산과 관련된 모든 로직이 담겨 있습니다:
-//   - 선공 판정 (DecideInitiative): 아군 스킬 코스트 합 vs enemyPowerScore
+//   - 선공 판정 (DecideInitiative): 아군 스킬 코스트 합 vs 적 스킬 코스트 합
 //   - 행동 실행 (ExecuteAction): 패닉 체크 + 스택 소비 + 스킬 실행
 //   - 데미지 적용 (ApplyDamageToAlly): 실드 흡수 → HP 감소 → 스트레스 증가
 //   - 패닉 처리 (TriggerPanicIfNeeded): 스트레스 100 → 공포경직 or 과호흡
@@ -28,12 +28,14 @@ public partial class BattleManager
 {
     // ===========================================================
     // 선공 판정
-    // 아군 살아있는 동료 스킬 코스트 합 vs enemyPowerScore 비교.
+    // 아군 살아있는 동료 스킬 코스트 합 vs 적 스킬 코스트 합 비교.
     // 동점이면 코인 토스.
     // ===========================================================
 
     /// <summary>
-    /// 아군 스킬 코스트 합과 enemyPowerScore 를 비교하여 선공을 결정한다.
+    /// 아군과 적의 스킬 코스트 합을 비교하여 선공을 결정한다.
+    /// 기획 §02_전투_시스템_명세 §선공 판정 — "전투에 등장한 적들의 skillCost 합산"
+    /// 동점 시 코인 토스(랜덤). 전투 1회만 실행.
     /// </summary>
     private void DecideInitiative()
     {
@@ -42,22 +44,33 @@ public partial class BattleManager
             .SelectMany(a => a.GetSkills())
             .Sum(s => s.costAmount);
 
-        if (allyScore > enemyPowerScore)
+        int enemyScore = 0;
+        foreach (var e in enemies.Where(e => !e.isDead))
+        {
+            if (e.skillIds == null || EnemySkillDatabase.Instance == null) continue;
+            foreach (var id in e.skillIds)
+            {
+                var s = EnemySkillDatabase.Instance.GetSkill(id);
+                if (s != null) enemyScore += s.costAmount;
+            }
+        }
+
+        if (allyScore > enemyScore)
         {
             isAllyFirstAttacker = true;
         }
-        else if (allyScore < enemyPowerScore)
+        else if (allyScore < enemyScore)
         {
             isAllyFirstAttacker = false;
         }
         else
         {
             isAllyFirstAttacker = Random.value > 0.5f;
-            Debug.Log($"[선공 판정] 동점({allyScore}:{enemyPowerScore}) → 코인 토스: {(isAllyFirstAttacker ? "아군" : "적")} 선공");
+            Debug.Log($"[선공 판정] 동점({allyScore}:{enemyScore}) → 코인 토스: {(isAllyFirstAttacker ? "아군" : "적")} 선공");
             return;
         }
 
-        Debug.Log($"[선공 판정] 아군 스킬 코스트 합:{allyScore} vs 적:{enemyPowerScore} → {(isAllyFirstAttacker ? "아군" : "적")} 선공");
+        Debug.Log($"[선공 판정] 아군 코스트 합:{allyScore} vs 적 코스트 합:{enemyScore} → {(isAllyFirstAttacker ? "아군" : "적")} 선공");
     }
 
     // ===========================================================
@@ -71,7 +84,7 @@ public partial class BattleManager
     /// </summary>
     private IEnumerator ExecuteAction(bool isAllyTurn)
     {
-        if (isAllyTurn)
+    	if (isAllyTurn)
         {
             foreach (var ally in allies.Where(a => !a.isDead))
             {
@@ -84,7 +97,6 @@ public partial class BattleManager
                 }
 
                 StackType allyRole = ally.positionStack;
-                int roleStack      = PlayerRoleCost.Instance.GetAmount(allyRole);
                 var skills         = ally.GetSkills();
 
                 if (skills.Count == 0)
@@ -93,25 +105,50 @@ public partial class BattleManager
                     continue;
                 }
 
-                var skill          = skills[0];
-                int required       = skill.costAmount;
+                // 과호흡 페널티: 이번 턴 첫 스킬 시도에만 +1, 이후 해소
                 int panicCostBonus = ally.isOverBreathing ? 1 : 0;
                 if (ally.isOverBreathing) ally.isOverBreathing = false;
 
-                int effectiveCost = required + panicCostBonus;
+                // 이번 턴에 이 동료가 스킬을 하나라도 발동했는지 추적
+                bool usedAny = false;
 
-                if (roleStack >= effectiveCost)
+                // ── ✨ 스킬 선택 — 발동 가능한 것 중 코스트가 가장 높은 1개 ──
+                // 기획 §스택 소비 & 스킬 발동 규칙: "보유 스킬 중 공용 스택으로 발동 가능한 것 중 가장 높은 스킬 코스트 우선"
+                // 또한 §MVP 고정: "동료/적 모두 기본 턴당 1회 행동"
+                // → foreach 모든 스킬 시도 ❌ → 단일 best skill 만 발동 ✅
+                int currentStack = PlayerRoleCost.Instance.GetAmount(allyRole);
+	
+                SkillData bestSkill = skills
+                    .Where(s => currentStack >= s.costAmount + panicCostBonus)
+                    .OrderByDescending(s => s.costAmount)
+                    .FirstOrDefault();
+
+                if (bestSkill != null)
                 {
+                    int effectiveCost = bestSkill.costAmount + panicCostBonus;
                     PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
-                    Debug.Log($"[아군 행동] {allyRole} — 스택({roleStack}/{effectiveCost}) 충족, 스킬 실행 (과호흡 보너스: {panicCostBonus})");
-                    UseSkill(ally, skill);
+                    string allyName = ally.data != null ? ally.data.displayName : allyRole.ToString();
+                    int afterStack  = currentStack - effectiveCost;
+                    Debug.Log($"[아군 행동] {allyName} ({allyRole}) → {bestSkill.displayName}  (스택 {effectiveCost} 사용 / {currentStack}→{afterStack}{(panicCostBonus > 0 ? $", 과호흡 +{panicCostBonus}" : "")})");
+                    UseSkill(ally, bestSkill);
+                    usedAny = true;
                     yield return new WaitForSeconds(actionDelayTime);
                 }
                 else
                 {
+                    foreach (var s in skills)
+                        Debug.Log($"[아군 스킵-개별스킬] {allyRole} {s.displayName} — 스택 부족 ({currentStack}/{s.costAmount + panicCostBonus})");
+                }
+
+                // 어떤 스킬도 발동 못 한 경우에만 미행동 보너스 (기획 §코어루프 §동료 행동)
+                //  ─ 역할 스택 +1 (이월)
+                //  ─ 다음 턴 순서 우선 (allies 리스트 앞으로 재정렬, HandleResultProcessing 에서 처리)
+                if (!usedAny)
+                {
                     _carryoverBonus.TryGetValue(allyRole, out int prev);
                     _carryoverBonus[allyRole] = prev + 1;
-                    Debug.Log($"[아군 스킵] {allyRole} — 스택 부족 ({roleStack}/{effectiveCost}) → 다음 턴 이월 +1");
+                    _carryoverOrderList.Add(ally);
+                    Debug.Log($"[아군 미행동] {allyRole} — 모든 스킬 발동 불가 → 다음 턴 이월 +1, 순서 우선");
                 }
             }
         }
@@ -147,6 +184,8 @@ public partial class BattleManager
     private void ApplyDamageToAlly(FellowData target, int damage)
     {
         int remaining = damage;
+        // 동료 표시명 — data.displayName 우선, 없으면 역할명
+        string targetName = target.data != null ? target.data.displayName : target.positionStack.ToString();
 
         // ── 실드 흡수 ────────────────────────────────────────────
         if (target.shield > 0)
@@ -155,21 +194,23 @@ public partial class BattleManager
             target.shield -= absorbed;
             remaining     -= absorbed;
             target.OnShieldChanged?.Invoke();
-            Debug.Log($"[실드] {target.positionStack} — {absorbed} 흡수 (남은 실드: {target.shield})");
+            Debug.Log($"  └ [실드 흡수] {targetName} — {absorbed} 흡수 (남은 실드: {target.shield})");
         }
 
         // ── HP 감소 ──────────────────────────────────────────────
         if (remaining > 0)
         {
+            int beforeHp = target.CurrentHp;
+            int maxHp    = target.data != null ? target.data.maxHp : 100;
             target.CurrentHp = Mathf.Max(0, target.CurrentHp - remaining);
             UpdateAllyHpUI(target);
-            Debug.Log($"[HP 변화] {target.positionStack} HP: {target.CurrentHp}");
+            Debug.Log($"  └ [데미지] {targetName} ({target.positionStack}) ← {remaining} 데미지  (HP: {beforeHp} → {target.CurrentHp}/{maxHp})");
         }
 
         // ── 스트레스 증가 (기획서 §스트레스: damage×0.25 - stressResist, 최소 0) ──
         int stressGain = Mathf.Max(0, Mathf.RoundToInt(damage * 0.25f) - target.stressResist);
         target.currentStress = Mathf.Min(100, target.currentStress + stressGain);
-        Debug.Log($"[스트레스] {target.positionStack} +{stressGain} → 현재: {target.currentStress}");
+        Debug.Log($"  └ [스트레스] {targetName} +{stressGain} → {target.currentStress}");
 
         TriggerPanicIfNeeded(target);
     }
@@ -230,12 +271,31 @@ public partial class BattleManager
                 var card = ScriptableObject.CreateInstance<CardData>();
                 card.id         = $"card_{role}_{i}";
                 card.stackType  = role;
-                card.stackDelta = 0;
                 pool.Add(card);
             }
         }
 
         return pool;
+    }
+
+    // ===========================================================
+    // 탈진 페널티 — 손패 0 + 덱 0 인 턴의 결과 처리에서 호출
+    // 기획 §02 §1) Hand Empty — "정해진 페널티(데미지 또는 스트레스)"
+    // → OR 해석상 스트레스만 채택. 수치는 임시값.
+    // ===========================================================
+    private void ApplyExhaustionPenaltyIfNeeded()
+    {
+        if (GameManager.Instance == null || !GameManager.Instance.IsExhausted()) return;
+
+        var live = allies.Where(a => !a.isDead).ToList();
+        if (live.Count == 0) return;
+
+        Debug.Log($"[탈진] 손패 0 + 덱 0 — 살아있는 동료 {live.Count}명 스트레스 +{exhaustionStressPenalty}");
+        foreach (var ally in live)
+        {
+            ally.currentStress = Mathf.Min(100, ally.currentStress + exhaustionStressPenalty);
+            TriggerPanicIfNeeded(ally);
+        }
     }
 
     // ===========================================================
@@ -301,21 +361,15 @@ public partial class BattleManager
     /// <summary>동료가 스킬을 사용한다. SkillExecutor가 skill.id로 구현체를 찾아 실행한다.</summary>
     private void UseSkill(FellowData user, SkillData skill)
     {
+        // 기획 백로그 §5 성급 — 데미지 배율 1.25^(star-1) 적용
+        int scaledPower = Mathf.RoundToInt(skill.power * user.skillPowerMultiplier);
         string userName = user.data?.displayName ?? user.positionStack.ToString();
-
-        // ── [강화 시스템 TODO] 성급 스킬 파워 배율 ─────────────────
-        // 현재는 skill.power 를 그대로 사용한다.
-        // 성급 시스템 구현 후 아래 코드로 교체할 것:
-        //
-        //   int scaledPower = Mathf.RoundToInt(skill.power * user.skillPowerMultiplier);
-        //
-        // 이후 ApplySkillDamage / ApplySkillHeal 호출 시
-        // skill.power 대신 scaledPower 를 전달하도록 오버로드를 추가한다.
-        // (SkillData SO 는 공유 객체이므로 skill.power 직접 수정 금지)
 
         Debug.Log($"┌─────────────────────────────────────────");
         Debug.Log($"│ [스킬 사용] {userName} ({user.starLevel}★)  →  {skill.displayName}");
+		Debug.Log($"│  파워: {skill.power} × {user.skillPowerMultiplier:F2} = {scaledPower}"); 
         Debug.Log($"│  효과: {skill.effectType}  |  대상: {skill.targeting}  |  파워: {skill.power}  (배율: ×{user.skillPowerMultiplier:F2})");
+        Debug.Log($"│  사용 스택값: {skill.costAmount} ({skill.costType})");
         Debug.Log($"│  설명: {skill.description}");
         if (skill.statusEffect != "None")
             Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");
@@ -323,9 +377,9 @@ public partial class BattleManager
 
         switch (skill.effectType)
         {
-            case "Damage": ApplySkillDamage(skill);        break;
-            case "Heal":   ApplySkillHeal(user, skill);    break;
-            case "Shield": ApplySkillShield(user, skill);  break;
+            case "Damage": ApplySkillDamage(skill, scaledPower);        break;
+            case "Heal":   ApplySkillHeal(user, skill, scaledPower);    break;
+            case "Shield": ApplySkillShield(user, skill, scaledPower);  break;
             case "Buff":   Debug.Log($"[UseSkill] Buff — 추후 구현 예정 (상태이상: {skill.statusEffect})");   break;
             case "Debuff": Debug.Log($"[UseSkill] Debuff — 추후 구현 예정 (상태이상: {skill.statusEffect})"); break;
             default:       Debug.LogWarning($"[UseSkill] 알 수 없는 effectType: '{skill.effectType}'");       break;
@@ -333,7 +387,7 @@ public partial class BattleManager
     }
 
     /// <summary>스킬 데미지 적용. SingleEnemy / AllEnemies 분기.</summary>
-    private void ApplySkillDamage(SkillData skill)
+    private void ApplySkillDamage(SkillData skill, int power)
     {
         var liveEnemies = enemies.Where(e => !e.isDead).ToList();
         if (liveEnemies.Count == 0) { Debug.Log("[ApplySkillDamage] 살아있는 적 없음."); return; }
@@ -342,14 +396,16 @@ public partial class BattleManager
         {
             case "SingleEnemy":
                 var target = liveEnemies[Random.Range(0, liveEnemies.Count)];
-                target.CurrentHp -= skill.power;
-                Debug.Log($"[ApplySkillDamage] {target.name} → {skill.power} 데미지 (남은 HP: {target.CurrentHp})");
+                int beforeHp = target.CurrentHp;
+                target.CurrentHp -= power;
+                Debug.Log($"  └ [데미지] {target.displayName} ← {power} 데미지  (HP: {beforeHp} → {target.CurrentHp}/{target.maxHp})");
                 break;
             case "AllEnemies":
                 foreach (var e in liveEnemies)
                 {
-                    e.CurrentHp -= skill.power;
-                    Debug.Log($"[ApplySkillDamage] {e.name} → {skill.power} 데미지 (남은 HP: {e.CurrentHp})");
+                    int beforeE = e.CurrentHp;
+                    e.CurrentHp -= power;
+                    Debug.Log($"  └ [데미지] {e.displayName} ← {power} 데미지  (HP: {beforeE} → {e.CurrentHp}/{e.maxHp})");
                 }
                 break;
             default:
@@ -359,30 +415,30 @@ public partial class BattleManager
     }
 
     /// <summary>스킬 회복 적용. Self / SingleAlly / AllAllies 분기.</summary>
-    private void ApplySkillHeal(FellowData user, SkillData skill)
+    private void ApplySkillHeal(FellowData user, SkillData skill, int power)
     {
         var liveAllies = allies.Where(a => !a.isDead).ToList();
 
         switch (skill.targeting)
         {
             case "Self":
-                user.CurrentHp += skill.power;
+                user.CurrentHp += power;
                 UpdateAllyHpUI(user);
-                Debug.Log($"[ApplySkillHeal] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{skill.power} HP (현재: {user.CurrentHp})");
+                Debug.Log($"[ApplySkillHeal] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{power} HP (현재: {user.CurrentHp})");
                 break;
             case "SingleAlly":
                 if (liveAllies.Count == 0) break;
                 var healTarget = liveAllies.OrderBy(a => a.CurrentHp).First();
-                healTarget.CurrentHp += skill.power;
+                healTarget.CurrentHp += power;
                 UpdateAllyHpUI(healTarget);
-                Debug.Log($"[ApplySkillHeal] {healTarget.data?.displayName ?? healTarget.positionStack.ToString()} +{skill.power} HP (현재: {healTarget.CurrentHp})");
+                Debug.Log($"[ApplySkillHeal] {healTarget.data?.displayName ?? healTarget.positionStack.ToString()} +{power} HP (현재: {healTarget.CurrentHp})");
                 break;
             case "AllAllies":
                 foreach (var ally in liveAllies)
                 {
-                    ally.CurrentHp += skill.power;
+                    ally.CurrentHp += power;
                     UpdateAllyHpUI(ally);
-                    Debug.Log($"[ApplySkillHeal] {ally.data?.displayName ?? ally.positionStack.ToString()} +{skill.power} HP (현재: {ally.CurrentHp})");
+                    Debug.Log($"[ApplySkillHeal] {ally.data?.displayName ?? ally.positionStack.ToString()} +{power} HP (현재: {ally.CurrentHp})");
                 }
                 break;
             default:
@@ -392,30 +448,30 @@ public partial class BattleManager
     }
 
     /// <summary>실드 스킬 적용. targeting 에 따라 Self / SingleAlly / AllAllies 분기.</summary>
-    private void ApplySkillShield(FellowData user, SkillData skill)
+    private void ApplySkillShield(FellowData user, SkillData skill, int power)
     {
         var liveAllies = allies.Where(a => !a.isDead).ToList();
 
         switch (skill.targeting)
         {
             case "Self":
-                user.shield += skill.power;
+                user.shield += power;
                 user.OnShieldChanged?.Invoke();
-                Debug.Log($"[ApplySkillShield] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{skill.power} 실드 (현재: {user.shield})");
+                Debug.Log($"[ApplySkillShield] {user.data?.displayName ?? user.positionStack.ToString()} 자신 +{power} 실드 (현재: {user.shield})");
                 break;
             case "SingleAlly":
                 if (liveAllies.Count == 0) break;
                 var shieldTarget = liveAllies[Random.Range(0, liveAllies.Count)];
-                shieldTarget.shield += skill.power;
+                shieldTarget.shield += power;
                 shieldTarget.OnShieldChanged?.Invoke();
-                Debug.Log($"[ApplySkillShield] {shieldTarget.data?.displayName ?? shieldTarget.positionStack.ToString()} +{skill.power} 실드 (현재: {shieldTarget.shield})");
+                Debug.Log($"[ApplySkillShield] {shieldTarget.data?.displayName ?? shieldTarget.positionStack.ToString()} +{power} 실드 (현재: {shieldTarget.shield})");
                 break;
             case "AllAllies":
                 foreach (var ally in liveAllies)
                 {
-                    ally.shield += skill.power;
+                    ally.shield += power;
                     ally.OnShieldChanged?.Invoke();
-                    Debug.Log($"[ApplySkillShield] {ally.data?.displayName ?? ally.positionStack.ToString()} +{skill.power} 실드 (현재: {ally.shield})");
+                    Debug.Log($"[ApplySkillShield] {ally.data?.displayName ?? ally.positionStack.ToString()} +{power} 실드 (현재: {ally.shield})");
                 }
                 break;
             default:

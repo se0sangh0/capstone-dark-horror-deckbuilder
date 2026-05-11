@@ -14,7 +14,6 @@ public enum EnemyTier
     Boss   = 2,
 }
 
-[CreateAssetMenu(menuName = "DarkHorror/EnemyData", fileName = "enemy_new")]
 public partial class EnemyData : ScriptableObject
 {
     // ── 정의 데이터 ──────────────────────────────────────────────
@@ -29,7 +28,8 @@ public partial class EnemyData : ScriptableObject
     public int       attackCost  = 1;
 
     [Header("스킬")]
-    public string skillId;
+    public string skillId;              // (구) 단일 스킬 — 호환 유지용
+    public string[] skillIds;           // (신규) 다중 적 스킬 ID — BattleManager.EnemyAction 가 가중치 랜덤 선택
 
     [Header("시각")]
     public Sprite portrait;
@@ -42,7 +42,7 @@ public partial class EnemyData : ScriptableObject
     // ── 런타임 상태 ──────────────────────────────────────────────
     [Header("런타임 상태")]
     public bool   isDead      = false;
-    public Sprite enemySprite;          // 기존 EnemyRuntime.enemySprite 이전
-
+    public Sprite enemySprite;
+    
     public int StackValue => attackCost;
 }

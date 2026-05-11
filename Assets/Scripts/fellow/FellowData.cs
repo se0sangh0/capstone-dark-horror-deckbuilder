@@ -38,5 +38,6 @@ public partial class FellowData : ScriptableObject
     //   int scaledPower = Mathf.RoundToInt(skill.power * skillPowerMultiplier);
     //   → SkillData SO 는 공유 객체이므로 skill.power 는 수정하지 말 것.
     public int   starLevel            = 1;    // 런타임 성급 (data.starLevel 에서 초기화)
-    public float skillPowerMultiplier = 1f;   // 성급 스킬 파워 배율 (InitBattle 에서 계산)
+    public float skillPowerMultiplier = 1f;   // 성급 데미지 배율 1.25^(star-1) — UseSkill 에서 사용
+    public float hpMultiplier         = 1f;   // 성급 체력 배율 1.4^(star-1) — 정보용 (data.maxHp 에 이미 곱해져 있음)
 }

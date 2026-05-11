@@ -53,6 +53,7 @@ public class FellowDef
     //       2★ 탱커 × 3  →  3★ 랜덤 역할
 
     public string[] skillIds;
+    public string spritePath;
 }
 
 [System.Serializable]

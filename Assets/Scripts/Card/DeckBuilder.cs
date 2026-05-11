@@ -94,7 +94,7 @@ public static class DeckBuilder
             .Where(c => (int)c.stackType == (int)companion.role)
             .ToList();
 
-        Debug.Log($"[DeckBuilder] {companion.displayName} (role={(int)companion.role}) → 매칭 카드 {matched.Count}장");
+        Debug.Log($"[DeckBuilder] {companion.displayName} (성향={AffinityHelper.GetLabel(companion.affinity)}) → 매칭 카드 {matched.Count}장");
         return matched;
     }
 

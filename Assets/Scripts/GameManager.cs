@@ -99,17 +99,35 @@ public class GameManager : Singleton<GameManager>
     /// </summary>
     public void StartMyTurn()
     {
-        Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
+        // 매 턴 반복되어 주석 처리
+        // Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
+
+        // ✨ 살아있는 동료 수만큼만 손패 슬롯 활성화
+        // 기획 §03_카드_설계_프레임: "손패 유지량 = 배치된 동료의 수와 동일"
+        // → 동료 4명 = 4슬롯, 3명 = 3슬롯. 사망 동료가 생길 때마다 슬롯 1개 영구 비활성.
+        int aliveCompanionCount = PartyManager.Instance != null
+            ? PartyManager.Instance.CompanionCount
+            : myCards.Length;
 
         for (int i = 0; i < myCards.Length; i++)
         {
-            // 이미 카드가 세팅되어 있고 아직 사용하지 않은 슬롯 → 그대로 유지
-            if (myCards[i].owner != null && !myCards[i].isUsed)
+            // ① 인덱스가 살아있는 동료 수 이상이면 영구 비활성 (사망 동료의 자리)
+            //    이 분기가 핵심 — 사망한 동료의 슬롯에 다른 동료 카드가 들어오는 것 방지.
+            if (i >= aliveCompanionCount)
             {
-                Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
+                myCards[i].gameObject.SetActive(false);
                 continue;
             }
 
+            // ② 활성 + owner + 미사용 → 유지 (이전 턴에 뽑혔는데 안 쓴 카드)
+            if (myCards[i].gameObject.activeSelf && myCards[i].owner != null && !myCards[i].isUsed)
+            {
+                // 매 턴 반복되어 주석 처리
+                // Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
+                continue;
+            }
+
+            // ③ 그 외 (비활성이거나 사용된 슬롯) → 새 카드 뽑기
             if (currentDrawIndex >= drawDeck.Count)
             {
                 myCards[i].gameObject.SetActive(false);
@@ -119,11 +137,15 @@ public class GameManager : Singleton<GameManager>
             // 사용됐거나 초기화되지 않은 슬롯에만 새 카드 드로우
             var (cardData, owner) = drawDeck[currentDrawIndex];
             currentDrawIndex++;
-
-            int stackValue = GenerateStackValue(owner.affinity);
+          
+            // ── 카드 스택 범위는 "카드 소유자(동료)의 성향" 으로 결정 ──
+			// 기획 README §성향: "스택값은 성향 4종에 따라 동료마다 다르게 해석된다."
+			// 즉 동료 A 의 카드는 A 의 affinity, B 의 카드는 B 의 affinity 로 범위 산출.
+			int stackValue = GenerateStackValue(owner.affinity);
             myCards[i].SetupCard(stackValue, owner);
             myCards[i].gameObject.SetActive(true);
-            Debug.Log($"[GameManager] myCards[{i}] 새 카드 드로우 → {stackValue:+#;-#;0} ({owner.displayName})");
+            // 매 턴 반복되어 주석 처리
+            // Debug.Log($"[GameManager] myCards[{i}] 새 카드 드로우 → {stackValue:+#;-#;0} ({owner.displayName}, 다수파 성향: {AffinityHelper.GetLabel(affinityForStack)})");
         }
     }
 
@@ -158,7 +180,26 @@ public class GameManager : Singleton<GameManager>
         // 이미 지나간 인덱스도 당겨지므로 보정
         currentDrawIndex = Mathf.Max(0, currentDrawIndex - removedBeforeIndex);
 
-        Debug.Log($"[GameManager] {deadCompanion.displayName} 카드 {removedCount}장 제거 | 잔여 덱: {drawDeck.Count}장");
+        // ✨ 현재 손패에서도 사망 동료 카드 비활성화 (drawDeck 정리만 하면 손패에 남아있음)
+        // 이유: 손패에 죽은 동료 카드가 남아있으면
+        //   1) 사용자가 클릭 시 NullReferenceException 위험 (사망한 fellow 참조)
+        //   2) 자동 턴 종료 로직(AreAllActiveCardsUsed) 이 잘못 판정될 수 있음
+        //   3) 시각적으로도 죽은 동료의 카드가 떠있어 혼란
+        int handRemoved = 0;
+        if (myCards != null)
+        {
+            foreach (var card in myCards)
+            {
+                if (card == null) continue;
+                if (card.owner == deadCompanion)
+                {
+                    card.gameObject.SetActive(false);
+                    handRemoved++;
+                }
+            }
+        }
+
+        Debug.Log($"[GameManager] {deadCompanion.displayName} 카드 제거 | 덱 -{removedCount}장, 손패 -{handRemoved}장 | 잔여 덱: {drawDeck.Count}장");
     }
 
     /// <summary>
@@ -172,6 +213,44 @@ public class GameManager : Singleton<GameManager>
         // 스택 관리 권한: PlayerRoleCost
         if (PlayerRoleCost.Instance != null)
             PlayerRoleCost.Instance.Add(usedCard.stackType, usedCard.stackDelta);
+
+        // ── ✨ 자동 턴 종료 — "덱 고갈 + 손패 모두 사용" 조건일 때만 ──
+        // 평소엔 사용자가 직접 [턴 종료] 를 눌러야 함. 덱이 모두 소진된 상태에서
+        // 손패까지 다 사용했다면 누를 카드가 없으므로 자동 진행.
+        // (기획 §전투_시스템_명세 / 덱 고갈 & Hand Empty 항목 반영)
+        if (IsDeckExhausted() && AreAllActiveCardsUsed())
+        {
+            Debug.Log("[GameManager] 덱 고갈 + 손패 전부 사용됨 → 자동 턴 종료");
+            EndMyTurn();
+        }
+    }
+
+    /// <summary>드로우 덱이 끝까지 소진되었는지 여부.</summary>
+    private bool IsDeckExhausted()
+    {
+        return currentDrawIndex >= drawDeck.Count;
+    }
+
+    /// <summary>
+    /// 탈진 상태 — 덱 고갈 + 활성 손패 모두 사용 (기획 §02 §1) Hand Empty).
+    /// BattleManager.HandleResultProcessing 에서 호출되어 페널티 적용 여부 판정.
+    /// </summary>
+    public bool IsExhausted() => IsDeckExhausted() && AreAllActiveCardsUsed();
+
+    /// <summary>
+    /// 화면에 활성화된 카드 슬롯 중 아직 사용 안 한 게 있는지 확인.
+    /// 빈 슬롯(SetActive(false))은 무시.
+    /// </summary>
+    private bool AreAllActiveCardsUsed()
+    {
+        if (myCards == null || myCards.Length == 0) return false;
+        foreach (var card in myCards)
+        {
+            if (card == null) continue;
+            if (!card.gameObject.activeSelf) continue;
+            if (!card.isUsed) return false;
+        }
+        return true;
     }
 
     /// <summary>
