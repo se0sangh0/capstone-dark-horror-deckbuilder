@@ -14,7 +14,6 @@
 //
 // [연결된 파일]
 //   - Stack/RoleCostBase.cs : 공통 스택 로직 베이스 클래스
-//   - Stack/EnemyRoleCost.cs : 적군 스택 매니저 (이것과 쌍을 이룸)
 //
 // [인스펙터 설정]
 //   - _costTexts : [딜러 텍스트, 탱커 텍스트, 서포터 텍스트] 3개 연결

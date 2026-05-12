@@ -187,12 +187,7 @@ public partial class BattleManager : Singleton<BattleManager>
         {
             if (fellow == null) continue;
 
-            // CompanionData 가 없으면 전투에서 제외
-            if (fellow.data == null)
-            {
-                Debug.LogWarning($"[BattleManager] {fellow.name}: data(CompanionData) 가 null — 전투에서 제외됨.");
-                continue;
-            }
+            // [통합] FellowData 자체에 정의 데이터가 흡수되어 data null 체크 불필요.
 			
             // ── 상태 초기화 — 스킬·HP·스트레스는 유지, 일시 상태(실드/패닉)만 리셋 ──
             // (HP/스트레스는 기획상 화톳불 노드에서만 회복되므로 전투 진입 때 리셋 안 함)
@@ -201,32 +196,29 @@ public partial class BattleManager : Singleton<BattleManager>
             fellow.shield          = 0;
             fellow.isFrozen        = false;
             fellow.isOverBreathing = false;
-            fellow.stressResist    = fellow.data.stressResist;
-            fellow.positionStack   = (StackType)(int)fellow.data.role;
+            fellow.positionStack   = (StackType)(int)fellow.role;
 
             // ── 성급 배율 (기획 백로그 §5 성급 설계안) ─────────────────
-            // data.starLevel / data.maxHp 는 FellowDatabase.CreateCompanionData()
-            // 또는 UpgradeStar() 에서 이미 올바른 값으로 설정되어 있다.
-            // → 여기서는 런타임 필드를 data 에서 동기화만 한다.
+            // starLevel / maxHp 는 FellowDatabase.CreateRuntimeFellow() 또는 승급 시
+            // 이미 올바른 값으로 설정되어 있다. 여기서는 배율 정보만 동기화.
             // → maxHp 에 배율을 다시 곱하면 이중 스케일링 발생 → 절대 금지.
             //
             //  데미지 배율 1.25^(star-1) → UseSkill 에서 skill.power 에 곱해짐
-            //  체력 배율  1.4^(star-1)  → data.maxHp 에 이미 곱해져 있음 (정보용으로 동기화만)
-            fellow.starLevel            = fellow.data.starLevel;
+            //  체력 배율  1.4^(star-1)  → maxHp 에 이미 곱해져 있음 (정보용으로 동기화만)
             fellow.skillPowerMultiplier = UnityEngine.Mathf.Pow(1.25f, fellow.starLevel - 1);
             fellow.hpMultiplier         = UnityEngine.Mathf.Pow(1.4f,  fellow.starLevel - 1);
 
             // HP 유지 — 매 전투마다 풀 회복하면 안 됨 (이전 전투 HP 유지가 정상)
             // CurrentHp 가 0(미초기화) 일 때만 maxHp 로 시작, 이미 값 있으면 그대로
             if (fellow.CurrentHp <= 0)
-                fellow.CurrentHp = fellow.data.maxHp;
+                fellow.CurrentHp = fellow.maxHp;
 
             // 스프라이트 로드
-            if (!string.IsNullOrEmpty(fellow.data.spritePath) && fellow.fellowSprite == null)
+            if (!string.IsNullOrEmpty(fellow.spritePath) && fellow.fellowSprite == null)
             {
-                fellow.fellowSprite = Resources.Load<Sprite>(fellow.data.spritePath);
+                fellow.fellowSprite = Resources.Load<Sprite>(fellow.spritePath);
                 if (fellow.fellowSprite == null)
-                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {fellow.data.spritePath}");
+                    Debug.LogWarning($"[BattleManager] 스프라이트 없음: {fellow.spritePath}");
             }
 
             // ── 스킬 배정 — 이미 있으면 그대로 유지 (전투 간 고정) ──
@@ -234,20 +226,17 @@ public partial class BattleManager : Singleton<BattleManager>
             {
                 if (!fellow.HasSkills)
                 {
-                    // ✨ 최초 배정 — fellow.data.skillIds 가 있으면 그것을 우선 사용 (기획 §10 동료별 고정 스킬)
-                    // 이유: 기획 §10_동료_스킬_데이터 4번 표는 동료별 스킬을 고정 배정하도록 명시
-                    //       (캐스터→magic_missile/fireball, 오펜더→draw/flash 등).
-                    //       랜덤 배정은 기획 위반. 단 fellow.data.skillIds 가 비어있으면(모집 등 동적 생성)
-                    //       기존 랜덤 폴백을 유지해 호환성 보존.
-                    string[] ids = (fellow.data.skillIds != null && fellow.data.skillIds.Length > 0)
-                        ? fellow.data.skillIds
+                    // 최초 배정 — fellow.skillIds 우선 (기획 §10 동료별 고정 스킬)
+                    //   캐스터→magic_missile/fireball, 오펜더→draw/flash 등 고정.
+                    //   skillIds 비어있으면(모집 등 동적 생성) 랜덤 폴백.
+                    string[] ids = (fellow.skillIds != null && fellow.skillIds.Length > 0)
+                        ? fellow.skillIds
                         : SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
                     fellow.AssignSkills(ids);
                 }
                 else
                 {
-                    // 이미 배정된 스킬 유지 — Inspector 표시만 갱신
-                    if (!_firstInitLogged) Debug.Log($"[BattleManager] {fellow.data.displayName} — 기존 스킬 유지 (재배정 없음)");
+                    if (!_firstInitLogged) Debug.Log($"[BattleManager] {fellow.displayName} — 기존 스킬 유지 (재배정 없음)");
                     fellow.RefreshSkillInfo();
                 }
             }
@@ -278,9 +267,9 @@ public partial class BattleManager : Singleton<BattleManager>
         }
 
         // 카드 풀 생성 → 덱 구성 → GameManager 에 주입
-        var companions = PartyManager.Instance.GetActiveCompanions();
+        var partyFellows = PartyManager.Instance.GetActiveFellows();
         var pool = GenerateCardPool();
-        var deck = DeckBuilder.BuildPartyDeck(companions, pool);
+        var deck = DeckBuilder.BuildPartyDeck(partyFellows, pool);
         GameManager.Instance.InjectDeck(deck);
         if (!_firstInitLogged) Debug.Log($"[BattleManager] 덱 주입 완료: {deck.Count}장");
 

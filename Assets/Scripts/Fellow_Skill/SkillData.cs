@@ -14,8 +14,7 @@
 // [연결된 파일]
 //   - Skill/SkillDatabase.cs : 이 데이터를 로드하고 관리하는 매니저
 //   - Resources/Data/skills.json : 실제 스킬 데이터가 담긴 JSON 파일
-//   - Companion/CompanionData.cs : skillIds[] 로 스킬 ID 를 참조
-//   - fellow/FellowData.cs : GetSkills() 로 런타임에 스킬 정보 조회
+//   - Fellow/FellowData.cs : skillIds[] 로 스킬 ID 참조 + GetSkills() 로 런타임 조회
 // ============================================================
 
 using System.Collections.Generic;

@@ -32,6 +32,21 @@
       "skillId": "",
       "skillIds": ["enemy_skill_reaper_swing", "enemy_skill_reaper_summon"],
       "spritePath": "Characters/test_enemy_goblin"
+    },
+    {
+      "id": "enemy_crow_01",
+      "displayName": "까마귀",
+      "tier": "Weak",
+      "maxHp": 1,
+      "attackPower": 0,
+      "attackCost": 0,
+      "skillId": "",
+      "skillIds": [],
+      "spritePath": "Characters/test_enemy_goblin",
+      "hitCountToDie": 2,
+      "summonLifeTurns": 3,
+      "expirePenaltyPower": 40,
+      "isPassive": true
     }
   ]
 }

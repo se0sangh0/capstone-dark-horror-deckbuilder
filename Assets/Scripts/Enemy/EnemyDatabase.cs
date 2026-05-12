@@ -55,6 +55,16 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.spritePath  = def.spritePath;
         e.isDead      = false;
 
+        // ── 소환체 메커니즘 필드 복사 (기획 §11 §3 까마귀) ──
+        e.hitCountToDie       = def.hitCountToDie;
+        e.summonLifeTurns     = def.summonLifeTurns;
+        e.expirePenaltyPower  = def.expirePenaltyPower;
+        e.isPassive           = def.isPassive;
+        e.currentHits         = 0;
+        e.currentLifeTurns    = def.summonLifeTurns; // 생성 시 만수명으로 시작
+        e.pendingTeleport     = false;
+        e.usedOnceSkills      = new System.Collections.Generic.HashSet<string>();
+
         // ⭐ 핵심: enemySprite 를 Resources.Load 로 자동 채움
         if (!string.IsNullOrEmpty(def.spritePath))
             e.enemySprite = Resources.Load<Sprite>(def.spritePath);

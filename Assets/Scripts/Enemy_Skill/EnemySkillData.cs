@@ -45,11 +45,22 @@ public class EnemySkillData
     /// </summary>
     public string targeting;
 
-    /// <summary>"Damage" (MVP). 추후 Debuff/DoT 확장 자리.</summary>
+    /// <summary>
+    /// "Damage" : 대상에게 데미지 (MVP 기본)
+    /// "Summon" : summonEnemyId 의 적을 summonCount 만큼 enemies 리스트에 추가 (기획 §11 §3 까마귀)
+    /// 추후 Debuff/DoT 확장 자리.
+    /// </summary>
     public string effectType;
 
-    /// <summary>기본 효과 수치 (각 대상에게 적용될 데미지)</summary>
+    /// <summary>기본 효과 수치 (각 대상에게 적용될 데미지). Summon 의 경우 사용 안 함.</summary>
     public int power;
+
+    // ── 소환 스킬 (effectType = "Summon" 일 때만 사용) ──────────
+    /// <summary>소환할 적의 ID (enemies.json 의 id). 예: "enemy_crow_01"</summary>
+    public string summonEnemyId;
+
+    /// <summary>소환할 적의 마릿수. 0/음수면 1로 보정.</summary>
+    public int summonCount;
 
     // ── 행동 패턴 ───────────────────────────────────────────
     /// <summary>

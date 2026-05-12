@@ -7,18 +7,16 @@
 //   딜러/탱커/서포터 의 "스택(점수)" 을 관리하는
 //   공통 로직이 담긴 베이스 클래스입니다.
 //
-//   아군(PlayerRoleCost) 과 적군(EnemyRoleCost) 이 이 클래스를
-//   상속받아 각자의 스택을 따로 관리합니다.
+//   현재는 아군(PlayerRoleCost) 만 상속해 사용합니다.
+//   (선공 판정이 폐기되면서 적군 스택 매니저는 제거됨)
 //
 // [제네릭 CRTP 패턴이란?]
 //   RoleCostBase<T> 에서 T 는 자기 자신의 타입입니다.
 //   예: PlayerRoleCost : RoleCostBase<PlayerRoleCost>
-//   이렇게 하면 PlayerRoleCost.Instance, EnemyRoleCost.Instance 가
-//   각각 독립된 전역 참조로 만들어집니다.
+//   상속받은 클래스가 자신의 Instance 프로퍼티를 자동 보유합니다.
 //
 // [어디서 쓰이나요?]
 //   - Stack/PlayerRoleCost.cs : 아군 스택 관리
-//   - Stack/EnemyRoleCost.cs : 적군 스택 관리
 //   - BattleManager.cs : GetAmount(), Use(), SetAmount() 호출
 //   - GameManager.cs : OnCardUsed 에서 Add() 호출
 //
@@ -39,14 +37,13 @@ using UnityEngine;
 public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
 {
     // ----------------------------------------------------------
-    // [Instance] — 전역 싱글톤 참조
-    // PlayerRoleCost.Instance, EnemyRoleCost.Instance 로 접근 가능
+    // [Instance] — 전역 싱글톤 참조 (자식 클래스가 자동 보유)
     // ----------------------------------------------------------
     public static T Instance { get; private set; }
 
     // ----------------------------------------------------------
     // [OwnerPrefix] — 저장 키 접두사 (자식 클래스가 구현)
-    // PlayerRoleCost → "Player", EnemyRoleCost → "Enemy"
+    // 예: PlayerRoleCost → "Player"
     // ----------------------------------------------------------
     protected abstract string OwnerPrefix { get; }
 

@@ -51,9 +51,9 @@
       "targeting": "FrontFirst",
       "effectType": "Damage",
       "power": 60,
-      "weight": 1,
+      "weight": 0,
       "costAmount": 1,
-      "description": "전열 1번에게 60 데미지. 본래 HP30%이하 강제 발동/1회 한정 — MVP 백로그, 일단 저가중치로 가끔 발동."
+      "description": "전열 1번에게 60 데미지. HP≤30% 시 1회 강제 발동 (TryGetForcedSkill 에서 처리, weight 0 = 룰렛 제외). 기획 §11 §2"
     },
     {
       "id": "enemy_skill_reaper_swing",
@@ -69,13 +69,26 @@
     {
       "id": "enemy_skill_reaper_summon",
       "displayName": "까마귀 부름",
-      "skillGroup": "광역",
+      "skillGroup": "소환",
       "targeting": "AllAllies",
-      "effectType": "Damage",
-      "power": 20,
+      "effectType": "Summon",
+      "power": 0,
       "weight": 40,
       "costAmount": 3,
-      "description": "파티 전체에 20 분산 데미지로 단순화. 본래 까마귀 소환체 메커니즘은 백로그. (기획 §10 3번 — 40%)"
+      "summonEnemyId": "enemy_crow_01",
+      "summonCount": 2,
+      "description": "까마귀 2마리 소환. 2 hit 처치 / 3턴 생존 / 만료 시 1마리당 40 데미지 파티 분산 → 다음 보스 턴 순간이동. (기획 §11 §3)"
+    },
+    {
+      "id": "enemy_skill_reaper_teleport",
+      "displayName": "순간이동",
+      "skillGroup": "상태",
+      "targeting": "AllAllies",
+      "effectType": "Teleport",
+      "power": 0,
+      "weight": 0,
+      "costAmount": 0,
+      "description": "파티 배치 순서를 역순으로 뒤집는다. 까마귀 부름 실패(만료) 후 다음 보스 턴에 강제 발동. weight 0 = 룰렛 제외, 강제 트리거 전용. (기획 §11 §3)"
     }
   ]
 }

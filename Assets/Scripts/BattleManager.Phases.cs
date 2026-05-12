@@ -130,6 +130,9 @@ public partial class BattleManager
         // 탈진 페널티 (기획 §02 §1) Hand Empty / §03 §탈진 — 손패 0 + 덱 0 시 스트레스 페널티)
         ApplyExhaustionPenaltyIfNeeded();
 
+        // 까마귀 등 소환체 수명 카운터 -1 + 만료 처리 (기획 §11 §3 보스 까마귀)
+        ProcessSummonExpiration();
+
         // 전투 종료 여부 판정
         if (CheckBattleEndCondition())
         {
@@ -175,29 +178,35 @@ public partial class BattleManager
     }
 
     // ============================================================
-    // ✨ 전투 승리 보상 지급 (기획 README §전투 결과 — 수치 미정, MVP 임시값)
+    // 전투 승리 보상 지급 — 기획 수치 미확정 (TODO)
     // ============================================================
-    //   1~2층 (일반 전투)        → 영혼석 +20
-    //   3층  (엘리트 전투)       → 영혼석 +50
-    //   4층  (휴식급 전투)       → 영혼석 +20
-    //   5층 이상 (보스 전투)     → 영혼석 +100, 마나스톤 +10
+    //   기획 README / MVP 노드 설계 / 스트레스 표 어디에도
+    //   전투 승리 시 영혼석·마나스톤 보상 수치가 명시되어 있지 않음.
+    //   → 노드 타입(전투/엘리트/보스)별 보상 테이블이 확정되면 본문 활성화.
+    //
+    //   추정 분기 (확정 시 참고용):
+    //     일반 전투 노드 → 영혼석 +N
+    //     엘리트 전투 노드 → 영혼석 +N (+α)
+    //     보스 노드      → 영혼석 +N, 마나스톤 +M
+    //
+    //   호출 지점은 HandleBattleEnd 의 승리 분기. 자리만 유지.
     // ============================================================
     private void GrantBattleReward()
     {
         int floor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
 
-        int soulReward = 20;
-        int manaReward = 0;
+        // TODO[보상]: 기획자가 노드별 영혼석/마나스톤 수치 확정 시 활성화
+        //            (현재 임시값 비활성화 — 기획 수치 미명시)
+        // int soulReward = 20;
+        // int manaReward = 0;
+        // if (floor >= 5)      { soulReward = 100; manaReward = 10; }   // 보스
+        // else if (floor == 3) { soulReward = 50; }                      // 엘리트
+        // if (SoulstoneManager.Instance != null && soulReward > 0)
+        //     SoulstoneManager.Instance.Add(soulReward);
+        // if (ManastoneManager.Instance != null && manaReward > 0)
+        //     ManastoneManager.Instance.Add(manaReward);
 
-        if (floor >= 5)        { soulReward = 100; manaReward = 10; }   // 보스
-        else if (floor == 3)   { soulReward = 50; }                      // 엘리트
-
-        if (SoulstoneManager.Instance != null && soulReward > 0)
-            SoulstoneManager.Instance.Add(soulReward);
-        if (ManastoneManager.Instance != null && manaReward > 0)
-            ManastoneManager.Instance.Add(manaReward);
-
-        Debug.Log($"[BattleManager] 보상 지급 (층 {floor}): 영혼석+{soulReward}{(manaReward > 0 ? $", 마나스톤+{manaReward}" : "")}");
+        Debug.Log($"[BattleManager] 전투 승리 (층 {floor}) — 보상 수치 미확정, 지급 보류 (TODO)");
     }
     
     // 기획 §스트레스 §기본 회복 — 전투 승리: -10
