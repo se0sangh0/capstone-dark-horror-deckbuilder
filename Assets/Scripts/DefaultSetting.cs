@@ -147,7 +147,7 @@ public class DefaultSetting : MonoBehaviour
                 if (slider != null)
                 {
                     allies[i].InitHp(slider);
-                    slider.maxValue = allies[i].data != null ? allies[i].data.maxHp : 100;
+                    slider.maxValue = allies[i].maxHp > 0 ? allies[i].maxHp : 100;
                     slider.value    = allies[i].CurrentHp;
 
                     // 쉴드 바 UI 초기화 (카드 프리팹에 ShieldBarUI 컴포넌트가 있을 때만 동작)

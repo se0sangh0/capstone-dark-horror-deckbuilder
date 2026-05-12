@@ -5,6 +5,7 @@
 //   EnemyData.Hp.cs    : HP 시스템 (CurrentHp, InitHp, TakeDamage, OnHpChanged, OnDied)
 //   EnemyData.Skill.cs : 스킬 조회 (GetSkill)
 
+using System.Collections.Generic;
 using UnityEngine;
 
 public enum EnemyTier
@@ -39,10 +40,39 @@ public partial class EnemyData : ScriptableObject
     [TextArea(2, 4)]
     public string note;
 
+    // ── 소환체/특수 적 (기획 §11 §3 보스 까마귀) ──────────────
+    [Header("소환체 메커니즘 (까마귀 등)")]
+    [Tooltip("hit-count 기반 처치. 0 = 비활성(HP 기반), >0 = 이만큼 맞으면 사망")]
+    public int hitCountToDie = 0;
+
+    [Tooltip("소환 후 N턴 생존. 0 = 영구, >0 = 턴 카운터")]
+    public int summonLifeTurns = 0;
+
+    [Tooltip("수명 만료 시 파티 전체에 분산되는 데미지 (1마리당)")]
+    public int expirePenaltyPower = 0;
+
+    [Tooltip("true 면 행동 페이즈에서 스킵 (까마귀처럼 공격 안 함)")]
+    public bool isPassive = false;
+
     // ── 런타임 상태 ──────────────────────────────────────────────
     [Header("런타임 상태")]
     public bool   isDead      = false;
     public Sprite enemySprite;
-    
+
+    /// <summary>이번 전투에서 이미 1회 사용된 스킬 ID 집합 (조건부 강제 스킬용).</summary>
+    [System.NonSerialized] public HashSet<string> usedOnceSkills = new HashSet<string>();
+
+    /// <summary>현재까지 누적된 hit 수 (hitCountToDie > 0 일 때만 유효).</summary>
+    [System.NonSerialized] public int currentHits = 0;
+
+    /// <summary>남은 생존 턴 (summonLifeTurns > 0 일 때만 유효). 0 도달 시 만료.</summary>
+    [System.NonSerialized] public int currentLifeTurns = 0;
+
+    /// <summary>보스 상태머신용 — 까마귀 만료 후 다음 턴에 순간이동 강제 발동.</summary>
+    [System.NonSerialized] public bool pendingTeleport = false;
+
+    /// <summary>현재 HP 비율 (0~1). maxHp 가 0 이하면 0.</summary>
+    public float HpRatio => maxHp > 0 ? (float)CurrentHp / maxHp : 0f;
+
     public int StackValue => attackCost;
 }

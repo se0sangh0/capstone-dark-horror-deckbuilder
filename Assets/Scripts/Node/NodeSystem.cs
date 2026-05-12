@@ -1,31 +1,29 @@
 // ============================================================
 // Node/NodeSystem.cs
-// 노드 맵 UI 시스템
+// 노드 맵 UI 시스템 — 자동 생성 + 타입별 분기
 // ============================================================
 //
 // [이 파일이 하는 일]
 //   로그라이크 게임의 노드 맵 화면을 관리합니다.
-//   여러 층(Row)에 버튼들이 배치되고, 플레이어가 버튼을 클릭하면
-//   해당 노드를 선택하고 다음 층으로 진행합니다.
+//   Awake 시 MapGenerator 로부터 자동 생성된 MapData 를 받아
+//   인스펙터에 사전 배치된 nodeRows 의 버튼들에 RoomType 을 매핑하고,
+//   클릭 시 타입별로 다른 화면(전투/화툿불/용병소/...)으로 분기합니다.
 //
-// [노드 클릭 흐름]
-//   1. 버튼 클릭 → OnNodeClicked(row, col) 호출
-//   2. 현재 층의 버튼이면 → 선택 처리 + 현재 층 +1
-//   3. DisplayChange.Instance.DisplayChanger() 로 노드 화면 → 행동 화면 전환
+// [노드 클릭 → 분기 흐름]
+//   1. 버튼 클릭 → OnNodeClicked(row, col)
+//   2. 현재 층의 버튼이면 → 선택 + currentRowIndex++
+//   3. 클릭된 노드의 RoomType 보고 분기:
+//      - Combat/Elite/Boss → 전투 패널 (DisplayChanger 호출)
+//      - Rest(화툿불)      → TODO 자리 (다음 사이클 E 작업)
+//      - Shop(용병소)      → TODO 자리 (다음 사이클 F 작업)
+//      - Event(교회)       → TODO 백로그
 //   4. UpdateNodeStates() 로 버튼 색상 업데이트
 //
-// [상태 표시]
-//   - 지나간 층: lockedState 색상 (클릭 불가)
-//   - 선택한 버튼: passedState 색상
-//   - 현재 층: currentState 색상 (클릭 가능)
-//   - 미래 층: lockedState 색상 (클릭 불가)
-//
-// [어디서 쓰이나요?]
-//   - 노드 맵 씬에서 NodeSystem 오브젝트에 이 컴포넌트를 붙임
-//
 // [인스펙터 설정]
-//   - nodeRows : 각 층의 부모 오브젝트 목록
-//   - nodeDisplay / actionDisplay : 전환할 화면 오브젝트
+//   - mapGenerator   : 같은 GameObject 또는 자식에 있는 MapGenerator 참조 (없으면 자동 검색)
+//   - nodeRows       : 각 층의 부모 오브젝트 + 버튼들 (사전 배치 유지)
+//   - nodeDisplay    : 노드 맵 화면 (전환 토글용)
+//   - actionDisplay  : 전투/행동 화면 (전환 토글용)
 //   - passedState / currentState / lockedState : 버튼 시각 상태
 // ============================================================
 
@@ -34,7 +32,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 노드 맵 UI 시스템. 층별 노드 버튼 클릭 및 시각 상태 관리.
+/// 노드 맵 UI 시스템. 자동 생성된 RoomType 을 버튼에 매핑하고 클릭 시 타입별 분기.
 /// </summary>
 public class NodeSystem : MonoBehaviour
 {
@@ -49,23 +47,38 @@ public class NodeSystem : MonoBehaviour
 
         [HideInInspector] public List<Button> buttons = new();
         [HideInInspector] public int selectedButtonIndex = -1;
+
+        // 각 버튼에 매핑된 RoomType (MapGenerator 결과). buttons 와 인덱스 1:1.
+        [HideInInspector] public List<RoomType> roomTypes = new();
     }
+
+    // ----------------------------------------------------------
+    // [자동 맵 생성기]
+    // ----------------------------------------------------------
+    [Header("자동 맵 생성 (Auto Map)")]
+    [SerializeField]
+    [Tooltip("MapGenerator 컴포넌트 참조. 비어있으면 같은 GameObject + 자식에서 자동 검색.")]
+    private MapGenerator mapGenerator;
+
+    private MapData generatedMap;
 
     // ----------------------------------------------------------
     // [노드 구조 설정]
     // ----------------------------------------------------------
     [Header("노드 구조 (Node Structure)")]
     [SerializeField]
-    [Tooltip("노드 맵의 각 층. 순서대로 배치하세요.")]
+    [Tooltip("노드 맵의 각 층. 순서대로 배치하세요. (10층 기준)")]
     private List<NodeRow> nodeRows;
 
-    /// <summary>현재 진행 중인 층 인덱스</summary>
+    /// <summary>현재 진행 중인 층 인덱스 (0-base)</summary>
     private int currentRowIndex = 0;
 
     // ── 외부 노출 (EnemySpawner 의 층 기반 적 등장 결정용) ──
-    // 정적 참조: 씬에 NodeSystem 이 1개만 존재한다는 가정을 따른다.
     public static NodeSystem Current { get; private set; }
     public int CurrentFloor => currentRowIndex;
+
+    /// <summary>현재 노드의 RoomType — EnemySpawner 등이 노드 타입 기반 결정에 사용.</summary>
+    public RoomType CurrentRoomType { get; private set; } = RoomType.Combat;
 
     // ----------------------------------------------------------
     // [선 렌더링 — 현재 주석 처리됨 (추후 활성화)]
@@ -91,7 +104,7 @@ public class NodeSystem : MonoBehaviour
         [Tooltip("버튼 스프라이트 (없으면 색상만 적용)")]
         public Sprite sprite;
     }
-    
+
     [Header("시각 상태 (Visual Settings)")]
     [SerializeField] [Tooltip("지나간 층 — 선택한 버튼 색상")]
     private NodeVisualState passedState;
@@ -109,53 +122,138 @@ public class NodeSystem : MonoBehaviour
     [SerializeField] public GameObject[] nodeDisplay;
     [SerializeField] public GameObject[] actionDisplay;
 
+    [Header("용병소 (Shop 노드 — 선택)")]
+    [Tooltip("Shop(용병소) 노드 클릭 시 열릴 메인 패널. 비어있으면 TODO 로그만 출력하고 다음 층 진행.")]
+    [SerializeField] private MercenaryOfficePanel mercenaryOfficePanel;
+
     // ----------------------------------------------------------
     // 초기화
     // ----------------------------------------------------------
     void Awake()
     {
-        // 정적 참조 등록 (EnemySpawner 가 NodeSystem.Current.CurrentFloor 로 조회)
         Current = this;
 
-        // 모든 층의 버튼을 자동 등록하고 클릭 이벤트 연결
+        // 1) MapGenerator 자동 검색 (필요 시)
+        //    Unity Object 는 fake-null 이라 ?? 연쇄가 의도대로 안 동작 → 명시적 단계 체크
+        if (mapGenerator == null) mapGenerator = GetComponent<MapGenerator>();
+        if (mapGenerator == null) mapGenerator = GetComponentInChildren<MapGenerator>(true);
+        if (mapGenerator == null) mapGenerator = GetComponentInParent<MapGenerator>();
+        if (mapGenerator == null) mapGenerator = FindObjectOfType<MapGenerator>(true); // 씬 전체 폴백
+
+        // 2) 자동 맵 생성 + 버튼에 RoomType 매핑
+        GenerateAndAssignRoomTypes();
+
+        // 3) 기존 버튼 자동 등록 + 클릭 이벤트 연결
         SetupNodeData();
     }
 
     void OnDestroy()
     {
-        // 씬 전환 시 정적 참조 누적 방지
         if (Current == this) Current = null;
     }
 
     void Start()
     {
-        // 초기 버튼 시각 상태 업데이트
         UpdateNodeStates();
+    }
+
+    // ----------------------------------------------------------
+    // 자동 맵 생성 → 버튼별 RoomType 매핑
+    // ----------------------------------------------------------
+    private void GenerateAndAssignRoomTypes()
+    {
+        if (mapGenerator == null)
+        {
+            Debug.LogWarning("[NodeSystem] MapGenerator 없음 — 모든 노드 RoomType=Combat 으로 폴백.");
+            ApplyFallbackAllCombat();
+            return;
+        }
+
+        generatedMap = mapGenerator.GenerateMap();
+        if (generatedMap == null || generatedMap.nodes.Count == 0)
+        {
+            Debug.LogWarning("[NodeSystem] MapGenerator 결과 비어있음 — Combat 폴백.");
+            ApplyFallbackAllCombat();
+            return;
+        }
+
+        // layer 별 노드 그룹화
+        var byLayer = new Dictionary<int, List<RoomNode>>();
+        foreach (var n in generatedMap.nodes)
+        {
+            if (!byLayer.TryGetValue(n.layer, out var list))
+            {
+                list = new List<RoomNode>();
+                byLayer[n.layer] = list;
+            }
+            list.Add(n);
+        }
+
+        // nodeRows 와 layer 매핑
+        for (int r = 0; r < nodeRows.Count; r++)
+        {
+            // rowParent 아래 Button 들을 미리 모음 (SetupNodeData 도 같은 일을 하므로 중복 안전)
+            var row = nodeRows[r];
+            row.roomTypes.Clear();
+
+            if (row.rowParent == null) continue;
+
+            var btns = row.rowParent.GetComponentsInChildren<Button>(true);
+
+            byLayer.TryGetValue(r, out var layerNodes);
+            int layerCount = layerNodes?.Count ?? 0;
+
+            for (int b = 0; b < btns.Length; b++)
+            {
+                // layerNodes 가 부족하면 첫 번째 노드 타입으로 폴백 (또는 Combat)
+                RoomType type;
+                if (layerNodes != null && b < layerCount) type = layerNodes[b].roomType;
+                else if (layerNodes != null && layerCount > 0) type = layerNodes[0].roomType;
+                else type = RoomType.Combat;
+
+                row.roomTypes.Add(type);
+            }
+
+            // 버튼 수 < 자동 생성 노드 수 면 데이터가 잘리고, 반대면 폴백 — 경고
+            if (btns.Length != layerCount)
+            {
+                Debug.LogWarning($"[NodeSystem] 층 {r}: 인스펙터 버튼 {btns.Length}개 vs 자동 생성 노드 {layerCount}개 — 매핑 best-effort 처리.");
+            }
+        }
+
+        Debug.Log($"[NodeSystem] 자동 맵 매핑 완료 — {generatedMap.nodes.Count} 노드 / {nodeRows.Count} 층");
+    }
+
+    /// <summary>MapGenerator 실패 시 모든 버튼 RoomType=Combat 으로 폴백.</summary>
+    private void ApplyFallbackAllCombat()
+    {
+        for (int r = 0; r < nodeRows.Count; r++)
+        {
+            var row = nodeRows[r];
+            row.roomTypes.Clear();
+            if (row.rowParent == null) continue;
+            var btns = row.rowParent.GetComponentsInChildren<Button>(true);
+            for (int b = 0; b < btns.Length; b++) row.roomTypes.Add(RoomType.Combat);
+        }
     }
 
     // ----------------------------------------------------------
     // 버튼 자동 등록
     // ----------------------------------------------------------
-
-    /// <summary>
-    /// 각 층 rowParent 하위의 Button 을 자동으로 찾아 등록하고
-    /// 클릭 이벤트를 연결한다.
-    /// </summary>
     private void SetupNodeData()
     {
         for (int r = 0; r < nodeRows.Count; r++)
         {
             if (nodeRows[r].rowParent == null) continue;
 
-            // 부모 하위의 모든 Button 을 계층 순서대로 가져옴
             Button[] childButtons = nodeRows[r].rowParent.GetComponentsInChildren<Button>(true);
+            nodeRows[r].buttons.Clear();
             nodeRows[r].buttons.AddRange(childButtons);
 
             int row = r;
             for (int b = 0; b < nodeRows[r].buttons.Count; b++)
             {
                 int col = b;
-                // 클릭 이벤트 자동 연결 (row, col 을 캡처)
                 nodeRows[r].buttons[b].onClick.AddListener(() => OnNodeClicked(row, col));
             }
         }
@@ -164,10 +262,6 @@ public class NodeSystem : MonoBehaviour
     // ----------------------------------------------------------
     // 버튼 시각 상태 업데이트
     // ----------------------------------------------------------
-
-    /// <summary>
-    /// 현재 진행 위치에 따라 모든 버튼의 색상과 상호작용 가능 여부를 업데이트한다.
-    /// </summary>
     public void UpdateNodeStates()
     {
         for (int r = 0; r < nodeRows.Count; r++)
@@ -179,7 +273,6 @@ public class NodeSystem : MonoBehaviour
 
                 if (r < currentRowIndex)
                 {
-                    // 지나간 층: 선택한 버튼만 passedState, 나머지는 lockedState
                     if (b == nodeRows[r].selectedButtonIndex)
                         ApplyState(btn, img, passedState, false);
                     else
@@ -187,19 +280,16 @@ public class NodeSystem : MonoBehaviour
                 }
                 else if (r == currentRowIndex)
                 {
-                    // 현재 층: 클릭 가능
                     ApplyState(btn, img, currentState, true);
                 }
                 else
                 {
-                    // 미래 층: 잠김
                     ApplyState(btn, img, lockedState, false);
                 }
             }
         }
     }
 
-    /// <summary>버튼에 색상, 스프라이트, 상호작용 여부를 적용한다.</summary>
     private void ApplyState(Button btn, Image img, NodeVisualState state, bool isInteractable)
     {
         btn.interactable = isInteractable;
@@ -211,34 +301,98 @@ public class NodeSystem : MonoBehaviour
     }
 
     // ----------------------------------------------------------
-    // 노드 클릭 처리
+    // 노드 클릭 처리 — RoomType 별 분기
     // ----------------------------------------------------------
-
     /// <summary>
     /// 노드 버튼 클릭 시 호출된다.
-    /// 현재 층의 버튼이면: 선택 처리 → 다음 층으로 진행 → 화면 전환.
+    /// 현재 층의 버튼이면: 선택 처리 → RoomType 별 화면 분기 → 다음 층 진행.
     /// </summary>
-    /// <param name="row">클릭된 버튼의 층 인덱스</param>
-    /// <param name="col">클릭된 버튼의 열 인덱스</param>
     public void OnNodeClicked(int row, int col)
     {
-        if (row == currentRowIndex)
+        if (row != currentRowIndex) return;
+
+        // 1) 선택된 버튼 기록
+        nodeRows[row].selectedButtonIndex = col;
+
+        // 2) 클릭된 노드의 RoomType 조회
+        RoomType type = GetRoomTypeAt(row, col);
+        CurrentRoomType = type;
+        Debug.Log($"[NodeSystem] 노드 클릭 — 층 {row + 1} (col={col}) | RoomType={type}");
+
+        // 3) 진행 + 분기
+        if (currentRowIndex < nodeRows.Count)
         {
-            // 선택된 버튼 기록
-            nodeRows[row].selectedButtonIndex = col;
-
-            if (currentRowIndex < nodeRows.Count)
-            {
-                // 다음 층으로 진행
-                currentRowIndex++;
-
-                // 노드 화면 → 행동 화면 전환
-                // 수정: DisplayChange.instance(소문자) → DisplayChange.Instance(대문자)
-                DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
-
-                // 버튼 시각 상태 업데이트
-                UpdateNodeStates();
-            }
+            currentRowIndex++;
+            DispatchByRoomType(type);
+            UpdateNodeStates();
         }
+    }
+
+    /// <summary>RoomType 에 따라 적절한 화면을 켜거나 임시 진행 처리한다.</summary>
+    private void DispatchByRoomType(RoomType type)
+    {
+        switch (type)
+        {
+            // ── 전투 계열: 기존 흐름 그대로 (DisplayChanger 가 전투 패널 토글) ──
+            case RoomType.Combat:
+            case RoomType.Elite:
+            case RoomType.Boss:
+                DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
+                break;
+
+            // ── 화툿불 (E 작업 — 다음 사이클) ──
+            // TODO[E·화툿불]: 기획 §02_MVP_노드_설계 §화툿불 — HP/스트레스 -15 회복 패널
+            //                현재 패널 미구현. 임시로 화면 전환 없이 다음 층 진행 로직만 유지.
+            case RoomType.Rest:
+                Debug.Log("[NodeSystem] (TODO·E) 화툿불 노드 — 패널 미구현, 다음 층으로 즉시 진행.");
+                // 화면을 켜지 않으므로 nodeDisplay 유지. 다음 OnNodeClicked 가능.
+                break;
+
+            // ── 용병소 (F 작업 완료 — MercenaryOfficePanel 호출) ──
+            //   기획 §14_용병소_시스템_명세: 후보 3 / 리롤 / 고용 / 파티 편집 / 합성(백로그)
+            //   패널 미연결 시(인스펙터 빈 경우) 로그만 남기고 다음 층 진행.
+            case RoomType.Shop:
+                if (mercenaryOfficePanel != null)
+                {
+                    mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
+                    mercenaryOfficePanel.OnExit += HandleMercenaryExit;
+                    mercenaryOfficePanel.OpenFromNode();
+                }
+                else
+                {
+                    Debug.Log("[NodeSystem] 용병소 노드 — MercenaryOfficePanel 미연결, 다음 층으로 진행.");
+                }
+                break;
+
+            // ── 교회 (백로그) ──
+            // TODO[교회·백로그]: 기획 §맵 노드 §교회 — HP 회복 + 사망 동료 부활. MVP 백로그.
+            case RoomType.Event:
+                Debug.Log("[NodeSystem] (TODO·교회) 교회 노드 — 백로그, 다음 층으로 즉시 진행.");
+                break;
+
+            default:
+                Debug.LogWarning($"[NodeSystem] 미지원 RoomType={type} — 폴백으로 전투 화면 호출.");
+                DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
+                break;
+        }
+    }
+
+    /// <summary>용병소 패널의 "나가기" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
+    private void HandleMercenaryExit()
+    {
+        // MercenaryService.OnLeaveNode 는 MercenaryOfficePanel 내부에서 이미 호출됨.
+        // 여기서는 노드맵 UI 갱신만 — 이미 currentRowIndex++ 가 OnNodeClicked 에서 처리됨.
+        if (mercenaryOfficePanel != null)
+            mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
+        UpdateNodeStates();
+    }
+
+    /// <summary>인덱스 안전한 RoomType 조회. 범위 밖이면 Combat 폴백.</summary>
+    private RoomType GetRoomTypeAt(int row, int col)
+    {
+        if (row < 0 || row >= nodeRows.Count) return RoomType.Combat;
+        var types = nodeRows[row].roomTypes;
+        if (types == null || col < 0 || col >= types.Count) return RoomType.Combat;
+        return types[col];
     }
 }

@@ -31,22 +31,48 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        // ── 층 기반 적 결정 ──────────────────────────────────────
+        // ── 층 + RoomType 기반 적 결정 ──────────────────────────
         // 우선순위:
         //   1) Inspector enemyIds 채워져있으면 → 그것 우선 (수동 강제)
-        //   2) NodeSystem 살아있으면 → FloorTierResolver.ResolveEnemyIds(floor) 정확 매핑
-        //   3) 둘 다 없으면 → tier 기반 랜덤 풀 (테스트용 폴백)
+        //   2) NodeSystem.CurrentRoomType 보고 분기:
+        //      · Boss   → enemy_reaper_boss
+        //      · Elite  → 약탈자 ×3 (기획 §10 §엘리트 — 약탈자 1종만 정의됨)
+        //      · Combat → FloorTierResolver.ResolveEnemyIds(floor) 층별 매핑
+        //   3) NodeSystem 없으면 → tier 기반 랜덤 폴백
         EnemyTier tierToUse = randomTier;
         string[] floorIds   = null;
+        RoomType currentRoom = RoomType.Combat;
+
         if (NodeSystem.Current != null)
         {
-            int floor = NodeSystem.Current.CurrentFloor;
-            floorIds  = FloorTierResolver.ResolveEnemyIds(floor);
-            tierToUse = FloorTierResolver.ResolveTier(floor);
-            Debug.Log($"[EnemySpawner] 층 {floor} | 매핑 적: {(floorIds == null ? "(없음 → tier 폴백)" : string.Join(", ", floorIds))} | tier 폴백: {tierToUse}");
+            int floor    = NodeSystem.Current.CurrentFloor;
+            currentRoom  = NodeSystem.Current.CurrentRoomType;
+
+            switch (currentRoom)
+            {
+                case RoomType.Boss:
+                    floorIds = new[] { "enemy_reaper_boss" };
+                    tierToUse = EnemyTier.Boss;
+                    break;
+
+                case RoomType.Elite:
+                    // TODO[엘리트 구성]: 기획 §10_적_스킬_시트 §엘리트는 약탈자 1종만 정의됨.
+                    //                  마릿수/구성 확정되면 본문 수정.
+                    floorIds = new[] { "enemy_raider_01", "enemy_raider_01", "enemy_raider_01" };
+                    tierToUse = EnemyTier.Normal;
+                    break;
+
+                case RoomType.Combat:
+                default:
+                    floorIds = FloorTierResolver.ResolveEnemyIds(floor);
+                    tierToUse = FloorTierResolver.ResolveTier(floor);
+                    break;
+            }
+
+            Debug.Log($"[EnemySpawner] 층 {floor} / RoomType={currentRoom} | 매핑 적: {(floorIds == null ? "(없음 → tier 폴백)" : string.Join(", ", floorIds))} | tier 폴백: {tierToUse}");
         }
 
-        // 우선순위: 1)Inspector → 2)층 매핑 → 3)tier 랜덤
+        // 우선순위: 1)Inspector → 2)RoomType/층 매핑 → 3)tier 랜덤
         string[] idsToSpawn = null;
         if (enemyIds != null && enemyIds.Count > 0)       idsToSpawn = enemyIds.ToArray();
         else if (floorIds != null && floorIds.Length > 0) idsToSpawn = floorIds;

@@ -58,7 +58,7 @@ public class StackCardController : MonoBehaviour
     public int stackDelta;
 
     [Tooltip("이 카드의 소유 동료 (성향 계산용)")]
-    public CompanionData owner;
+    public FellowData owner;
 
     // ----------------------------------------------------------
     // [내부 상태]
@@ -105,7 +105,7 @@ public class StackCardController : MonoBehaviour
     /// </summary>
     /// <param name="number">스택 기여량 (+3, -2 등)</param>
     /// <param name="cardOwner">이 카드의 소유 동료</param>
-    public void SetupCard(int number, CompanionData cardOwner)
+    public void SetupCard(int number, FellowData cardOwner)
     {
         owner         = cardOwner;
         currentNumber = number;

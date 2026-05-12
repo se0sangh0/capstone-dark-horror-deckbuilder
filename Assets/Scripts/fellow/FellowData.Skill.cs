@@ -61,7 +61,7 @@ public partial class FellowData
     {
         _persistedSkillIds = new string[0];
         _skillSummary      = "(사망 — 스킬 초기화됨)";
-        Debug.Log($"[FellowData] {data?.displayName ?? positionStack.ToString()} 스킬 초기화 (사망)");
+        Debug.Log($"[FellowData] {(!string.IsNullOrEmpty(displayName) ? displayName : positionStack.ToString())} 스킬 초기화 (사망)");
     }
 
     // ── Inspector 표시 갱신 ──────────────────────────────────────
@@ -97,7 +97,7 @@ public partial class FellowData
 
         _skillSummary = string.Join("\n", lines);
 
-        string name = data?.displayName ?? positionStack.ToString();
+        string name = !string.IsNullOrEmpty(displayName) ? displayName : positionStack.ToString();
         Debug.Log($"[FellowData] {name} 스킬 배정 확인:\n{_skillSummary}");
     }
 

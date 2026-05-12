@@ -51,11 +51,11 @@ public static class DeckBuilder
     /// <param name="companions">파티 동료 목록</param>
     /// <param name="allCards">전체 카드 풀 (BattleManager 가 생성)</param>
     /// <returns>셔플된 덱 (카드 + 소유 동료 정보 포함)</returns>
-    public static List<(CardData card, CompanionData owner)> BuildPartyDeck(
-        List<CompanionData> companions,
+    public static List<(CardData card, FellowData owner)> BuildPartyDeck(
+        List<FellowData> companions,
         List<CardData> allCards)
     {
-        var deck = new List<(CardData, CompanionData)>();
+        var deck = new List<(CardData, FellowData)>();
 
         foreach (var companion in companions)
         {
@@ -88,7 +88,7 @@ public static class DeckBuilder
     /// <summary>
     /// 동료의 역할(role)에 맞는 카드만 필터링하여 반환한다.
     /// </summary>
-    private static List<CardData> GetMatchingCards(CompanionData companion, List<CardData> allCards)
+    private static List<CardData> GetMatchingCards(FellowData companion, List<CardData> allCards)
     {
         var matched = allCards
             .Where(c => (int)c.stackType == (int)companion.role)
@@ -135,7 +135,7 @@ public static class DeckBuilder
     // ----------------------------------------------------------
 
     /// <summary>덱 구성 내역을 콘솔에 상세 출력한다.</summary>
-    public static void LogDeck(List<(CardData card, CompanionData owner)> deck)
+    public static void LogDeck(List<(CardData card, FellowData owner)> deck)
     {
         Debug.Log($"[DeckBuilder] 전체 덱: {deck.Count}장");
         foreach (var (card, owner) in deck)

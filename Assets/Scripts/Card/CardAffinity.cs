@@ -13,7 +13,7 @@
 //   - 낙천가(Optimist)    : -5 ~ +5 (모든 가능성)
 //
 // [어디서 쓰이나요?]
-//   - Companion/CompanionData.cs : 동료의 성향 필드
+//   - Fellow/FellowData.cs : 동료의 성향 필드 (affinity)
 //   - GameManager.cs : 카드 스택 값 생성 시 사용
 //   - Card/DeckBuilder.cs : 덱 구성 로그에서 사용
 // ============================================================

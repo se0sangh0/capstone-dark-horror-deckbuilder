@@ -39,6 +39,13 @@ public partial class BattleManager
     {
         if (enemy == null || enemy.isDead) return;
 
+        // 까마귀 같은 패시브 소환체는 행동 안 함 (기획 §11 §3)
+        if (enemy.isPassive)
+        {
+            Debug.Log($"[적 행동/스킵] {enemy.displayName} — passive 소환체");
+            return;
+        }
+
         // 살아있는 아군이 0명이면 행동 자체가 의미 없음
         if (allies.All(a => a.isDead)) return;
 
@@ -56,7 +63,19 @@ public partial class BattleManager
             return;
         }
 
-        // ── 2) 타겟 결정 ────────────────────────────────────────
+        // ── 2) effectType 별 분기 ──────────────────────────────
+        if (skill.effectType == "Summon")
+        {
+            ExecuteSummonSkill(enemy, skill);
+            return;
+        }
+        if (skill.effectType == "Teleport")
+        {
+            ExecuteTeleportSkill(enemy, skill);
+            return;
+        }
+
+        // ── 3) 타겟 결정 + 데미지 적용 ──────────────────────────
         var targets = EnemySkillExecutor.ResolveTargets(skill, allies);
         if (targets.Count == 0)
         {
@@ -64,10 +83,8 @@ public partial class BattleManager
             return;
         }
 
-        // ── 3) 데미지 적용 ──────────────────────────────────────
-        // 타겟 이름들 미리 모음 (로그용)
         string targetNames = string.Join(", ",
-            targets.Select(t => t.data != null ? t.data.displayName : t.positionStack.ToString()));
+            targets.Select(t => !string.IsNullOrEmpty(t.displayName) ? t.displayName : t.positionStack.ToString()));
 
         Debug.Log($"┌─────────────────────────────────────────");
         Debug.Log($"│ [적 스킬] {enemy.displayName} → {skill.displayName}");
@@ -81,34 +98,204 @@ public partial class BattleManager
     }
 
     // ============================================================
-    // 가중치 랜덤으로 적 스킬 1개 선택
+    // 소환 스킬 실행 — effectType="Summon" 전용
+    //   기획 §11 §3 보스 까마귀 부름: 까마귀 2마리 소환
+    //   summonEnemyId 의 적을 summonCount 마릿수만큼 enemies 리스트에 추가.
+    // ============================================================
+    private void ExecuteSummonSkill(EnemyData caster, EnemySkillData skill)
+    {
+        if (string.IsNullOrEmpty(skill.summonEnemyId))
+        {
+            Debug.LogWarning($"[Summon] {skill.id} — summonEnemyId 비어있음.");
+            return;
+        }
+        if (EnemyDatabase.Instance == null)
+        {
+            Debug.LogWarning("[Summon] EnemyDatabase 없음.");
+            return;
+        }
+
+        var def = EnemyDatabase.Instance.GetEnemy(skill.summonEnemyId);
+        if (def == null)
+        {
+            Debug.LogWarning($"[Summon] 적 정의 없음: {skill.summonEnemyId}");
+            return;
+        }
+
+        int count = Mathf.Max(1, skill.summonCount);
+
+        Debug.Log($"┌─────────────────────────────────────────");
+        Debug.Log($"│ [적 소환] {caster.displayName} → {skill.displayName}");
+        Debug.Log($"│  소환 대상: {def.displayName} × {count}");
+        Debug.Log($"└─────────────────────────────────────────");
+
+        for (int i = 0; i < count; i++)
+        {
+            var summoned = EnemyDatabase.CreateRuntimeEnemy(def);
+            // 소환된 턴 끝 ResultProcessing 에서 -1 되어도 정확히 summonLifeTurns 후 만료되도록 +1 보정
+            summoned.currentLifeTurns = summoned.summonLifeTurns + 1;
+            enemies.Add(summoned);
+            Debug.Log($"  └ [소환됨] {summoned.displayName} (수명 {summoned.summonLifeTurns}턴 / {summoned.hitCountToDie} hit 처치)");
+        }
+
+        // TODO[K]: 보스 상태머신 — 까마귀 소환했으므로 다음 만료까지 추적.
+        //          pendingTeleport 는 까마귀 만료 시 ProcessSummonExpiration 에서 켠다.
+    }
+
+    // ============================================================
+    // 가중치 랜덤으로 적 스킬 1개 선택 — 강제 트리거 우선
     // ============================================================
     private EnemySkillData PickEnemySkill(EnemyData enemy)
     {
+        // ── 1) 강제 스킬 (조건부 1회 발동) 우선 체크 ────────────
+        var forced = TryGetForcedSkill(enemy);
+        if (forced != null)
+        {
+            enemy.usedOnceSkills.Add(forced.id);
+            Debug.Log($"[적 행동/강제] {enemy.displayName} → {forced.displayName} 발동 (1회 한정)");
+            return forced;
+        }
+
+        // ── 2) 가중치 룰렛 (1회 스킬·weight 0 스킬 제외) ──────────
         if (enemy.skillIds == null || enemy.skillIds.Length == 0) return null;
         if (EnemySkillDatabase.Instance == null) return null;
 
-        // 보유 스킬을 모두 조회 + 유효한 것만 후보에 둠
         var skills = new List<EnemySkillData>();
         int totalWeight = 0;
         foreach (var id in enemy.skillIds)
         {
             var s = EnemySkillDatabase.Instance.GetSkill(id);
             if (s == null) continue;
-            int w = Mathf.Max(1, s.weight); // weight 0 이어도 최소 1로 보정
+
+            // weight 0 = 가중치 룰렛 제외 (강제 트리거 전용 스킬 표시)
+            if (s.weight <= 0) continue;
+
+            // 1회 한정 스킬이 이미 사용됐다면 룰렛에서 제외
+            if (enemy.usedOnceSkills.Contains(id)) continue;
+
             skills.Add(s);
-            totalWeight += w;
+            totalWeight += s.weight;
         }
-        if (skills.Count == 0) return null;
+        if (skills.Count == 0 || totalWeight <= 0) return null;
 
         // 가중치 누적 합으로 룰렛 휠
         int roll = Random.Range(0, totalWeight);
         int acc  = 0;
         foreach (var s in skills)
         {
-            acc += Mathf.Max(1, s.weight);
+            acc += s.weight;
             if (roll < acc) return s;
         }
         return skills[skills.Count - 1]; // 부동소수 오차/엣지케이스 대비
+    }
+
+    // ============================================================
+    // 소환체 수명 카운터 + 만료 처리 — HandleResultProcessing 에서 매 턴 호출
+    // ============================================================
+    //   기획 §11 §3 보스 까마귀:
+    //     소환 후 3턴 카운터, 0 도달 시:
+    //       1) 패널티 발동 — 1마리당 expirePenaltyPower 데미지를 파티 전체에 분산 적용
+    //       2) 까마귀 사망 처리
+    //       3) 보스에 pendingTeleport 플래그 → 다음 보스 턴에 K(순간이동) 강제 발동
+    //   까마귀가 hit-count 로 처치된 경우는 만료가 아니므로 패널티/플래그 안 발동.
+    // ============================================================
+    private void ProcessSummonExpiration()
+    {
+        var summonsAlive = enemies
+            .Where(e => e != null && !e.isDead && e.summonLifeTurns > 0)
+            .ToList();
+        if (summonsAlive.Count == 0) return;
+
+        var aliveAllies = allies.Where(a => !a.isDead).ToList();
+        if (aliveAllies.Count == 0) return; // 패널티 대상 없음
+
+        foreach (var summon in summonsAlive)
+        {
+            summon.currentLifeTurns--;
+            if (summon.currentLifeTurns > 0)
+            {
+                Debug.Log($"[소환체] {summon.displayName} 남은 수명 {summon.currentLifeTurns}턴");
+                continue;
+            }
+
+            // ── 수명 만료 — 패널티 발동 + 사망 처리 ──
+            Debug.Log($"[소환체 만료] {summon.displayName} — 패널티 {summon.expirePenaltyPower} 데미지 파티 분산");
+
+            if (summon.expirePenaltyPower > 0)
+            {
+                int perAlly = Mathf.Max(1, summon.expirePenaltyPower / aliveAllies.Count);
+                foreach (var ally in aliveAllies)
+                    ApplyDamageToAlly(ally, perAlly);
+            }
+
+            summon.isDead = true;
+
+            // 소환체 만료 → 보스(거두는 자)에 순간이동 예약 플래그
+            //   기획 §11 §3: "3턴 내 처치 실패 시 → 까마귀 패널티 발동 → 순간이동 상태 진입"
+            var boss = enemies.FirstOrDefault(e =>
+                e != null && !e.isDead && e.tier == EnemyTier.Boss);
+            if (boss != null)
+            {
+                boss.pendingTeleport = true;
+                Debug.Log($"[상태머신] {boss.displayName} — 다음 턴 순간이동 예약됨 (pendingTeleport=true)");
+            }
+        }
+    }
+
+    // ============================================================
+    // 적별 조건부 강제 스킬 — 기획 §11_적_스킬_시트 §행동 패턴
+    // ============================================================
+    private EnemySkillData TryGetForcedSkill(EnemyData enemy)
+    {
+        if (EnemySkillDatabase.Instance == null || enemy == null) return null;
+
+        // [I] 약탈자 — HP ≤ 30% 시 도끼던지기 강제 발동 (1회 한정)
+        //     기획 §11 §2 약탈자 §행동 패턴
+        if (enemy.id == "enemy_raider_01")
+        {
+            const string AXE_THROW = "enemy_skill_raider_throw";
+            if (enemy.HpRatio <= 0.30f && !enemy.usedOnceSkills.Contains(AXE_THROW))
+                return EnemySkillDatabase.Instance.GetSkill(AXE_THROW);
+        }
+
+        // [K] 보스 — 까마귀 부름 실패(수명 만료) 후 다음 턴 순간이동 강제 발동
+        //     기획 §11 §3 거두는 자 §행동 패턴 [순간이동 상태]
+        if (enemy.tier == EnemyTier.Boss && enemy.pendingTeleport)
+        {
+            const string TELEPORT = "enemy_skill_reaper_teleport";
+            var skill = EnemySkillDatabase.Instance.GetSkill(TELEPORT);
+            if (skill != null)
+            {
+                enemy.pendingTeleport = false; // 1회 발동 후 플래그 해제 → 기본 상태 복귀
+                return skill;
+            }
+            Debug.LogWarning($"[K·Teleport] {TELEPORT} 스킬 데이터 없음 — 플래그 해제 후 일반 행동.");
+            enemy.pendingTeleport = false;
+        }
+
+        return null;
+    }
+
+    // ============================================================
+    // 순간이동 스킬 — effectType="Teleport"
+    //   기획 §11 §3 거두는 자: 파티 배치 순서를 역순으로 변경
+    //   [탱커, 딜러, 서포터, 힐러] → [힐러, 서포터, 딜러, 탱커]
+    //   allies 리스트 전체 reverse (사망 자리 빈칸 포함).
+    // ============================================================
+    private void ExecuteTeleportSkill(EnemyData caster, EnemySkillData skill)
+    {
+        Debug.Log($"┌─────────────────────────────────────────");
+        Debug.Log($"│ [적 스킬·순간이동] {caster.displayName} → {skill.displayName}");
+        Debug.Log($"│  효과: 파티 배치 순서 역전");
+        Debug.Log($"└─────────────────────────────────────────");
+
+        string before = string.Join(", ",
+            allies.Select(a => !string.IsNullOrEmpty(a?.displayName) ? a.displayName : (a?.positionStack.ToString() ?? "?")));
+        allies.Reverse();
+        string after = string.Join(", ",
+            allies.Select(a => !string.IsNullOrEmpty(a?.displayName) ? a.displayName : (a?.positionStack.ToString() ?? "?")));
+        Debug.Log($"  └ [순간이동] 배치 역전: [{before}] → [{after}]");
+
+        // TODO[연출]: 보스 비가시 + 후방 이동 애니메이션. 다음 사이클.
     }
 }

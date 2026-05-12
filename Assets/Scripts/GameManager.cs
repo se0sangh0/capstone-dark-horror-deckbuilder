@@ -13,7 +13,7 @@
 //   GameManager 는 카드 선택 이벤트를 중계하는 역할만 합니다.
 //
 // [어디서 쓰이나요?]
-//   - BattleManager.cs : InjectDeck(), RemoveCardsOfCompanion() 호출
+//   - BattleManager.cs : InjectDeck(), RemoveCardsOfFellow() 호출
 //   - StackCardController.cs : GameManager.Instance 참조
 //
 // [연결된 파일]
@@ -81,9 +81,9 @@ public class GameManager : Singleton<GameManager>
     // ----------------------------------------------------------
     // [드로우 덱]
     // 전투 진입 시 BattleManager → DeckBuilder 가 생성하여 주입합니다.
-    // 각 카드는 (CardData, 소유자 CompanionData) 쌍으로 저장됩니다.
+    // 각 카드는 (CardData, 소유자 FellowData) 쌍으로 저장됩니다.
     // ----------------------------------------------------------
-    private List<(CardData card, CompanionData owner)> drawDeck = new();
+    private List<(CardData card, FellowData owner)> drawDeck = new();
 
     /// <summary>현재 드로우 위치 (몇 번째 카드까지 뽑았는지)</summary>
     private int currentDrawIndex = 0;
@@ -102,17 +102,19 @@ public class GameManager : Singleton<GameManager>
         // 매 턴 반복되어 주석 처리
         // Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
 
-        // ✨ 살아있는 동료 수만큼만 손패 슬롯 활성화
-        // 기획 §03_카드_설계_프레임: "손패 유지량 = 배치된 동료의 수와 동일"
-        // → 동료 4명 = 4슬롯, 3명 = 3슬롯. 사망 동료가 생길 때마다 슬롯 1개 영구 비활성.
+        // 손패 동적 상한 — 기획 §03_카드_설계_프레임 §손패/드로우:
+        //   "손패 유지량 = 배치된 동료의 수와 동일" (4인 → 4장, 3인 → 3장)
+        //   PartyManager._activeFellows 에서 사망 동료는 즉시 제거되므로,
+        //   CompanionCount = 살아있는 동료 수 = 이번 턴의 슬롯 상한이 된다.
+        //   슬롯 [i >= aliveCompanionCount] 는 이번 턴 비활성 처리.
         int aliveCompanionCount = PartyManager.Instance != null
             ? PartyManager.Instance.CompanionCount
             : myCards.Length;
 
         for (int i = 0; i < myCards.Length; i++)
         {
-            // ① 인덱스가 살아있는 동료 수 이상이면 영구 비활성 (사망 동료의 자리)
-            //    이 분기가 핵심 — 사망한 동료의 슬롯에 다른 동료 카드가 들어오는 것 방지.
+            // ① 인덱스가 살아있는 동료 수 이상이면 슬롯 비활성
+            //    (myCards 인스펙터 슬롯이 4개여도 동료 3명이면 슬롯[3]은 비워둠)
             if (i >= aliveCompanionCount)
             {
                 myCards[i].gameObject.SetActive(false);
@@ -156,7 +158,7 @@ public class GameManager : Singleton<GameManager>
     /// <summary>
     /// 전투 진입 시 BattleManager 가 호출하여 덱을 주입한다.
     /// </summary>
-    public void InjectDeck(List<(CardData card, CompanionData owner)> deck)
+    public void InjectDeck(List<(CardData card, FellowData owner)> deck)
     {
         drawDeck = deck;
         currentDrawIndex = 0;
@@ -167,15 +169,15 @@ public class GameManager : Singleton<GameManager>
     /// 사망한 동료의 카드를 drawDeck 에서 전부 제거한다.
     /// BattleManager.ProcessDeathAndStress() 에서 호출됩니다.
     /// </summary>
-    public void RemoveCardsOfCompanion(CompanionData deadCompanion)
+    public void RemoveCardsOfFellow(FellowData deadFellow)
     {
         // 이미 뽑힌 카드 중 해당 동료 카드 수 (인덱스 보정용)
         int removedBeforeIndex = drawDeck
             .Take(currentDrawIndex)
-            .Count(entry => entry.owner == deadCompanion);
+            .Count(entry => entry.owner == deadFellow);
 
         // drawDeck 에서 해당 동료 카드 전부 제거
-        int removedCount = drawDeck.RemoveAll(entry => entry.owner == deadCompanion);
+        int removedCount = drawDeck.RemoveAll(entry => entry.owner == deadFellow);
 
         // 이미 지나간 인덱스도 당겨지므로 보정
         currentDrawIndex = Mathf.Max(0, currentDrawIndex - removedBeforeIndex);
@@ -191,7 +193,7 @@ public class GameManager : Singleton<GameManager>
             foreach (var card in myCards)
             {
                 if (card == null) continue;
-                if (card.owner == deadCompanion)
+                if (card.owner == deadFellow)
                 {
                     card.gameObject.SetActive(false);
                     handRemoved++;
@@ -199,7 +201,7 @@ public class GameManager : Singleton<GameManager>
             }
         }
 
-        Debug.Log($"[GameManager] {deadCompanion.displayName} 카드 제거 | 덱 -{removedCount}장, 손패 -{handRemoved}장 | 잔여 덱: {drawDeck.Count}장");
+        Debug.Log($"[GameManager] {deadFellow.displayName} 카드 제거 | 덱 -{removedCount}장, 손패 -{handRemoved}장 | 잔여 덱: {drawDeck.Count}장");
     }
 
     /// <summary>

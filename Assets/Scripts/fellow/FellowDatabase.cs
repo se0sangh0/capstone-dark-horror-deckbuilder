@@ -12,15 +12,15 @@
 //   - GetFellow(id)              : ID 로 FellowDef 1개 조회
 //   - GetFellowsByRole(role)     : 역할에 맞는 FellowDef 목록 조회
 //   - GetRandomFellow(role)      : 역할에 맞는 FellowDef 랜덤 1개 조회
-//   - CreateCompanionData(def)   : FellowDef → CompanionData SO 생성
-//   - ParseRole(string)          : 역할 문자열 → CompanionRole 변환
+//   - CreateRuntimeFellow(def, affinity) : FellowDef → FellowData SO 직접 생성 (성급 배율 포함)
+//   - ParseRole(string)                  : 역할 문자열 → CompanionRole 변환
 //
 // [어디서 쓰이나요?]
 //   - PartyManager.cs : 기본 파티 생성 시 동료 정의 로드
 //
 // [연결된 파일]
 //   - fellow/FellowDef.cs          : fellow.json 역직렬화 구조체
-//   - Companion/CompanionData.cs   : 동료 정의 SO
+//   - Fellow/FellowData.cs         : 동료 정의 + 런타임 통합 SO
 //   - Resources/Data/fellow.json   : 실제 동료 데이터 파일
 //   - Core/Singleton.cs            : 싱글톤 기반 클래스
 //
@@ -129,41 +129,8 @@ public class FellowDatabase : Singleton<FellowDatabase>
     }
 
     // ----------------------------------------------------------
-    // 공개 유틸리티 — CompanionData 생성
+    // 공개 유틸리티 — FellowData 생성 (통합 후)
     // ----------------------------------------------------------
-
-    /// <summary>
-    /// FellowDef 에서 런타임 CompanionData SO 를 생성한다.
-    /// affinity 는 호출자가 지정한다.
-    /// </summary>
-    public static CompanionData CreateCompanionData(FellowDef def, CardAffinity affinity)
-    {
-        var c = ScriptableObject.CreateInstance<CompanionData>();
-        c.id            = def.id;
-        c.jobClass      = def.jobClass;
-        c.displayName   = def.displayName;
-        c.role          = ParseRole(def.role);
-        c.affinity      = affinity;
-        c.stressResist  = def.stressResist;
-        c.recruitCost   = def.recruitCost;
-        c.skillIds      = def.skillIds ?? new string[0];
-        c.starLevel     = def.starLevel > 0 ? def.starLevel : 1;
-
-        // ── 성급 체력 배율 (기획 백로그 §5 성급 설계안) ──────────────
-        // 1★ → baseHp × 1.00
-        // 2★ → baseHp × 1.40   (체력 +40%)
-        // 3★ → baseHp × 1.96   (1.4 × 1.4, 2★ 대비 +40%)
-        //
-        // JSON 의 maxHp 는 1★ 기준값. 여기서 한 번만 배율 적용.
-        // BattleManager.InitBattle 은 data.maxHp 를 그대로 사용 (이중 스케일링 금지).
-        // 승급 시 PartyManager.TryUpgradeStar() 에서도 같은 식으로 재계산해야 한다.
-        int baseHp  = def.maxHp > 0 ? def.maxHp : 80;
-        float mult  = Mathf.Pow(1.4f, c.starLevel - 1);
-        c.maxHp     = Mathf.RoundToInt(baseHp * mult);
-        c.spritePath = def.spritePath;
-
-        return c;
-    }
 
     /// <summary>역할 문자열을 CompanionRole 열거형으로 변환한다.</summary>
     public static CompanionRole ParseRole(string role)
@@ -215,14 +182,43 @@ public class FellowDatabase : Singleton<FellowDatabase>
         else             Debug.LogError($"[FellowDatabase] ✗ 무결성 검사 실패: {errors}개 오류.");
     }
     
-    //모집 / 시작 파티 둘다 여기 부름
-    public static FellowData CreateRuntimeFellow(FellowDef def, CardAffinity affinity)
+    // ----------------------------------------------------------
+    // 모집 / 시작 파티 / 합성 모두 여기로 진입.
+    //   FellowDef → FellowData 직접 생성 (단일 SO, 성급 배율 자동 계산)
+    //   starLevel 매개변수: 모집·시작 파티는 1, 합성 결과는 2/3 등.
+    // ----------------------------------------------------------
+    public static FellowData CreateRuntimeFellow(FellowDef def, CardAffinity affinity, int starLevel = 1)
     {
-        var c = CreateCompanionData(def, affinity);
-        var fellow = ScriptableObject.CreateInstance<FellowData>();
-        fellow.data = c;
-        fellow.positionStack = (StackType)(int)c.role;
-        fellow.starLevel = c.starLevel;
-        return fellow;
+        var f = ScriptableObject.CreateInstance<FellowData>();
+
+        // ── 정의 데이터 복사 ──
+        f.id            = def.id;
+        f.jobClass      = def.jobClass;
+        f.displayName   = def.displayName;
+        f.role          = ParseRole(def.role);
+        f.affinity      = affinity;
+        f.stressResist  = def.stressResist;
+        f.recruitCost   = def.recruitCost;
+        f.skillIds      = def.skillIds ?? new string[0];
+        f.spritePath    = def.spritePath;
+
+        // 합성 등 외부 지정 starLevel 우선, 없으면 def.starLevel (보통 1), 그것도 0 이하면 1
+        f.starLevel     = starLevel > 0 ? starLevel : (def.starLevel > 0 ? def.starLevel : 1);
+
+        // ── 성급 체력 배율 (기획 백로그 §5) ──
+        // 1★ → ×1.00 / 2★ → ×1.40 / 3★ → ×1.96 (1.4^(star-1))
+        int   baseHp = def.maxHp > 0 ? def.maxHp : 80;
+        float mult   = Mathf.Pow(1.4f, f.starLevel - 1);
+        f.maxHp        = Mathf.RoundToInt(baseHp * mult);
+        f.hpMultiplier = mult;
+
+        // ── 스킬 파워 배율 (기획 백로그 §5) ──
+        // 1★ → ×1.00 / 2★ → ×1.25 / 3★ → ×1.5625 (1.25^(star-1))
+        f.skillPowerMultiplier = Mathf.Pow(1.25f, f.starLevel - 1);
+
+        // ── 런타임 상태 초기값 ──
+        f.positionStack = (StackType)(int)f.role;
+
+        return f;
     }
 }

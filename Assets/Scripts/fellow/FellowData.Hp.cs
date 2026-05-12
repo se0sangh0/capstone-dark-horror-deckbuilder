@@ -29,8 +29,8 @@ public partial class FellowData
         get => _currentHp;
         set
         {
-            int maxHp  = data != null ? data.maxHp : 100;
-            _currentHp = Mathf.Clamp(value, 0, maxHp);
+            int maxHpClamp = this.maxHp > 0 ? this.maxHp : 100;
+            _currentHp = Mathf.Clamp(value, 0, maxHpClamp);
             OnHpChanged?.Invoke(_currentHp);
 
             if (_currentHp <= 0 && !isDead)
@@ -49,22 +49,22 @@ public partial class FellowData
     public void InitHp(UnityEngine.UI.Slider slider)
     {
         HpSlider = slider;
-        int maxHp = data != null ? data.maxHp : 100;
+        int effectiveMaxHp = this.maxHp > 0 ? this.maxHp : 100;
 
-        // SO 에셋에서 미리 설정된 값이 있으면 유지, 없으면(0 이하) maxHp로 초기화
+        // 미리 설정된 값이 있으면 유지, 없으면(0 이하) maxHp로 초기화
         if (_currentHp <= 0)
-            _currentHp = maxHp;
+            _currentHp = effectiveMaxHp;
         else
-            _currentHp = Mathf.Clamp(_currentHp, 1, maxHp);
+            _currentHp = Mathf.Clamp(_currentHp, 1, effectiveMaxHp);
 
         if (HpSlider != null)
         {
-            HpSlider.maxValue = maxHp;
+            HpSlider.maxValue = effectiveMaxHp;
             HpSlider.value    = _currentHp;
         }
 
         OnHpChanged += hp => { if (HpSlider != null) HpSlider.value = hp; };
-        OnDied      += () => Debug.Log($"[사망] {data?.displayName ?? positionStack.ToString()}");
+        OnDied      += () => Debug.Log($"[사망] {(!string.IsNullOrEmpty(displayName) ? displayName : positionStack.ToString())}");
     }
 
     // ── 실드 ──────────────────────────────────────────────────────

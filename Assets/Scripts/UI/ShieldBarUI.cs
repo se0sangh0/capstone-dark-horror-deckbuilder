@@ -54,7 +54,7 @@ public class ShieldBarUI : MonoBehaviour
     {
         if (_fellow == null || _shieldImage == null) return;
 
-        int maxHp  = _fellow.data != null ? _fellow.data.maxHp : 100;
+        int maxHp  = _fellow.maxHp > 0 ? _fellow.maxHp : 100;
         int shield = _fellow.shield;
         int hp     = _fellow.CurrentHp;
 
