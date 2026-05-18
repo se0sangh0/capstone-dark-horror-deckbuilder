@@ -49,6 +49,10 @@ public class PartyManager : Singleton<PartyManager>
     // 사망한 동료 보관소 — 게임 리셋 전까지 유지
     private List<FellowData> _deadFellowArchive = new();
 
+    /// <summary>파티 멤버가 변경(모집/사망/리셋)될 때마다 발생.
+    /// LeftPanelView 등 UI가 구독해 자동 갱신한다.</summary>
+    public event System.Action OnPartyChanged;
+
     // ----------------------------------------------------------
     // Awake — 싱글톤 등록 + 씬 유지
     // InitDefaultParty 는 Start() 에서 호출한다.
@@ -95,6 +99,7 @@ public class PartyManager : Singleton<PartyManager>
         }
         _activeFellows.Add(fellow);
         Debug.Log($"[PartyManager] 동료 합류: {(!string.IsNullOrEmpty(fellow.displayName) ? fellow.displayName : fellow.name)} | 현재 {_activeFellows.Count}명");
+        OnPartyChanged?.Invoke();
     }
 
     /// <summary>
@@ -107,6 +112,7 @@ public class PartyManager : Singleton<PartyManager>
         _activeFellows.Remove(fellow);
         _deadFellowArchive.Add(fellow);
         Debug.Log($"[PartyManager] 동료 사망/이탈: {(!string.IsNullOrEmpty(fellow.displayName) ? fellow.displayName : fellow.name)} | 잔여: {_activeFellows.Count}명 | 보관: {_deadFellowArchive.Count}명");
+        OnPartyChanged?.Invoke();
     }
 
     /// <summary>
@@ -119,6 +125,7 @@ public class PartyManager : Singleton<PartyManager>
         _activeFellows.Clear();
         GenerateRandomParty(4);
         Debug.Log($"[PartyManager] 게임 리셋 완료. 새 파티 {_activeFellows.Count}명 생성.");
+        OnPartyChanged?.Invoke();
     }
 
     /// <summary>보관소에 있는 사망 동료 수</summary>
@@ -180,6 +187,7 @@ public class PartyManager : Singleton<PartyManager>
         }
 
         Debug.Log($"[PartyManager] 랜덤 파티 생성 완료: {_activeFellows.Count}명");
+        OnPartyChanged?.Invoke();
     }
 
     /// <summary>FellowDatabase 가 없거나 동료가 부족할 때 쓰는 최소 폴백 동료.</summary>
@@ -187,13 +195,17 @@ public class PartyManager : Singleton<PartyManager>
     {
         var f = ScriptableObject.CreateInstance<FellowData>();
         f.id            = $"fallback_{index}";
-        f.displayName   = $"동료 {index + 1}";
         f.affinity      = RandomAffinity();
+        f.gender        = UnityEngine.Random.value < 0.5f ? Gender.Male : Gender.Female;
+        f.displayName   = NameDatabase.Instance != null
+            ? NameDatabase.Instance.GetRandomName(f.gender)
+            : $"동료 {index + 1}";
         f.maxHp         = 80;
         f.stressResist  = 0;
         f.recruitCost   = 30;
         f.positionStack = StackType.Dealer;
         f.role          = CompanionRole.Dealer;
+        f.CurrentHp     = f.maxHp; // 풀피로 시작 (LeftPanel 전투 외 UI 에서 0 표시 방지)
         return f;
     }
 

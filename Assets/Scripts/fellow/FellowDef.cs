@@ -31,6 +31,7 @@ public class FellowDef
     public string   jobClass;
     public string   displayName;
     public string   role;           // "Dealer" / "Tanker" / "Support"
+    public string   gender;         // "Male" / "Female"  (기획 §6 — 이름 풀 선택용)
     public int      maxHp;
     public int      stressResist;
     public int      recruitCost;

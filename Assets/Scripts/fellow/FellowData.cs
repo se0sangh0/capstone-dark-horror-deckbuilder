@@ -28,6 +28,17 @@ public enum CompanionRole
     Support = 2,
 }
 
+// ----------------------------------------------------------
+// [Gender 열거형]
+// 기획 §6 (이름 생성 규칙): AllyNameGenerator 가 gender 기준으로
+// 남자/여자 이름 테이블에서 displayName 을 조합한다.
+// ----------------------------------------------------------
+public enum Gender
+{
+    Male   = 0,
+    Female = 1,
+}
+
 [CreateAssetMenu(menuName = "DarkHorror/FellowData", fileName = "fellow_new")]
 public partial class FellowData : ScriptableObject
 {
@@ -45,6 +56,9 @@ public partial class FellowData : ScriptableObject
 
     [Tooltip("성향. 카드 스택 범위(0 제외) 결정.")]
     public CardAffinity affinity;
+
+    [Tooltip("성별. AllyNameGenerator 가 이름 풀 선택에 사용. UI 표기는 미사용(기획 §6).")]
+    public Gender gender;
 
     [Header("직업")]
     [Tooltip("직업명 — 캐스터/오펜더/디펜더/어택커/프리스트")]
@@ -69,7 +83,7 @@ public partial class FellowData : ScriptableObject
     [Header("런타임 상태")]
     public StackType positionStack;
     public Sprite    fellowSprite;
-    public int       currentStress   = 0;
+    // currentStress → FellowData.Stress.cs (프로퍼티 + OnStressChanged 이벤트)
     public int       stressResist    = 0;    // 모집 시 FellowDef 에서 복사
     public int       shield          = 0;    // 데미지 흡수량; HP 감소 전에 먼저 소모됨
     public bool      isDead          = false;

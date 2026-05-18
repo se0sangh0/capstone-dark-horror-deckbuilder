@@ -74,14 +74,15 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
 
     // ----------------------------------------------------------
     // Awake — 싱글톤 등록 + UI 이벤트 구독
+    // 씬 전환 시 _costTexts 등 인스펙터 참조가 깨지지 않도록
+    // DontDestroyOnLoad 를 쓰지 않고 매 씬마다 새 인스턴스를 사용한다.
+    // PlayerPrefs 로 값은 영구 저장되므로 데이터 손실 없음.
     // ----------------------------------------------------------
     protected virtual void Awake()
     {
-        if (Instance == null)
+        if (Instance == null || Instance == this)
         {
             Instance = this as T;
-            DontDestroyOnLoad(gameObject);
-
             // UI 업데이트 이벤트 구독 (스택 바뀔 때마다 자동 호출)
             OnCostChanged += UpdateUI;
         }
@@ -90,6 +91,12 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
             // 중복 인스턴스 제거
             Destroy(gameObject);
         }
+    }
+
+    // 씬 전환 시 Instance 정리 — 다음 씬에서 새 인스턴스가 Instance 등록 가능
+    protected virtual void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     // ----------------------------------------------------------

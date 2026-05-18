@@ -106,14 +106,28 @@ public class NodeSystem : MonoBehaviour
     }
 
     [Header("시각 상태 (Visual Settings)")]
-    [SerializeField] [Tooltip("지나간 층 — 선택한 버튼 색상")]
+    [SerializeField] [Tooltip("지나간 층 — 선택한 버튼 색상 (호환 유지, 현재 미사용)")]
     private NodeVisualState passedState;
 
-    [SerializeField] [Tooltip("현재 층 — 클릭 가능한 버튼 색상")]
+    [SerializeField] [Tooltip("현재 층 — 클릭 가능한 버튼 색상 (호환 유지, 현재 미사용)")]
     private NodeVisualState currentState;
 
-    [SerializeField] [Tooltip("잠긴 층 — 클릭 불가 버튼 색상")]
+    [SerializeField] [Tooltip("잠긴 층 — 클릭 불가 버튼 색상 (호환 유지, 현재 미사용)")]
     private NodeVisualState lockedState;
+
+    // ── RoomType 별 색상 (배틀 흰색 / 용병소 파랑 / 화툿불 빨강 / 보스 보라) ──
+    [Header("RoomType 색상")]
+    [SerializeField] private Color combatColor = Color.white;
+    [SerializeField] private Color eliteColor  = Color.white;
+    [SerializeField] private Color shopColor   = new Color(0.24f, 0.55f, 1.00f); // 파랑
+    [SerializeField] private Color restColor   = new Color(1.00f, 0.30f, 0.30f); // 빨강
+    [SerializeField] private Color bossColor   = new Color(0.62f, 0.30f, 1.00f); // 보라
+    [SerializeField] private Color eventColor  = new Color(0.85f, 0.85f, 0.85f); // 회색
+
+    [Header("진행 상태별 알파 (RoomType 색상에 곱해짐)")]
+    [SerializeField, Range(0f, 1f)] private float currentAlpha = 1.00f;
+    [SerializeField, Range(0f, 1f)] private float passedAlpha  = 0.85f;
+    [SerializeField, Range(0f, 1f)] private float lockedAlpha  = 0.35f;
 
     // ----------------------------------------------------------
     // [화면 전환 참조]
@@ -125,6 +139,10 @@ public class NodeSystem : MonoBehaviour
     [Header("용병소 (Shop 노드 — 선택)")]
     [Tooltip("Shop(용병소) 노드 클릭 시 열릴 메인 패널. 비어있으면 TODO 로그만 출력하고 다음 층 진행.")]
     [SerializeField] private MercenaryOfficePanel mercenaryOfficePanel;
+
+    [Header("화툿불 (Rest 노드 — 선택)")]
+    [Tooltip("Rest(화툿불) 노드 클릭 시 열릴 패널. 9층 고정. 비어있으면 회복 없이 다음 층 진행.")]
+    [SerializeField] private RestPanel restPanel;
 
     // ----------------------------------------------------------
     // 초기화
@@ -271,34 +289,47 @@ public class NodeSystem : MonoBehaviour
                 Button btn = nodeRows[r].buttons[b];
                 Image  img = btn.GetComponent<Image>();
 
+                RoomType type      = GetRoomTypeAt(r, b);
+                Color    baseColor = GetRoomColor(type);
+
+                float alpha;
+                bool  interactable;
+
                 if (r < currentRowIndex)
                 {
-                    if (b == nodeRows[r].selectedButtonIndex)
-                        ApplyState(btn, img, passedState, false);
-                    else
-                        ApplyState(btn, img, lockedState, false);
+                    // 지나간 층 — 선택된 노드만 유지, 나머지는 어둡게
+                    bool isSelected = (b == nodeRows[r].selectedButtonIndex);
+                    alpha        = isSelected ? passedAlpha : lockedAlpha;
+                    interactable = false;
                 }
                 else if (r == currentRowIndex)
                 {
-                    ApplyState(btn, img, currentState, true);
+                    alpha        = currentAlpha;
+                    interactable = true;
                 }
                 else
                 {
-                    ApplyState(btn, img, lockedState, false);
+                    alpha        = lockedAlpha;
+                    interactable = false;
                 }
+
+                btn.interactable = interactable;
+                if (img != null)
+                    img.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
             }
         }
     }
 
-    private void ApplyState(Button btn, Image img, NodeVisualState state, bool isInteractable)
+    private Color GetRoomColor(RoomType type) => type switch
     {
-        btn.interactable = isInteractable;
-        if (img != null)
-        {
-            img.color = state.color;
-            if (state.sprite != null) img.sprite = state.sprite;
-        }
-    }
+        RoomType.Combat => combatColor,
+        RoomType.Elite  => eliteColor,
+        RoomType.Shop   => shopColor,
+        RoomType.Rest   => restColor,
+        RoomType.Boss   => bossColor,
+        RoomType.Event  => eventColor,
+        _               => Color.white,
+    };
 
     // ----------------------------------------------------------
     // 노드 클릭 처리 — RoomType 별 분기
@@ -340,12 +371,20 @@ public class NodeSystem : MonoBehaviour
                 DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
                 break;
 
-            // ── 화툿불 (E 작업 — 다음 사이클) ──
-            // TODO[E·화툿불]: 기획 §02_MVP_노드_설계 §화툿불 — HP/스트레스 -15 회복 패널
-            //                현재 패널 미구현. 임시로 화면 전환 없이 다음 층 진행 로직만 유지.
+            // ── 화툿불 (E 작업 완료 — RestPanel 호출) ──
+            //   기획 §02_MVP_노드_설계 §화툿불 — HP/스트레스 -15 회복 + 파티 편집
+            //   패널 미연결 시(인스펙터 빈 경우) 로그만 남기고 다음 층 진행.
             case RoomType.Rest:
-                Debug.Log("[NodeSystem] (TODO·E) 화툿불 노드 — 패널 미구현, 다음 층으로 즉시 진행.");
-                // 화면을 켜지 않으므로 nodeDisplay 유지. 다음 OnNodeClicked 가능.
+                if (restPanel != null)
+                {
+                    restPanel.OnExit -= HandleRestExit;
+                    restPanel.OnExit += HandleRestExit;
+                    restPanel.OpenFromNode();
+                }
+                else
+                {
+                    Debug.Log("[NodeSystem] 화툿불 노드 — RestPanel 미연결, 회복 없이 다음 층으로 진행.");
+                }
                 break;
 
             // ── 용병소 (F 작업 완료 — MercenaryOfficePanel 호출) ──
@@ -384,6 +423,14 @@ public class NodeSystem : MonoBehaviour
         // 여기서는 노드맵 UI 갱신만 — 이미 currentRowIndex++ 가 OnNodeClicked 에서 처리됨.
         if (mercenaryOfficePanel != null)
             mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
+        UpdateNodeStates();
+    }
+
+    /// <summary>화툿불 패널의 "다음 층" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
+    private void HandleRestExit()
+    {
+        if (restPanel != null)
+            restPanel.OnExit -= HandleRestExit;
         UpdateNodeStates();
     }
 

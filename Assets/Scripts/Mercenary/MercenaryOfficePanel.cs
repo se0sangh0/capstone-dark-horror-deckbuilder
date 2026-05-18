@@ -18,7 +18,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class MercenaryOfficePanel : MercenaryPanelBase
+public class MercenaryOfficePanel : PanelBase
 {
     [Header("3카드 메뉴 버튼")]
     [SerializeField] private Button recruitMenuButton;
@@ -58,7 +58,7 @@ public class MercenaryOfficePanel : MercenaryPanelBase
         Open();
     }
 
-    private void OpenSub(MercenaryPanelBase sub)
+    private void OpenSub(PanelBase sub)
     {
         if (sub == null)
         {

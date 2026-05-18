@@ -62,6 +62,9 @@ public class FellowCardView : MonoBehaviour
     [Tooltip("HP 표시 (선택)")]
     [SerializeField] private TMP_Text  hpLabel;
 
+    [Tooltip("보유 스킬 표시 — 줄바꿈으로 구분된 '스킬명 (코스트N)' 형식")]
+    [SerializeField] private TMP_Text  skillsLabel;
+
     [Header("버튼")]
     [Tooltip("메인 액션 버튼 (Recruit:고용 / Reserve:선택 / PartySlot:선택)")]
     [SerializeField] private Button    actionButton;
@@ -144,12 +147,15 @@ public class FellowCardView : MonoBehaviour
         if (affinityLabel != null) affinityLabel.text = fellow.AffinityLabel;
         if (starLabel != null)     starLabel.text     = new string('★', Mathf.Clamp(fellow.starLevel, 1, 3));
         if (hpLabel != null)       hpLabel.text       = $"HP {fellow.maxHp}";
+        if (skillsLabel != null)   skillsLabel.text   = BuildSkillsText(fellow);
 
         // ── 모드별 버튼/비용 표시 ──
         int costShown = costOverride ?? fellow.recruitCost;
         bool showCost   = mode == FellowCardMode.Recruit;
         bool showAction = mode != FellowCardMode.Reserve || true; // 모든 모드에서 메인 클릭 허용 — false 강제 모드 없음
-        bool showRemove = mode == FellowCardMode.PartySlot || mode == FellowCardMode.Reserve;
+        bool showRemove = mode == FellowCardMode.PartySlot
+                          || mode == FellowCardMode.Reserve
+                          || mode == FellowCardMode.SynthesizeSlot;
 
         if (costLabel != null)
         {
@@ -196,11 +202,17 @@ public class FellowCardView : MonoBehaviour
         if (costLabel != null)     costLabel.text     = string.Empty;
         if (hpLabel != null)       hpLabel.text       = string.Empty;
         if (roleLabel != null)     roleLabel.text     = string.Empty;
+        if (skillsLabel != null)   skillsLabel.text   = string.Empty;
         if (roleBadgeImage != null) roleBadgeImage.color = new Color(1, 1, 1, 0.15f);
+
+        // 합성 슬롯(SynthesizeSlot)의 빈 카드는 클릭으로 동료 선택 팝업을 열어야 하므로 ActionButton 유지.
+        // 그 외 모드(PartySlot/Reserve/RecruitCandidate)는 빈 슬롯에서 액션 불필요 → 비활성.
+        bool keepAction = Mode == FellowCardMode.SynthesizeSlot;
         if (actionButton != null)
         {
-            actionButton.gameObject.SetActive(false);
-            if (actionButtonLabel != null) actionButtonLabel.text = string.Empty;
+            actionButton.gameObject.SetActive(keepAction);
+            if (actionButtonLabel != null)
+                actionButtonLabel.text = keepAction ? "+ 동료 선택" : string.Empty;
         }
         if (removeButton != null) removeButton.gameObject.SetActive(false);
     }
@@ -229,4 +241,21 @@ public class FellowCardView : MonoBehaviour
         FellowCardMode.SynthesizeSlot => "선택",
         _                             => "선택",
     };
+
+    /// <summary>보유 스킬을 "이름 (코스트N)" 형식으로 줄바꿈 결합. 스킬 없으면 빈 문자열.</summary>
+    private static string BuildSkillsText(FellowData fellow)
+    {
+        if (fellow == null || !fellow.HasSkills) return string.Empty;
+        var skills = fellow.GetSkills();
+        if (skills == null || skills.Count == 0) return string.Empty;
+
+        var lines = new System.Collections.Generic.List<string>(skills.Count);
+        foreach (var s in skills)
+        {
+            if (s == null) continue;
+            string name = !string.IsNullOrEmpty(s.displayName) ? s.displayName : s.id;
+            lines.Add($"{name} ({s.costAmount})");
+        }
+        return string.Join("\n", lines);
+    }
 }
