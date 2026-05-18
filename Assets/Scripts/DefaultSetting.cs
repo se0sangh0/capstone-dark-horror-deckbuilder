@@ -68,6 +68,9 @@ public class DefaultSetting : MonoBehaviour
     [Tooltip("카드와 카드 사이 X 축 간격")]
     public float spacingX = 0.15f;
 
+    [Tooltip("Y 축 오프셋 — 이름/HP 텍스트와 캐릭터 겹침 방지용 (음수면 카드 아래로)")]
+    public float spawnOffsetY = 0f;
+
     // ----------------------------------------------------------
     // OnEnable — 화면이 다시 켜질 때마다 카드 오브젝트 재생성
     // ----------------------------------------------------------
@@ -126,7 +129,7 @@ public class DefaultSetting : MonoBehaviour
             // startX 부터 spacingX 간격으로 X 위치 계산
             // 중앙을 기준으로 아군은 오른쪽에서 왼쪽으로 배치, 적군은 왼쪽에서 오른쪽으로 배치
             float currentX   = startX + (factionType == FactionType.Ally ? -1 : 1) * (spacingX * i);
-            Vector3 newPos   = transform.position + new Vector3(currentX, 0f, 0f);
+            Vector3 newPos   = transform.position + new Vector3(currentX, spawnOffsetY, 0f);
 			
             // 카드 프리팹 생성
             GameObject newObj = Instantiate(ObjectPrefab, newPos, Quaternion.identity);
@@ -155,18 +158,14 @@ public class DefaultSetting : MonoBehaviour
                     if (shieldBarUI != null)
                         shieldBarUI.Init(allies[i], slider);
 
-                    // ✨ 사망 시 카드 자동 비활성화 컴포넌트 부착 (흰 배경 빈 카드 방지)
-                    // 이유: HP 0 도달 시 FellowData.OnDied 이벤트 발동 → 이 컴포넌트가
-                    //       즉시 GameObject SetActive(false) 처리. ClearSpawnedObjects 시
-                    //       OnDestroy 에서 이벤트 자동 해제되어 메모리 누수 방지.
+                    // 사망 시 카드 자동 비활성화
                     var deathHider = newObj.AddComponent<AllyCardDeathHider>();
                     deathHider.Bind(allies[i]);
                 }
-                else
-                {
-                    // 로그 주석 처리 (사용자 요청)
-                    // Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
-                }
+
+                // 이름·HP스코어·Fill색상·데미지팝업 통합 뷰
+                var battleCard = newObj.GetComponent<BattleCardView>();
+                if (battleCard != null) battleCard.BindFellow(allies[i]);
             }
             // ── 적군 HP 슬라이더 연결 ────────────────────────────
             else if (factionType == FactionType.Enemy && i < enemies.Count)
@@ -174,21 +173,18 @@ public class DefaultSetting : MonoBehaviour
                 var slider = newObj.GetComponentInChildren<UnityEngine.UI.Slider>();
                 if (slider != null)
                 {
-                    // EnemyData.InitHp() 를 호출하면:
-                    // - HpSlider 연결
-                    // - OnHpChanged 이벤트로 자동 UI 갱신
-                    // - 사망 시 OnDied 이벤트 발생
                     enemies[i].InitHp(slider);
                     slider.maxValue = enemies[i].maxHp;
                     slider.value    = enemies[i].CurrentHp;
-                    // 로그 주석 처리 (사용자 요청)
-                    // Debug.Log($"[DefaultSetting] {newObj.name} hp 동기화");
                 }
-                else
-                {
-                    // 로그 주석 처리 (사용자 요청)
-                    // Debug.LogWarning($"[DefaultSetting] {newObj.name} 에서 Slider 를 찾지 못했습니다.");
-                }
+
+                // 사망 시 카드 자동 비활성화 (아군 패턴과 동일)
+                var deathHider = newObj.AddComponent<EnemyCardDeathHider>();
+                deathHider.Bind(enemies[i]);
+
+                // 이름·HP스코어·Fill색상·데미지팝업 통합 뷰
+                var battleCard = newObj.GetComponent<BattleCardView>();
+                if (battleCard != null) battleCard.BindEnemy(enemies[i]);
             }
         }
     }

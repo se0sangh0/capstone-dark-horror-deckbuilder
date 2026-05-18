@@ -1,28 +1,27 @@
 // ============================================================
 // Mercenary/GrowthPanel.cs
-// 동료 성장 패널 — 예비대 3명 합성 → 상위 성급
+// 동료 성장 패널 — 파티/예비대에서 3명 합성 → 상위 성급
 // ============================================================
 //
 // [동작]
-//   1. 예비대 리스트에서 카드 클릭 → 합성 슬롯에 추가 (최대 3)
-//   2. 같은 슬롯/리스트 카드 다시 클릭 → 선택 해제
-//   3. 슬롯 3 채워지면 합성 버튼 활성화
-//   4. 합성 버튼 클릭 → MercenaryService.TrySynthesize → 결과 동료 예비대로
+//   1. 빈 합성 슬롯 클릭 → FellowSourcePickerPopup 열림 → 파티/예비대 탭에서 선택
+//   2. 채워진 합성 슬롯 클릭 → 그 슬롯 비우기 (선택 해제)
+//   3. 슬롯 3 채워지고 같은 성급이면 합성 버튼 활성화
+//   4. 합성 버튼 클릭 → MercenaryService.TrySynthesize → 결과는 예비대로
 //
 // [규칙]
 //   - 같은 성급 3명만 가능 (기획 백로그 §4)
 //   - 비용 무료 (사용자 결정)
-//   - 결과는 예비대로 추가 (3 제거 후 1 추가 → 슬롯 부족 0)
+//   - 합성 소스는 파티원 + 예비대 모두 가능 (사용자 결정)
+//   - 파티원이 소비되면 그 파티 슬롯은 빈자리가 됨 — 다음 용병소/PartyEditPanel 에서 채움
 //
 // [인스펙터 슬롯]
-//   - fellowCardPrefab    : 카드 프리팹
-//   - reservesParent      : 예비대 카드 부모 (Grid Layout)
-//   - synthSlotsParent    : 합성 슬롯 3 컨테이너 (Horizontal Layout, 3칸 고정)
-//   - synthSlot1/2/3      : 합성 슬롯 카드 (FellowCardView 가 부착된, 미리 배치된 3개)
-//   - synthesizeButton    : 합성 실행 버튼
+//   - synthSlot1/2/3      : 합성 슬롯 카드 (FellowCardView, 미리 배치)
 //   - resultPreview       : 결과 카드 (FellowCardView, 미리 배치)
-//   - statusLabel         : 안내 라벨 ("3명을 선택해주세요" 등)
+//   - synthesizeButton    : 합성 실행 버튼
+//   - statusLabel         : 안내 라벨
 //   - closeButton         : 닫기 버튼
+//   - pickerPopup         : 합성 소스 선택 팝업 (FellowSourcePickerPopup)
 // ============================================================
 
 using System.Collections.Generic;
@@ -30,12 +29,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GrowthPanel : MercenaryPanelBase
+public class GrowthPanel : PanelBase
 {
-    [Header("프리팹 / 부모")]
-    [SerializeField] private FellowCardView fellowCardPrefab;
-    [SerializeField] private Transform      reservesParent;
-
     [Header("합성 슬롯 (씬에 미리 배치된 3개)")]
     [SerializeField] private FellowCardView synthSlot1;
     [SerializeField] private FellowCardView synthSlot2;
@@ -49,11 +44,11 @@ public class GrowthPanel : MercenaryPanelBase
     [SerializeField] private TMP_Text statusLabel;
     [SerializeField] private Button   closeButton;
 
-    // 합성 슬롯에 선택된 예비대 인덱스. -1 이면 빈 슬롯.
-    private readonly int[] _selectedReserveIndices = new int[3] { -1, -1, -1 };
+    [Header("합성 소스 선택 팝업")]
+    [SerializeField] private FellowSourcePickerPopup pickerPopup;
 
-    // 예비대 카드 인스턴스 풀
-    private readonly List<FellowCardView> _reserveCards = new();
+    // 슬롯에 담긴 FellowData (null = 빈 슬롯). 파티원/예비대원 둘 다 가능.
+    private readonly FellowData[] _selectedFellows = new FellowData[3];
 
     protected override void Awake()
     {
@@ -61,7 +56,7 @@ public class GrowthPanel : MercenaryPanelBase
         if (synthesizeButton != null) synthesizeButton.onClick.AddListener(HandleSynthesize);
         if (closeButton      != null) closeButton.onClick.AddListener(Close);
 
-        // 합성 슬롯 클릭 → 해당 슬롯 비우기 (선택 해제)
+        // 합성 슬롯 클릭 → 빈 슬롯이면 팝업 열기, 채워진 슬롯이면 비우기
         WireSynthSlotClick(synthSlot1, 0);
         WireSynthSlotClick(synthSlot2, 1);
         WireSynthSlotClick(synthSlot3, 2);
@@ -70,71 +65,56 @@ public class GrowthPanel : MercenaryPanelBase
     private void WireSynthSlotClick(FellowCardView slot, int slotIndex)
     {
         if (slot == null) return;
-        slot.OnActionClicked += _ => ClearSynthSlot(slotIndex);
+        slot.OnActionClicked += _ => HandleSynthSlotClicked(slotIndex);
+        slot.OnRemoveClicked += _ => ClearSynthSlot(slotIndex);
     }
 
     protected override void OnOpened()
     {
         ResetSelection();
-        RebuildReserves();
         RefreshSynthSlots();
         RefreshResultPreview();
         RefreshStatus();
     }
 
     // ----------------------------------------------------------
-    // 예비대 리빌드
+    // 합성 슬롯 클릭 — 빈 슬롯이면 팝업, 채워진 슬롯이면 비우기
     // ----------------------------------------------------------
-    private void RebuildReserves()
+    private void HandleSynthSlotClicked(int slotIndex)
     {
-        foreach (var c in _reserveCards)
-            if (c != null) Destroy(c.gameObject);
-        _reserveCards.Clear();
+        if (slotIndex < 0 || slotIndex >= 3) return;
 
-        if (fellowCardPrefab == null || reservesParent == null) return;
-        if (MercenaryService.Instance == null) return;
-
-        var list = MercenaryService.Instance.Reserves;
-        for (int i = 0; i < list.Count; i++)
+        if (_selectedFellows[slotIndex] != null)
         {
-            var card = Instantiate(fellowCardPrefab, reservesParent);
-            card.Bind(list[i], FellowCardMode.SynthesizeSlot);
-            int capturedIndex = i;
-            card.OnActionClicked += _ => HandleReserveClicked(capturedIndex);
-            _reserveCards.Add(card);
+            // 채워진 슬롯 — 비우기
+            ClearSynthSlot(slotIndex);
+            return;
         }
-        RefreshReserveSelectionVisual();
+
+        // 빈 슬롯 — 팝업 열어 동료 선택
+        if (pickerPopup == null)
+        {
+            Debug.LogWarning("[GrowthPanel] pickerPopup 미연결 — 인스펙터 슬롯 확인");
+            return;
+        }
+
+        var excluded = BuildExcludedSet();
+        pickerPopup.OpenForSlot(slotIndex, excluded, picked => OnFellowPicked(slotIndex, picked), null);
     }
 
-    private void RefreshReserveSelectionVisual()
+    private HashSet<FellowData> BuildExcludedSet()
     {
-        for (int i = 0; i < _reserveCards.Count; i++)
-        {
-            bool selected = System.Array.IndexOf(_selectedReserveIndices, i) >= 0;
-            _reserveCards[i].SetSelected(selected);
-        }
+        var set = new HashSet<FellowData>();
+        for (int i = 0; i < 3; i++)
+            if (_selectedFellows[i] != null) set.Add(_selectedFellows[i]);
+        return set;
     }
 
-    // ----------------------------------------------------------
-    // 예비대 카드 클릭 — 합성 슬롯에 추가 / 이미 선택돼있으면 해제
-    // ----------------------------------------------------------
-    private void HandleReserveClicked(int reserveIndex)
+    private void OnFellowPicked(int slotIndex, FellowData picked)
     {
-        // 이미 선택돼 있으면 해제
-        int already = System.Array.IndexOf(_selectedReserveIndices, reserveIndex);
-        if (already >= 0)
-        {
-            _selectedReserveIndices[already] = -1;
-        }
-        else
-        {
-            // 빈 슬롯 첫 자리에 채움
-            int empty = System.Array.IndexOf(_selectedReserveIndices, -1);
-            if (empty < 0) return; // 슬롯 다 차있음 — 무시
-            _selectedReserveIndices[empty] = reserveIndex;
-        }
-
-        RefreshReserveSelectionVisual();
+        if (picked == null) return;
+        if (slotIndex < 0 || slotIndex >= 3) return;
+        _selectedFellows[slotIndex] = picked;
         RefreshSynthSlots();
         RefreshResultPreview();
         RefreshStatus();
@@ -143,8 +123,7 @@ public class GrowthPanel : MercenaryPanelBase
     private void ClearSynthSlot(int slotIndex)
     {
         if (slotIndex < 0 || slotIndex >= 3) return;
-        _selectedReserveIndices[slotIndex] = -1;
-        RefreshReserveSelectionVisual();
+        _selectedFellows[slotIndex] = null;
         RefreshSynthSlots();
         RefreshResultPreview();
         RefreshStatus();
@@ -155,20 +134,19 @@ public class GrowthPanel : MercenaryPanelBase
     // ----------------------------------------------------------
     private void RefreshSynthSlots()
     {
-        BindSynthSlot(synthSlot1, _selectedReserveIndices[0]);
-        BindSynthSlot(synthSlot2, _selectedReserveIndices[1]);
-        BindSynthSlot(synthSlot3, _selectedReserveIndices[2]);
+        BindSynthSlot(synthSlot1, _selectedFellows[0]);
+        BindSynthSlot(synthSlot2, _selectedFellows[1]);
+        BindSynthSlot(synthSlot3, _selectedFellows[2]);
     }
 
-    private void BindSynthSlot(FellowCardView slot, int reserveIndex)
+    private void BindSynthSlot(FellowCardView slot, FellowData fellow)
     {
         if (slot == null) return;
-        if (reserveIndex < 0 || MercenaryService.Instance == null)
+        if (fellow == null)
         {
             slot.BindEmpty(FellowCardMode.SynthesizeSlot);
             return;
         }
-        var fellow = MercenaryService.Instance.GetReserve(reserveIndex);
         slot.Bind(fellow, FellowCardMode.SynthesizeSlot);
         slot.SetSelected(true);
     }
@@ -179,7 +157,7 @@ public class GrowthPanel : MercenaryPanelBase
     private void RefreshResultPreview()
     {
         if (resultPreview == null) return;
-        // 미리보기는 단순 빈 카드 표시 — 실제 결과는 합성 후에만 (4가지 케이스 + 랜덤이라 정확한 미리보기 불가)
+        // 미리보기는 단순 빈 카드 — 실제 결과는 합성 후에만 (4가지 케이스 + 랜덤)
         resultPreview.BindEmpty(FellowCardMode.Reserve);
     }
 
@@ -203,19 +181,16 @@ public class GrowthPanel : MercenaryPanelBase
     private int CountFilledSlots()
     {
         int n = 0;
-        for (int i = 0; i < 3; i++) if (_selectedReserveIndices[i] >= 0) n++;
+        for (int i = 0; i < 3; i++) if (_selectedFellows[i] != null) n++;
         return n;
     }
 
     private bool AllSameStar()
     {
-        if (MercenaryService.Instance == null) return false;
         int? baseStar = null;
         for (int i = 0; i < 3; i++)
         {
-            int idx = _selectedReserveIndices[i];
-            if (idx < 0) return false;
-            var f = MercenaryService.Instance.GetReserve(idx);
+            var f = _selectedFellows[i];
             if (f == null) return false;
             if (baseStar == null) baseStar = f.starLevel;
             else if (f.starLevel != baseStar.Value) return false;
@@ -231,9 +206,9 @@ public class GrowthPanel : MercenaryPanelBase
         if (MercenaryService.Instance == null) return;
 
         bool ok = MercenaryService.Instance.TrySynthesize(
-            _selectedReserveIndices[0],
-            _selectedReserveIndices[1],
-            _selectedReserveIndices[2],
+            _selectedFellows[0],
+            _selectedFellows[1],
+            _selectedFellows[2],
             out var result);
 
         if (!ok) return;
@@ -242,15 +217,14 @@ public class GrowthPanel : MercenaryPanelBase
         if (resultPreview != null && result != null)
             resultPreview.Bind(result, FellowCardMode.Reserve);
 
-        // 선택 리셋 + 예비대 재빌드
+        // 선택 리셋
         ResetSelection();
-        RebuildReserves();
         RefreshSynthSlots();
         RefreshStatus();
     }
 
     private void ResetSelection()
     {
-        for (int i = 0; i < 3; i++) _selectedReserveIndices[i] = -1;
+        for (int i = 0; i < 3; i++) _selectedFellows[i] = null;
     }
 }

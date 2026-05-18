@@ -1,22 +1,28 @@
 // ============================================================
 // Mercenary/RecruitPanel.cs
-// 동료 모집 패널 — 후보 3 + 영혼석 + 리롤 + 예비대 미니뷰
+// 동료 모집 패널 — 후보 3 + 영혼석 + 리롤 + 명단 팝업 트리거
 // ============================================================
 //
 // [구성]
 //   상단: 보유 영혼석 + 리롤 버튼 (비용 표시)
-//   중단: 후보 카드 3 (FellowCardView 프리팹 인스턴스)
-//   하단: 예비대 미니뷰 (9칸, FellowCardView 프리팹 — 모드 Reserve)
+//   중단: 후보 카드 3 (FellowCardView, Recruit 모드)
+//   하단: "동료 명단 보기" 버튼 — FellowSourcePickerPopup 열기
 //   닫기: 메인 패널 복귀
 //
+// [팝업 동작 — Recruit 컨텍스트]
+//   파티 카드   [선택]/[X] → "지원하지 않는 기능입니다" 토스트
+//   예비대 카드 [선택]      → 토스트
+//   예비대 카드 [X]         → 방출 (DismissReserve)
+//
 // [인스펙터 슬롯]
-//   - fellowCardPrefab     : FellowCardView 가 부착된 카드 프리팹
-//   - candidatesParent     : 후보 카드 부모 (Horizontal Layout Group 권장)
-//   - reservesParent       : 예비대 카드 부모 (Grid Layout Group 권장)
-//   - soulstoneLabel       : 보유 영혼석 표시 TMP_Text
-//   - rerollButton         : 리롤 버튼
-//   - rerollCostLabel      : 리롤 버튼 안 비용 라벨
-//   - closeButton          : 닫기 버튼
+//   - fellowCardPrefab       : 후보 카드 프리팹 (FellowCardView)
+//   - candidatesParent       : 후보 카드 부모 (Horizontal Layout Group 권장)
+//   - soulstoneLabel         : 보유 영혼석 표시 TMP_Text
+//   - rerollButton           : 리롤 버튼
+//   - rerollCostLabel        : 리롤 버튼 안 비용 라벨
+//   - openFellowListButton   : 동료 명단 팝업 여는 버튼 (구 "Reserves Button")
+//   - pickerPopup            : FellowSourcePickerPopup
+//   - closeButton            : 닫기 버튼
 // ============================================================
 
 using System.Collections.Generic;
@@ -24,30 +30,32 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class RecruitPanel : MercenaryPanelBase
+public class RecruitPanel : PanelBase
 {
     [Header("프리팹 / 부모 컨테이너")]
     [SerializeField] private FellowCardView fellowCardPrefab;
     [SerializeField] private Transform      candidatesParent;
-    [SerializeField] private Transform      reservesParent;
 
     [Header("상단 UI")]
     [SerializeField] private TMP_Text soulstoneLabel;
     [SerializeField] private Button   rerollButton;
     [SerializeField] private TMP_Text rerollCostLabel;
 
+    [Header("동료 명단 팝업")]
+    [SerializeField] private Button                   openFellowListButton;
+    [SerializeField] private FellowSourcePickerPopup  pickerPopup;
+
     [Header("닫기")]
     [SerializeField] private Button closeButton;
 
-    // 런타임 인스턴스 풀
     private readonly List<FellowCardView> _candidateCards = new();
-    private readonly List<FellowCardView> _reserveCards   = new();
 
     protected override void Awake()
     {
         base.Awake();
-        if (rerollButton != null) rerollButton.onClick.AddListener(HandleReroll);
-        if (closeButton  != null) closeButton.onClick.AddListener(Close);
+        if (rerollButton         != null) rerollButton.onClick.AddListener(HandleReroll);
+        if (closeButton          != null) closeButton.onClick.AddListener(Close);
+        if (openFellowListButton != null) openFellowListButton.onClick.AddListener(HandleOpenFellowList);
     }
 
     protected override void OnOpened()
@@ -84,7 +92,6 @@ public class RecruitPanel : MercenaryPanelBase
     {
         RefreshHeader();
         RebuildCandidates();
-        RebuildReserves();
     }
 
     private void RefreshHeader()
@@ -141,24 +148,6 @@ public class RecruitPanel : MercenaryPanelBase
     }
 
     // ----------------------------------------------------------
-    // 예비대 미니뷰
-    // ----------------------------------------------------------
-    private void RebuildReserves()
-    {
-        ClearCardList(_reserveCards);
-        if (fellowCardPrefab == null || reservesParent == null) return;
-        if (MercenaryService.Instance == null) return;
-
-        var list = MercenaryService.Instance.Reserves;
-        for (int i = 0; i < list.Count; i++)
-        {
-            var card = Instantiate(fellowCardPrefab, reservesParent);
-            card.Bind(list[i], FellowCardMode.Reserve);
-            _reserveCards.Add(card);
-        }
-    }
-
-    // ----------------------------------------------------------
     // 액션
     // ----------------------------------------------------------
     private void HandleHire(int candidateIndex)
@@ -173,6 +162,16 @@ public class RecruitPanel : MercenaryPanelBase
         if (MercenaryService.Instance == null) return;
         bool ok = MercenaryService.Instance.TryReroll();
         if (ok) RebuildAll();
+    }
+
+    private void HandleOpenFellowList()
+    {
+        if (pickerPopup == null)
+        {
+            Debug.LogWarning("[RecruitPanel] pickerPopup 미연결 — 인스펙터 슬롯 확인");
+            return;
+        }
+        pickerPopup.OpenForRecruit(onClosed: RefreshHeader);
     }
 
     // ----------------------------------------------------------

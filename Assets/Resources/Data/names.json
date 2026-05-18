@@ -1,0 +1,18 @@
+{
+  "maleFirstNames": [
+    "Aldric", "Caelan", "Dorian", "Faeron", "Gareth",
+    "Hadric", "Lorenz", "Maevik", "Soren", "Theron"
+  ],
+  "maleLastNames": [
+    "Ashveil", "Blackmoor", "Coldwyn", "Duskmore", "Embervane",
+    "Greyfall", "Hollowmere", "Ironfeld", "Nighthollow", "Stormveil"
+  ],
+  "femaleFirstNames": [
+    "Aelith", "Brynn", "Ceira", "Elowen", "Fayla",
+    "Isolde", "Lyris", "Maren", "Serafine", "Veyra"
+  ],
+  "femaleLastNames": [
+    "Ashenveil", "Bleakrose", "Cindermere", "Dawnveil", "Emberly",
+    "Gravenmoor", "Hollowfen", "Mirewood", "Silverthorn", "Wraithwood"
+  ]
+}

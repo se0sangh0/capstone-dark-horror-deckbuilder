@@ -140,6 +140,14 @@ public class FellowDatabase : Singleton<FellowDatabase>
         return CompanionRole.Dealer;
     }
 
+    /// <summary>성별 문자열을 Gender 열거형으로 변환한다. 비어있거나 모르는 값은 랜덤.</summary>
+    public static Gender ParseGender(string gender)
+    {
+        if (gender == "Male")   return Gender.Male;
+        if (gender == "Female") return Gender.Female;
+        return Random.value < 0.5f ? Gender.Male : Gender.Female;
+    }
+
     // ----------------------------------------------------------
     // [ContextMenu] 에디터 테스트
     // ----------------------------------------------------------
@@ -194,13 +202,20 @@ public class FellowDatabase : Singleton<FellowDatabase>
         // ── 정의 데이터 복사 ──
         f.id            = def.id;
         f.jobClass      = def.jobClass;
-        f.displayName   = def.displayName;
         f.role          = ParseRole(def.role);
+        f.gender        = ParseGender(def.gender);
         f.affinity      = affinity;
         f.stressResist  = def.stressResist;
         f.recruitCost   = def.recruitCost;
         f.skillIds      = def.skillIds ?? new string[0];
         f.spritePath    = def.spritePath;
+
+        // ── displayName 할당 (기획 §6 — AllyNameGenerator) ──
+        // gender 기준으로 NameDatabase 에서 무작위 이름 조합.
+        // NameDatabase 가 없으면 def.displayName 으로 폴백.
+        f.displayName = NameDatabase.Instance != null
+            ? NameDatabase.Instance.GetRandomName(f.gender)
+            : def.displayName;
 
         // 합성 등 외부 지정 starLevel 우선, 없으면 def.starLevel (보통 1), 그것도 0 이하면 1
         f.starLevel     = starLevel > 0 ? starLevel : (def.starLevel > 0 ? def.starLevel : 1);
@@ -218,6 +233,35 @@ public class FellowDatabase : Singleton<FellowDatabase>
 
         // ── 런타임 상태 초기값 ──
         f.positionStack = (StackType)(int)f.role;
+
+        // ── HP 초기값 — maxHp 로 풀피 시작 ──
+        // 기존엔 BattleManager 전투 카드 생성 시 InitHp() 가 채워주지만
+        // LeftPanel 같은 전투 외 UI 는 그 전에 표시되어 0 으로 보임.
+        f.CurrentHp = f.maxHp;
+
+        // ── 초상화 sprite 로드 (Resources 경로 기반) ──
+        // FellowDef.spritePath 가 비어 있지 않으면 Resources 에서 로드해 portrait/fellowSprite 둘 다 채움.
+        // (LeftPanel CardSlotView 가 portrait → fellowSprite 순으로 fallback)
+        if (!string.IsNullOrEmpty(def.spritePath))
+        {
+            var sprite = Resources.Load<Sprite>(def.spritePath);
+            if (sprite != null)
+            {
+                f.portrait     = sprite;
+                f.fellowSprite = sprite;
+            }
+        }
+
+        // ── 스킬 즉시 배정 ──
+        // 기존엔 첫 전투 BattleManager.InitBattle 에서만 배정되어
+        // LeftPanel 같은 전투 외 UI 에 스킬이 표시되지 않았다.
+        // 동료 생성 시점에 배정해 어디서든 즉시 조회 가능하게 한다.
+        if (!f.HasSkills && SkillDatabase.Instance != null)
+        {
+            var assigned = SkillDatabase.Instance.AssignRandomSkills(f.positionStack, 2);
+            if (assigned != null && assigned.Length > 0)
+                f.AssignSkills(assigned);
+        }
 
         return f;
     }

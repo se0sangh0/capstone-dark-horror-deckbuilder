@@ -38,15 +38,17 @@ public class MapGenerator : MonoBehaviour
 
     // ── 룸 타입 가중치 (합계 100) ─────────────────────────────────
     // 기획 §11_맵_노드 §노드 타입 비율: 전투 70% / 이벤트 30%
+    // 임시 테스트값(용병소 확인용): 전투 55 / 엘리트 10 / 용병소 25 / 교회 10
+    // 확인 끝나면 원복 (Combat 70 / Shop 10).
     [Header("룸 타입 확률 (%) — 기획 §11 §노드 타입 비율")]
     [Tooltip("전투 (오픈)")]
-    public int combatWeight = 70;
+    public int combatWeight = 55;
 
     [Tooltip("엘리트 전투 (이벤트) — MVP 백로그")]
     public int eliteWeight = 10;
 
-    [Tooltip("용병소 (이벤트)")]
-    public int shopWeight = 10;
+    [Tooltip("용병소 (이벤트) — 테스트용으로 일시 상향 (10→25)")]
+    public int shopWeight = 25;
 
     [Tooltip("교회 (이벤트) — MVP 백로그")]
     public int eventWeight = 10;
