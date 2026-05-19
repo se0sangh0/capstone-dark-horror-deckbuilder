@@ -31,10 +31,11 @@ public class BattleCardView : MonoBehaviour
     [SerializeField] private DamagePopup damagePopupPrefab;
     [SerializeField] private Transform   damagePopupAnchor;
 
-    private Image       _fillImage;
-    private FellowData  _fellow;
-    private EnemyData   _enemy;
-    private int         _lastHp = -1;
+    private Image              _fillImage;
+    private FellowData         _fellow;
+    private EnemyData          _enemy;
+    private int                _lastHp = -1;
+    private BattleCardSprites  _sprites; // 같은 GameObject 의 모션 컴포넌트 (있으면 사용)
 
     // ── 외부에서 호출 ─────────────────────────────────────────────
     public void BindFellow(FellowData fellow)
@@ -43,7 +44,8 @@ public class BattleCardView : MonoBehaviour
         _fellow = fellow;
         if (nameText != null) nameText.text = !string.IsNullOrEmpty(fellow.displayName) ? fellow.displayName : fellow.id;
         ResolveSlider();
-        fellow.OnHpChanged += OnFellowHpChanged;
+        fellow.OnHpChanged     += OnFellowHpChanged;
+        fellow.OnShieldChanged += OnShieldChanged;
         _lastHp = fellow.CurrentHp;
         Refresh(_lastHp, fellow.maxHp);
     }
@@ -61,10 +63,16 @@ public class BattleCardView : MonoBehaviour
 
     private void Unbind()
     {
-        if (_fellow != null) _fellow.OnHpChanged -= OnFellowHpChanged;
+        if (_fellow != null)
+        {
+            _fellow.OnHpChanged     -= OnFellowHpChanged;
+            _fellow.OnShieldChanged -= OnShieldChanged;
+        }
         if (_enemy  != null) _enemy.OnHpChanged  -= OnEnemyHpChanged;
         _fellow = null; _enemy = null; _lastHp = -1;
     }
+
+    private void OnShieldChanged() => Refresh(_lastHp, _fellow != null ? _fellow.maxHp : 100);
 
     private void OnDestroy() => Unbind();
 
@@ -73,15 +81,25 @@ public class BattleCardView : MonoBehaviour
 
     private void HandleHpChanged(int hp, int maxHp)
     {
-        // 감소면 데미지 팝업
+        // 감소면 데미지 팝업 + 피격 모션
         if (_lastHp >= 0 && hp < _lastHp)
         {
             int damage = _lastHp - hp;
             SpawnDamagePopup(damage);
+            EnsureSprites()?.PlayHit();
         }
         _lastHp = hp;
         Refresh(hp, maxHp);
     }
+
+    private BattleCardSprites EnsureSprites()
+    {
+        if (_sprites == null) _sprites = GetComponent<BattleCardSprites>();
+        return _sprites;
+    }
+
+    /// <summary>외부(BattleManager)에서 공격 모션 트리거. 근접 공격 이동과 함께 호출 권장.</summary>
+    public void PlayAttackMotion() => EnsureSprites()?.PlayAttack();
 
     private void Refresh(int hp, int maxHp)
     {
@@ -90,7 +108,12 @@ public class BattleCardView : MonoBehaviour
             hpSlider.maxValue = maxHp;
             hpSlider.value    = hp;
         }
-        if (hpScoreText != null) hpScoreText.text = $"{hp}/{maxHp}";
+        if (hpScoreText != null)
+        {
+            // 아군만 쉴드 보유 — 쉴드 > 0 이면 "(+N)" 추가, 0 이면 표기 생략
+            int shield = _fellow != null ? _fellow.shield : 0;
+            hpScoreText.text = shield > 0 ? $"{hp}/{maxHp} (+{shield})" : $"{hp}/{maxHp}";
+        }
         UpdateHpColor(hp, maxHp);
     }
 
@@ -113,7 +136,11 @@ public class BattleCardView : MonoBehaviour
 
     private void SpawnDamagePopup(int damage)
     {
-        if (damagePopupPrefab == null) return;
+        if (damagePopupPrefab == null)
+        {
+            Debug.LogWarning($"[BattleCardView] '{name}' damagePopupPrefab 미연결 — 인스펙터 확인", this);
+            return;
+        }
 
         // anchor 우선, 없으면 자식 Canvas, 그것도 없으면 자신의 transform
         Transform parent = damagePopupAnchor;
