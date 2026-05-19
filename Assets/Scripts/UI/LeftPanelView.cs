@@ -31,6 +31,12 @@ public class LeftPanelView : MonoBehaviour
     [Tooltip("StressEntry 프리팹/노드. 멤버 수만큼 활성화하여 사용.")]
     [SerializeField] private StressEntry[] stressEntries = new StressEntry[4];
 
+    [Header("재화 텍스트 (LeftPanel 내부)")]
+    [Tooltip("영혼석 ValueText (Item_SoulStone > ValueText). SoulstoneManager 이벤트로 자동 갱신.")]
+    [SerializeField] private TMP_Text soulstoneText;
+    [Tooltip("마석 ValueText (Magic_SoulStone > ValueText). ManastoneManager 이벤트로 자동 갱신.")]
+    [SerializeField] private TMP_Text manastoneText;
+
     [Header("하단 버튼")]
     [SerializeField] private Button settingButton;
     [SerializeField] private Button logButton;
@@ -54,6 +60,7 @@ public class LeftPanelView : MonoBehaviour
         WireButtons();
         Refresh();
         SubscribeParty(true);
+        SubscribeCurrency(true);
     }
 
     // PartyManager.Start() 가 InitDefaultParty() 를 호출한 직후 한 번 더 갱신.
@@ -61,13 +68,48 @@ public class LeftPanelView : MonoBehaviour
     private void Start()
     {
         Refresh();
-        SubscribeParty(true); // PartyManager 가 Start 에 늦게 등장한 경우 대비
+        SubscribeParty(true);    // PartyManager 가 Start 에 늦게 등장한 경우 대비
+        SubscribeCurrency(true); // SoulstoneManager/ManastoneManager 도 동일
     }
 
     private void OnDisable()
     {
         SubscribeParty(false);
+        SubscribeCurrency(false);
         UnbindAll();
+    }
+
+    // 재화 매니저 이벤트 구독 — 인스펙터 amountText 연결 의존 제거
+    private void SubscribeCurrency(bool subscribe)
+    {
+        if (SoulstoneManager.Instance != null)
+        {
+            SoulstoneManager.Instance.OnCurrencyChanged -= UpdateSoulstoneText;
+            if (subscribe)
+            {
+                SoulstoneManager.Instance.OnCurrencyChanged += UpdateSoulstoneText;
+                UpdateSoulstoneText(SoulstoneManager.Instance.Amount); // 초기값 즉시 반영
+            }
+        }
+        if (ManastoneManager.Instance != null)
+        {
+            ManastoneManager.Instance.OnCurrencyChanged -= UpdateManastoneText;
+            if (subscribe)
+            {
+                ManastoneManager.Instance.OnCurrencyChanged += UpdateManastoneText;
+                UpdateManastoneText(ManastoneManager.Instance.Amount);
+            }
+        }
+    }
+
+    private void UpdateSoulstoneText(int amount)
+    {
+        if (soulstoneText != null) soulstoneText.text = amount.ToString("N0");
+    }
+
+    private void UpdateManastoneText(int amount)
+    {
+        if (manastoneText != null) manastoneText.text = amount.ToString("N0");
     }
 
     // PartyManager.OnPartyChanged 구독/해제 — 멤버 변경 시 자동 Refresh.

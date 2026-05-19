@@ -5785,6 +5785,8 @@ MonoBehaviour:
     scoreText: {fileID: 4360398125768739402}
     conditionText: {fileID: 1879168730876735962}
     conditionBg: {fileID: 58013127901277996}
+  soulstoneText: {fileID: 5107035323733860772}
+  manastoneText: {fileID: 1118759689525861070}
   settingButton: {fileID: 278791383768959811}
   logButton: {fileID: 8541581943538739247}
 --- !u!1 &3092593375275179591
