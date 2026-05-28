@@ -1,0 +1,455 @@
+fileFormatVersion: 2
+guid: 0fd24bb9739a83b44ae8fcb9cee3e4bc
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 1598799443550827922
+    second: Caster_Idle_0
+  - first:
+      213: 2559342584145617412
+    second: Caster_Idle_1
+  - first:
+      213: 7167996851626881615
+    second: Caster_Idle_2
+  - first:
+      213: 713795149018773935
+    second: Caster_Idle_3
+  - first:
+      213: 3905267016223958461
+    second: Caster_Idle_4
+  - first:
+      213: -8735290738651010120
+    second: Caster_Idle_5
+  - first:
+      213: 8687940138255448973
+    second: Caster_Idle_6
+  - first:
+      213: -7442756431283087244
+    second: Caster_Idle_7
+  - first:
+      213: 7891586680823956263
+    second: Caster_Idle_8
+  - first:
+      213: -2790154531662199686
+    second: Caster_Idle_9
+  - first:
+      213: -1869827715431221830
+    second: Caster_Idle_10
+  - first:
+      213: -2157746605015675050
+    second: Caster_Idle_11
+  - first:
+      213: -8086054499053919139
+    second: Caster_Idle_12
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Caster_Idle_0
+      rect:
+        serializedVersion: 2
+        x: 251
+        y: 339
+        width: 68
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29570f38f93103610800000000000000
+      internalID: 1598799443550827922
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_1
+      rect:
+        serializedVersion: 2
+        x: 326
+        y: 339
+        width: 37
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 402a782358c948320800000000000000
+      internalID: 2559342584145617412
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_2
+      rect:
+        serializedVersion: 2
+        x: 362
+        y: 339
+        width: 21
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f42b65ca827d97360800000000000000
+      internalID: 7167996851626881615
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_3
+      rect:
+        serializedVersion: 2
+        x: 380
+        y: 339
+        width: 19
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fa939abf7e8e7e900800000000000000
+      internalID: 713795149018773935
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_4
+      rect:
+        serializedVersion: 2
+        x: 398
+        y: 339
+        width: 19
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db5241709ab423630800000000000000
+      internalID: 3905267016223958461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_5
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 194
+        width: 86
+        height: 132
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8bb62f0da5306c680800000000000000
+      internalID: -8735290738651010120
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_6
+      rect:
+        serializedVersion: 2
+        x: 226
+        y: 193
+        width: 86
+        height: 133
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d8bf29a6683c19870800000000000000
+      internalID: 8687940138255448973
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_7
+      rect:
+        serializedVersion: 2
+        x: 367
+        y: 191
+        width: 86
+        height: 132
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4781e9b857406b890800000000000000
+      internalID: -7442756431283087244
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_8
+      rect:
+        serializedVersion: 2
+        x: 519
+        y: 191
+        width: 150
+        height: 132
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 72347b8564c848d60800000000000000
+      internalID: 7891586680823956263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_9
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 10
+        width: 86
+        height: 132
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7404df7c316749d0800000000000000
+      internalID: -2790154531662199686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_10
+      rect:
+        serializedVersion: 2
+        x: 224
+        y: 11
+        width: 87
+        height: 131
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ab5ba8e79990d06e0800000000000000
+      internalID: -1869827715431221830
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_11
+      rect:
+        serializedVersion: 2
+        x: 364
+        y: 10
+        width: 89
+        height: 129
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 65f4cbc15e42e02e0800000000000000
+      internalID: -2157746605015675050
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Caster_Idle_12
+      rect:
+        serializedVersion: 2
+        x: 515
+        y: 10
+        width: 90
+        height: 129
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d54217d564098cf80800000000000000
+      internalID: -8086054499053919139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Caster_Idle_0: 1598799443550827922
+      Caster_Idle_1: 2559342584145617412
+      Caster_Idle_10: -1869827715431221830
+      Caster_Idle_11: -2157746605015675050
+      Caster_Idle_12: -8086054499053919139
+      Caster_Idle_2: 7167996851626881615
+      Caster_Idle_3: 713795149018773935
+      Caster_Idle_4: 3905267016223958461
+      Caster_Idle_5: -8735290738651010120
+      Caster_Idle_6: 8687940138255448973
+      Caster_Idle_7: -7442756431283087244
+      Caster_Idle_8: 7891586680823956263
+      Caster_Idle_9: -2790154531662199686
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
