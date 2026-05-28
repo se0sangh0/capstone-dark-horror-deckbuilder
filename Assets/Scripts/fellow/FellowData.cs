@@ -79,6 +79,9 @@ public partial class FellowData : ScriptableObject
     public Sprite portrait;
     public string spritePath;
 
+    [Tooltip("RuntimeAnimatorController 의 Resources 기준 경로. 비면 Animator 비활성.")]
+    public string animatorPath;
+
     // ── 런타임 상태 ──────────────────────────────────────────────
     [Header("런타임 상태")]
     public StackType positionStack;
@@ -89,6 +92,14 @@ public partial class FellowData : ScriptableObject
     public bool      isDead          = false;
     public bool      isFrozen        = false;    // 공포 경직: 이번 턴 행동 불가
     public bool      isOverBreathing = false;    // 과호흡: 스킬 코스트 +1
+
+    /// <summary>
+    /// PartyEditPanel 배치 순번 (0~3). 0=맨앞, 3=맨뒤 — 행 구분 없음.
+    /// 기획 §02 §피격 순서 = 배치 순서. 사망 시 빈 자리는 뒤에서 앞으로 압축.
+    /// 사망/노드 진행과 무관하게 영구 보존. PartyManager.GetActiveFellows 가 stamp.
+    /// 전투 시각 배치(DefaultSetting / RelayoutCards) 가 이 값으로 슬롯 위치 결정.
+    /// </summary>
+    [System.NonSerialized] public int battleSlotIndex = -1;
 
     // ── 성급 시스템 (기획 백로그 §5 — TODO[L] 자리 PartyManager 참고) ──
     // 1★ → ×1.00 / 2★ → ×1.40(hp) ×1.25(power) / 3★ → ×1.96 ×1.5625

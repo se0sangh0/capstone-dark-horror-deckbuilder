@@ -42,11 +42,24 @@ public class AllyCardDeathHider : MonoBehaviour
         if (_fellow != null) _fellow.OnDied += HandleDied;
     }
 
-    /// <summary>OnDied 이벤트 핸들러 — 카드 즉시 숨김</summary>
+    /// <summary>OnDied 이벤트 핸들러 — 사망 연출(슬라이드+페이드) 재생 후 비활성화</summary>
     private void HandleDied()
     {
-        if (this != null && gameObject != null)
+        if (this == null || gameObject == null) return;
+
+        var sprites = GetComponent<BattleCardSprites>();
+        if (sprites != null)
+        {
+            sprites.PlayDeathFall(onComplete: () =>
+            {
+                if (this != null && gameObject != null)
+                    gameObject.SetActive(false);
+            });
+        }
+        else
+        {
             gameObject.SetActive(false);
+        }
     }
 
     /// <summary>

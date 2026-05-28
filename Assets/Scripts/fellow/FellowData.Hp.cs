@@ -36,6 +36,7 @@ public partial class FellowData
             if (_currentHp <= 0 && !isDead)
             {
                 isDead = true;
+                AudioManager.Instance?.PlaySfxById(SfxId.FellowDeath);
                 OnDied?.Invoke();
             }
         }
@@ -79,5 +80,9 @@ public partial class FellowData
     [System.NonSerialized] public System.Action<int>        OnHpChanged;
     [System.NonSerialized] public System.Action             OnDied;
     [System.NonSerialized] public System.Action             OnShieldChanged;
+    /// <summary>피격 시 (쉴드 흡수량, HP 감소량). UI 가 노란/빨강 popup + Hit 모션 트리거에 사용.</summary>
+    [System.NonSerialized] public System.Action<int, int>   OnDamaged;
+    /// <summary>스킬 발동 시 effectType("Damage"/"Heal"/"Shield"/…) 발행. View 가 모션 카테고리 분기에 사용.</summary>
+    [System.NonSerialized] public System.Action<string>     OnSkillCast;
     [System.NonSerialized] public UnityEngine.UI.Slider     HpSlider;
 }

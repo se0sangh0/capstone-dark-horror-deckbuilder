@@ -73,7 +73,33 @@ public class EnemySkillDatabase : Singleton<EnemySkillDatabase>
             _skillMap[s.id] = s;
         }
 
+        LoadSpritesForSkills();
+
         Debug.Log($"[EnemySkillDatabase] 적 스킬 {_skillMap.Count}개 로드 완료.");
+    }
+
+    /// <summary>
+    /// 로드된 모든 적 스킬을 순회하며 spritePath 가 채워진 항목의 Sprite 를 Resources 에서 로드한다.
+    /// 경로가 비어있으면 skip (런타임 호출 측에서 fallback 처리).
+    /// Fellow SkillDatabase 와 동일한 패턴.
+    /// </summary>
+    private void LoadSpritesForSkills()
+    {
+        int loaded = 0, missing = 0;
+        foreach (var s in _skillMap.Values)
+        {
+            if (string.IsNullOrEmpty(s.spritePath)) continue;
+
+            s.sprite = Resources.Load<Sprite>(s.spritePath);
+            if (s.sprite == null)
+            {
+                Debug.LogWarning($"[EnemySkillDatabase] 스프라이트 없음: '{s.spritePath}' (id={s.id})");
+                missing++;
+            }
+            else loaded++;
+        }
+        if (loaded + missing > 0)
+            Debug.Log($"[EnemySkillDatabase] 스프라이트 로드: 성공 {loaded}개 / 실패 {missing}개");
     }
 
     // ── 공개 API ─────────────────────────────────────────────

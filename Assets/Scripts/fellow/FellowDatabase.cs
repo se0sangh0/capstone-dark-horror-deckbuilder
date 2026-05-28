@@ -209,13 +209,11 @@ public class FellowDatabase : Singleton<FellowDatabase>
         f.recruitCost   = def.recruitCost;
         f.skillIds      = def.skillIds ?? new string[0];
         f.spritePath    = def.spritePath;
+        f.animatorPath  = def.animatorPath;   // TODO: sprite 4프레임 작업 + AnimatorController 준비 후 JSON 채움
 
-        // ── displayName 할당 (기획 §6 — AllyNameGenerator) ──
-        // gender 기준으로 NameDatabase 에서 무작위 이름 조합.
-        // NameDatabase 가 없으면 def.displayName 으로 폴백.
-        f.displayName = NameDatabase.Instance != null
-            ? NameDatabase.Instance.GetRandomName(f.gender)
-            : def.displayName;
+        // 이름 생성 폐기 — 캐릭터 식별은 직업명(jobClass)으로 통일.
+        // UI 의 nameText 들이 displayName 을 그대로 읽으므로 여기서 한 번에 직업명으로 채움.
+        f.displayName = !string.IsNullOrEmpty(def.jobClass) ? def.jobClass : def.displayName;
 
         // 합성 등 외부 지정 starLevel 우선, 없으면 def.starLevel (보통 1), 그것도 0 이하면 1
         f.starLevel     = starLevel > 0 ? starLevel : (def.starLevel > 0 ? def.starLevel : 1);
@@ -256,11 +254,21 @@ public class FellowDatabase : Singleton<FellowDatabase>
         // 기존엔 첫 전투 BattleManager.InitBattle 에서만 배정되어
         // LeftPanel 같은 전투 외 UI 에 스킬이 표시되지 않았다.
         // 동료 생성 시점에 배정해 어디서든 즉시 조회 가능하게 한다.
-        if (!f.HasSkills && SkillDatabase.Instance != null)
+        //
+        // 배정 우선순위 (기획 §08 직업군_스킬_테이블):
+        //   1순위 — fellow.json 의 skillIds (직업별 고정 매핑)
+        //   2순위 — SkillDatabase.AssignRandomSkills (역할군 랜덤 fallback)
+        // BattleManager.InitBattle 의 동일 분기와 통일.
+        if (!f.HasSkills)
         {
-            var assigned = SkillDatabase.Instance.AssignRandomSkills(f.positionStack, 2);
-            if (assigned != null && assigned.Length > 0)
-                f.AssignSkills(assigned);
+            string[] ids = (f.skillIds != null && f.skillIds.Length > 0)
+                ? f.skillIds
+                : (SkillDatabase.Instance != null
+                    ? SkillDatabase.Instance.AssignRandomSkills(f.positionStack, 2)
+                    : null);
+
+            if (ids != null && ids.Length > 0)
+                f.AssignSkills(ids);
         }
 
         return f;

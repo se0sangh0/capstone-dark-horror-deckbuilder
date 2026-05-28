@@ -35,11 +35,13 @@ using UnityEngine.UI;
 
 public class FellowSourcePickerPopup : PanelBase
 {
-    public enum PickerMode { Synthesize, Recruit }
+    public enum PickerMode { Synthesize, Recruit, Sell }
 
     [Header("UI")]
     [SerializeField] private TMP_Text titleLabel;
     [SerializeField] private TMP_Text toastLabel;
+    [Tooltip("예비대 인원 표시 라벨 (선택). 형식: \"N/9\"")]
+    [SerializeField] private TMP_Text reserveCountLabel;
     [SerializeField] private Transform partyGridParent;
     [SerializeField] private Transform reserveGridParent;
     [SerializeField] private FellowCardView fellowCardPrefab;
@@ -54,6 +56,7 @@ public class FellowSourcePickerPopup : PanelBase
     private readonly List<FellowCardView> _partyCards   = new();
     private readonly List<FellowCardView> _reserveCards = new();
     private HashSet<FellowData> _excluded;
+    private int?                _lockedStar;   // 합성: 첫 카드 성급 잠금. null=잠금없음
     private Action<FellowData>  _onPicked;
     private Action              _onCanceled;
     private PickerMode          _mode = PickerMode.Synthesize;
@@ -70,14 +73,20 @@ public class FellowSourcePickerPopup : PanelBase
     // ----------------------------------------------------------
     // 진입점 — GrowthPanel (합성 소스 선택)
     // ----------------------------------------------------------
-    public void OpenForSlot(int slotIndex, HashSet<FellowData> excluded, Action<FellowData> onPicked, Action onCanceled)
+    public void OpenForSlot(int slotIndex, HashSet<FellowData> excluded, int? lockedStar, Action<FellowData> onPicked, Action onCanceled)
     {
         _mode       = PickerMode.Synthesize;
         _excluded   = excluded ?? new HashSet<FellowData>();
+        _lockedStar = lockedStar;
         _onPicked   = onPicked;
         _onCanceled = onCanceled;
 
-        if (titleLabel != null) titleLabel.text = $"슬롯 {slotIndex + 1} 에 넣을 동료 선택";
+        if (titleLabel != null)
+        {
+            titleLabel.text = lockedStar.HasValue
+                ? $"슬롯 {slotIndex + 1} — {new string('★', lockedStar.Value)} 동료만 선택 가능"
+                : $"슬롯 {slotIndex + 1} 에 넣을 동료 선택";
+        }
         Open();
     }
 
@@ -88,10 +97,33 @@ public class FellowSourcePickerPopup : PanelBase
     {
         _mode       = PickerMode.Recruit;
         _excluded   = new HashSet<FellowData>();
+        _lockedStar = null;
         _onPicked   = null;
         _onCanceled = onClosed;
 
         if (titleLabel != null) titleLabel.text = "동료 명단";
+        Open();
+    }
+
+    // ----------------------------------------------------------
+    // 진입점 — RecruitPanel 판매 모드 (예비대만 표시 + "판매" 버튼)
+    // ----------------------------------------------------------
+    public void OpenForSell(Action onClosed = null)
+    {
+        _mode       = PickerMode.Sell;
+        _excluded   = new HashSet<FellowData>();
+        _lockedStar = null;
+        _onPicked   = null;
+        _onCanceled = onClosed;
+
+        // titleLabel 은 prefab 인스펙터에서 SetActive(false) 처리 권장.
+        // 코드에서도 비워둠 (사용자 요청 — "예비대 보기 타이틀 없애기").
+        if (titleLabel != null) titleLabel.text = string.Empty;
+
+        // 파티 그리드는 Sell 모드에서 사용 안 함 — 부모 GO 비활성화.
+        if (partyGridParent != null)
+            partyGridParent.gameObject.SetActive(false);
+
         Open();
     }
 
@@ -113,7 +145,8 @@ public class FellowSourcePickerPopup : PanelBase
     // ----------------------------------------------------------
     private void RebuildAll()
     {
-        RebuildPartyCards();
+        // Sell 모드는 파티 그리드 안 그림 (사용자 요청 — 예비대만)
+        if (_mode != PickerMode.Sell) RebuildPartyCards();
         RebuildReserveCards();
     }
 
@@ -136,6 +169,7 @@ public class FellowSourcePickerPopup : PanelBase
     private void RebuildReserveCards()
     {
         ClearCardList(_reserveCards);
+        RefreshReserveCount();
         if (fellowCardPrefab == null || reserveGridParent == null) return;
         if (MercenaryService.Instance == null) return;
 
@@ -143,20 +177,33 @@ public class FellowSourcePickerPopup : PanelBase
         {
             if (fellow == null) continue;
             var card = Instantiate(fellowCardPrefab, reserveGridParent);
-            card.Bind(fellow, FellowCardMode.SynthesizeSlot);
+            // Sell 모드면 "판매 (+N)" 라벨 + costOverride 로 환급가 표시
+            if (_mode == PickerMode.Sell)
+                card.Bind(fellow, FellowCardMode.Sell, costOverride: MercenaryService.CalcSellPrice(fellow));
+            else
+                card.Bind(fellow, FellowCardMode.SynthesizeSlot);
             WireReserveCard(card, fellow);
             _reserveCards.Add(card);
         }
+    }
+
+    private void RefreshReserveCount()
+    {
+        if (reserveCountLabel == null) return;
+        int n = MercenaryService.Instance != null ? MercenaryService.Instance.Reserves.Count : 0;
+        reserveCountLabel.text = $"{n}/{MercenaryService.ReservesCapacity}";
     }
 
     private void WirePartyCard(FellowCardView card, FellowData fellow)
     {
         if (_mode == PickerMode.Synthesize)
         {
-            bool isExcluded = _excluded.Contains(fellow);
-            card.SetInteractable(!isExcluded);
+            bool isExcluded   = _excluded.Contains(fellow);
+            bool starMismatch = _lockedStar.HasValue && fellow.starLevel != _lockedStar.Value;
+            bool blocked      = isExcluded || starMismatch;
+            card.SetInteractable(!blocked);
             card.SetSelected(isExcluded);
-            if (!isExcluded) card.OnActionClicked += _ => HandlePicked(fellow);
+            if (!blocked) card.OnActionClicked += _ => HandlePicked(fellow);
             card.OnRemoveClicked += _ => ShowToast(UnsupportedMessage);
             return;
         }
@@ -169,16 +216,34 @@ public class FellowSourcePickerPopup : PanelBase
     {
         if (_mode == PickerMode.Synthesize)
         {
-            bool isExcluded = _excluded.Contains(fellow);
-            card.SetInteractable(!isExcluded);
+            bool isExcluded   = _excluded.Contains(fellow);
+            bool starMismatch = _lockedStar.HasValue && fellow.starLevel != _lockedStar.Value;
+            bool blocked      = isExcluded || starMismatch;
+            card.SetInteractable(!blocked);
             card.SetSelected(isExcluded);
-            if (!isExcluded) card.OnActionClicked += _ => HandlePicked(fellow);
+            if (!blocked) card.OnActionClicked += _ => HandlePicked(fellow);
+            card.OnRemoveClicked += _ => ShowToast(UnsupportedMessage);
+            return;
+        }
+        if (_mode == PickerMode.Sell)
+        {
+            // 판매 — 모집비 1/3 환급. 환급 후 카드 목록 갱신.
+            card.OnActionClicked += _ => HandleReserveSell(fellow);
             card.OnRemoveClicked += _ => ShowToast(UnsupportedMessage);
             return;
         }
         // Recruit: 예비대 선택=토스트, X=방출
         card.OnActionClicked += _ => ShowToast(UnsupportedMessage);
         card.OnRemoveClicked += _ => HandleReserveDismiss(fellow);
+    }
+
+    private void HandleReserveSell(FellowData fellow)
+    {
+        if (MercenaryService.Instance == null) return;
+        int refund = MercenaryService.Instance.TrySellReserve(fellow);
+        if (refund <= 0) return;
+        ShowToast($"+{refund} 영혼석 환급");
+        RebuildReserveCards();
     }
 
     private void HandleReserveDismiss(FellowData fellow)

@@ -11,7 +11,8 @@
       "stressResist": 0,
       "recruitCost": 30,
       "starLevel": 1,
-      "skillIds": ["skill_magic_missile", "skill_fireball"]
+      "skillIds": ["skill_magic_missile", "skill_fireball"],
+      "animatorPath": "Animators/test_common"
     },
     {
       "id": "ally_offender_01",
@@ -24,7 +25,8 @@
       "stressResist": 5,
       "recruitCost": 30,
       "starLevel": 1,
-      "skillIds": ["skill_draw", "skill_flash"]
+      "skillIds": ["skill_draw", "skill_flash"],
+      "animatorPath": "Animators/test_common"
     },
     {
       "id": "ally_defender_01",
@@ -37,7 +39,8 @@
       "stressResist": 10,
       "recruitCost": 40,
       "starLevel": 1,
-      "skillIds": ["skill_guard", "skill_battle_stance"]
+      "skillIds": ["skill_guard", "skill_battle_stance"],
+      "animatorPath": "Animators/test_common"
     },
     {
       "id": "ally_attacker_01",
@@ -50,7 +53,8 @@
       "stressResist": 10,
       "recruitCost": 40,
       "starLevel": 1,
-      "skillIds": ["skill_reckless", "skill_indomitable"]
+      "skillIds": ["skill_reckless", "skill_indomitable"],
+      "animatorPath": "Animators/test_common"
     },
     {
       "id": "ally_priest_01",
@@ -63,7 +67,8 @@
       "stressResist": 0,
       "recruitCost": 35,
       "starLevel": 1,
-      "skillIds": ["skill_starlight", "skill_prayer"]
+      "skillIds": ["skill_starlight", "skill_prayer"],
+      "animatorPath": "Animators/test_common"
     }
   ]
 }

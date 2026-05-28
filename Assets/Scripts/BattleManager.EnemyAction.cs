@@ -49,8 +49,21 @@ public partial class BattleManager
         // 살아있는 아군이 0명이면 행동 자체가 의미 없음
         if (allies.All(a => a.isDead)) return;
 
+        AudioManager.Instance?.PlaySfxById(SfxId.EnemySkill);
+
         // ── 1) 스킬 선택 ────────────────────────────────────────
         var skill = PickEnemySkill(enemy);
+
+        // 선택된 스킬에 cooldown 설정이 있으면 즉시 시작 (다음 N 턴 동안 룰렛 제외).
+        if (skill != null && skill.cooldownTurns > 0)
+        {
+            enemy.StartSkillCooldown(skill.id, skill.cooldownTurns);
+            Debug.Log($"[적 스킬/쿨다운 시작] {enemy.displayName} → {skill.displayName} | {skill.cooldownTurns}턴 동안 사용 불가");
+        }
+
+        // 모션 트리거 — View 가 effectType 기반 카테고리 결정 (적은 jobClass 없음 → Damage 면 Melee)
+        // Fallback (skill null) 도 attackPower 직타이므로 "Damage" 로 발행.
+        enemy.OnSkillCast?.Invoke(skill != null ? skill.effectType : "Damage");
 
         if (skill == null)
         {
@@ -59,6 +72,7 @@ public partial class BattleManager
             if (firstAlive == null) return;
 
             ApplyDamageToAlly(firstAlive, enemy.attackPower);
+            GameLog.Event($"{enemy.displayName}이(가) {firstAlive.displayName ?? firstAlive.positionStack.ToString()}을(를) 공격!", LogCategory.Skill);
             Debug.Log($"[적 행동/Fallback] {enemy.displayName} → {firstAlive.positionStack} 에게 {enemy.attackPower} 데미지 (스킬 미정의)");
             return;
         }
@@ -86,6 +100,7 @@ public partial class BattleManager
         string targetNames = string.Join(", ",
             targets.Select(t => !string.IsNullOrEmpty(t.displayName) ? t.displayName : t.positionStack.ToString()));
 
+        GameLog.Event($"{enemy.displayName}이(가) [{skill.displayName}]을(를) 사용했다!", LogCategory.Skill);
         Debug.Log($"┌─────────────────────────────────────────");
         Debug.Log($"│ [적 스킬] {enemy.displayName} → {skill.displayName}");
         Debug.Log($"│  타겟 종류: {skill.targeting} ({targets.Count}명) → {targetNames}");
@@ -135,6 +150,8 @@ public partial class BattleManager
             // 소환된 턴 끝 ResultProcessing 에서 -1 되어도 정확히 summonLifeTurns 후 만료되도록 +1 보정
             summoned.currentLifeTurns = summoned.summonLifeTurns + 1;
             enemies.Add(summoned);
+            RaiseEnemySpawned(summoned); // 시각 카드/이펙트/사운드 구독자에게 알림
+            GameLog.Event($"{summoned.displayName}이(가) 등장!", LogCategory.Skill);
             Debug.Log($"  └ [소환됨] {summoned.displayName} (수명 {summoned.summonLifeTurns}턴 / {summoned.hitCountToDie} hit 처치)");
         }
 
@@ -173,10 +190,34 @@ public partial class BattleManager
             // 1회 한정 스킬이 이미 사용됐다면 룰렛에서 제외
             if (enemy.usedOnceSkills.Contains(id)) continue;
 
+            // 쿨다운 중이면 룰렛에서 제외 (예: 까마귀 부름 사용 후 3턴)
+            if (enemy.GetSkillCooldown(id) > 0)
+            {
+                Debug.Log($"[적 스킬/쿨다운] {enemy.displayName} → {s.displayName} 잔여 {enemy.GetSkillCooldown(id)}턴 — 룰렛 제외");
+                continue;
+            }
+
+            // 소환 스킬이고 소환 대상이 이미 필드에 살아있으면 룰렛에서 제외
+            // (예: 까마귀가 필드에 1마리라도 살아있으면 까마귀 부름 안 함 → 다른 스킬 우선)
+            if (s.effectType == "Summon" && !string.IsNullOrEmpty(s.summonEnemyId))
+            {
+                int sameIdCount  = enemies.Count(e => e != null && e.id == s.summonEnemyId);
+                int aliveIdCount = enemies.Count(e => e != null && !e.isDead && e.id == s.summonEnemyId);
+                Debug.Log($"[적 스킬/소환체크] {s.displayName} 대상='{s.summonEnemyId}' | enemies 매칭 {sameIdCount}개 (살아있음 {aliveIdCount})");
+                if (aliveIdCount > 0)
+                {
+                    Debug.Log($"[적 스킬/소환제외] {enemy.displayName} → {s.displayName} — 룰렛 제외");
+                    continue;
+                }
+            }
+
             skills.Add(s);
             totalWeight += s.weight;
         }
         if (skills.Count == 0 || totalWeight <= 0) return null;
+
+        // 디버그: 룰렛 후보 목록 + 가중치 (까마귀 부름 안 나오는 케이스 추적용)
+        Debug.Log($"[적 스킬/룰렛 후보] {enemy.displayName}: " + string.Join(", ", skills.Select(x => $"{x.displayName}(w={x.weight})")) + $" | totalWeight={totalWeight}");
 
         // 가중치 누적 합으로 룰렛 휠
         int roll = Random.Range(0, totalWeight);
@@ -219,16 +260,18 @@ public partial class BattleManager
             }
 
             // ── 수명 만료 — 패널티 발동 + 사망 처리 ──
-            Debug.Log($"[소환체 만료] {summon.displayName} — 패널티 {summon.expirePenaltyPower} 데미지 파티 분산");
+            // 적 → 아군 데미지는 고정 (분산 X). 각 아군 모두 expirePenaltyPower 데미지.
+            GameLog.Event($"{summon.displayName} 만료! 각 아군에게 {summon.expirePenaltyPower}의 피해.", LogCategory.Damage);
+            Debug.Log($"[소환체 만료] {summon.displayName} — 패널티 {summon.expirePenaltyPower} 데미지 (각 아군 고정)");
 
             if (summon.expirePenaltyPower > 0)
             {
-                int perAlly = Mathf.Max(1, summon.expirePenaltyPower / aliveAllies.Count);
                 foreach (var ally in aliveAllies)
-                    ApplyDamageToAlly(ally, perAlly);
+                    ApplyDamageToAlly(ally, summon.expirePenaltyPower);
             }
 
-            summon.isDead = true;
+            // CurrentHp=0 setter 가 isDead=true + OnDied 자동 발동 → 시각 침몰 트윈 트리거
+            summon.CurrentHp = 0;
 
             // 소환체 만료 → 보스(거두는 자)에 순간이동 예약 플래그
             //   기획 §11 §3: "3턴 내 처치 실패 시 → 까마귀 패널티 발동 → 순간이동 상태 진입"
@@ -256,6 +299,27 @@ public partial class BattleManager
             const string AXE_THROW = "enemy_skill_raider_throw";
             if (enemy.HpRatio <= 0.30f && !enemy.usedOnceSkills.Contains(AXE_THROW))
                 return EnemySkillDatabase.Instance.GetSkill(AXE_THROW);
+        }
+
+        // [J] 보스 — 필드에 까마귀가 한 마리도 없으면 까마귀 부름 강제 발동.
+        //     사용자 기획: "필드에 까마귀가 없을 시 소환 (룰렛 무관, 확정 발동)"
+        //     단 cooldown 잔여가 있으면 강제 안 함 (cooldown 우선).
+        if (enemy.tier == EnemyTier.Boss && !enemy.pendingTeleport)
+        {
+            const string SUMMON = "enemy_skill_reaper_summon";
+            if (enemy.GetSkillCooldown(SUMMON) <= 0)
+            {
+                bool crowAlive = enemies.Any(e => e != null && !e.isDead && e.id == "enemy_crow_01");
+                if (!crowAlive)
+                {
+                    var summon = EnemySkillDatabase.Instance.GetSkill(SUMMON);
+                    if (summon != null)
+                    {
+                        Debug.Log($"[적 스킬/강제] {enemy.displayName} → 까마귀 부름 (필드에 까마귀 없음 → 확정 발동)");
+                        return summon;
+                    }
+                }
+            }
         }
 
         // [K] 보스 — 까마귀 부름 실패(수명 만료) 후 다음 턴 순간이동 강제 발동
@@ -294,8 +358,26 @@ public partial class BattleManager
         allies.Reverse();
         string after = string.Join(", ",
             allies.Select(a => !string.IsNullOrEmpty(a?.displayName) ? a.displayName : (a?.positionStack.ToString() ?? "?")));
+        GameLog.Event($"{caster.displayName}이(가) 진형을 뒤바꿨다!", LogCategory.Skill);
         Debug.Log($"  └ [순간이동] 배치 역전: [{before}] → [{after}]");
 
-        // TODO[연출]: 보스 비가시 + 후방 이동 애니메이션. 다음 사이클.
+        // 보스 카드 비가시 연출 — fade out → 대기 → fade in.
+        // 시각적으로 "보스가 순간이동하는" 느낌만 추가 (실제 위치는 동일).
+        var bossCardSprites = FindCardSprites(caster);
+        if (bossCardSprites != null)
+            bossCardSprites.PlayTeleport();
+        else
+            Debug.LogWarning($"[Teleport] {caster.displayName} 의 BattleCardView 를 찾지 못해 연출 생략.");
+    }
+
+    /// <summary>EnemyData 에 바인딩된 BattleCardView 의 BattleCardSprites 를 반환. 없으면 null.</summary>
+    private BattleCardSprites FindCardSprites(EnemyData target)
+    {
+        if (target == null) return null;
+        var views = Object.FindObjectsByType<BattleCardView>(FindObjectsSortMode.None);
+        foreach (var v in views)
+            if (v != null && v.Enemy == target)
+                return v.GetComponent<BattleCardSprites>();
+        return null;
     }
 }

@@ -95,7 +95,33 @@ public class SkillDatabase : Singleton<SkillDatabase>
             _skillMap[skill.id] = skill;
         }
 
+        LoadSpritesForSkills();
+
         Debug.Log($"[SkillDatabase] 스킬 {_skillMap.Count}개 로드 완료.");
+    }
+
+    /// <summary>
+    /// 로드된 모든 스킬을 순회하며 spritePath 가 채워진 항목의 Sprite 를 Resources 에서 로드한다.
+    /// 경로가 비어있으면 skip(런타임에 호출 측에서 fallback 처리).
+    /// Fellow/Enemy Database 와 동일한 패턴.
+    /// </summary>
+    private void LoadSpritesForSkills()
+    {
+        int loaded = 0, missing = 0;
+        foreach (var skill in _skillMap.Values)
+        {
+            if (string.IsNullOrEmpty(skill.spritePath)) continue;
+
+            skill.sprite = Resources.Load<Sprite>(skill.spritePath);
+            if (skill.sprite == null)
+            {
+                Debug.LogWarning($"[SkillDatabase] 스프라이트 없음: '{skill.spritePath}' (id={skill.id})");
+                missing++;
+            }
+            else loaded++;
+        }
+        if (loaded + missing > 0)
+            Debug.Log($"[SkillDatabase] 스프라이트 로드: 성공 {loaded}개 / 실패 {missing}개");
     }
 
     // ----------------------------------------------------------

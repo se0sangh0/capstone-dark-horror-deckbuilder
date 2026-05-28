@@ -9,7 +9,8 @@
       "power": 15,
       "weight": 70,
       "costAmount": 2,
-      "description": "전열 1번 아군에게 15 데미지. (기획 §10_적_스킬_시트 1번 — 70%)"
+      "description": "전열 1번 아군에게 15 데미지. (기획 §10_적_스킬_시트 1번 — 70%)",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_goblin_poison",
@@ -20,7 +21,8 @@
       "power": 30,
       "weight": 30,
       "costAmount": 1,
-      "description": "후열 마지막 아군에게 30 데미지. 도트 효과는 백로그. (기획 §10 1번 — 30%)"
+      "description": "후열 마지막 아군에게 30 데미지. 도트 효과는 백로그. (기획 §10 1번 — 30%)",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_raider_swing",
@@ -31,7 +33,8 @@
       "power": 20,
       "weight": 50,
       "costAmount": 2,
-      "description": "전열 1번에게 20 데미지. (기획 §10_적_스킬_시트 2번 — 50%)"
+      "description": "전열 1번에게 20 데미지. (기획 §10_적_스킬_시트 2번 — 50%)",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_raider_smash",
@@ -42,7 +45,8 @@
       "power": 40,
       "weight": 50,
       "costAmount": 2,
-      "description": "전열 1번에게 40 강화 데미지. (기획 §10 2번 — 50%)"
+      "description": "전열 1번에게 40 강화 데미지. (기획 §10 2번 — 50%)",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_raider_throw",
@@ -53,7 +57,8 @@
       "power": 60,
       "weight": 0,
       "costAmount": 1,
-      "description": "전열 1번에게 60 데미지. HP≤30% 시 1회 강제 발동 (TryGetForcedSkill 에서 처리, weight 0 = 룰렛 제외). 기획 §11 §2"
+      "description": "전열 1번에게 60 데미지. HP≤30% 시 1회 강제 발동 (TryGetForcedSkill 에서 처리, weight 0 = 룰렛 제외). 기획 §11 §2",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_reaper_swing",
@@ -64,7 +69,8 @@
       "power": 30,
       "weight": 60,
       "costAmount": 5,
-      "description": "전열 1·2번 동시에 각 30 데미지. (기획 §10_적_스킬_시트 3번 — 60%)"
+      "description": "전열 1·2번 동시에 각 30 데미지. (기획 §10_적_스킬_시트 3번 — 60%)",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_reaper_summon",
@@ -75,9 +81,11 @@
       "power": 0,
       "weight": 40,
       "costAmount": 3,
+      "cooldownTurns": 3,
       "summonEnemyId": "enemy_crow_01",
       "summonCount": 2,
-      "description": "까마귀 2마리 소환. 2 hit 처치 / 3턴 생존 / 만료 시 1마리당 40 데미지 파티 분산 → 다음 보스 턴 순간이동. (기획 §11 §3)"
+      "description": "까마귀 2마리 소환. 2 hit 처치 / 3턴 생존 / 만료 시 1마리당 40 데미지 파티 분산 → 다음 보스 턴 순간이동. 사용 후 3턴 쿨다운. (기획 §11 §3)",
+      "spritePath": ""
     },
     {
       "id": "enemy_skill_reaper_teleport",
@@ -88,7 +96,8 @@
       "power": 0,
       "weight": 0,
       "costAmount": 0,
-      "description": "파티 배치 순서를 역순으로 뒤집는다. 까마귀 부름 실패(만료) 후 다음 보스 턴에 강제 발동. weight 0 = 룰렛 제외, 강제 트리거 전용. (기획 §11 §3)"
+      "description": "파티 배치 순서를 역순으로 뒤집는다. 까마귀 부름 실패(만료) 후 다음 보스 턴에 강제 발동. weight 0 = 룰렛 제외, 강제 트리거 전용. (기획 §11 §3)",
+      "spritePath": ""
     }
   ]
 }

@@ -161,7 +161,20 @@ public abstract class BaseCurrency<T> : MonoBehaviour where T : BaseCurrency<T>
 
     private void LoadCurrency()
     {
-        Amount = PlayerPrefs.GetInt(SaveKey, StartingAmount);
+        // setter 우회: 초기 _amount(0) 과 로드 값이 같으면 setter 가 이벤트를 발행하지 않아
+        // UI 가 "New Text" 그대로 남는 문제가 있다. 강제로 초기 1회 발행.
+        _amount = PlayerPrefs.GetInt(SaveKey, StartingAmount);
+        OnCurrencyChanged?.Invoke(_amount);
+    }
+
+    /// <summary>PlayerPrefs 키 삭제 후 StartingAmount 로 리셋. 셋팅 팝업 등에서 호출.</summary>
+    public void ResetCurrency()
+    {
+        PlayerPrefs.DeleteKey(SaveKey);
+        _amount = StartingAmount;
+        OnCurrencyChanged?.Invoke(_amount);
+        SaveCurrency();
+        Debug.Log($"[{SaveKey}] 재화 리셋 → {_amount}");
     }
 
     // ----------------------------------------------------------

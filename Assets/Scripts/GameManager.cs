@@ -22,6 +22,7 @@
 //   - BattleManager.cs : 전투 흐름 관리
 // ============================================================
 
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -69,6 +70,24 @@ public class GameManager : Singleton<GameManager>
     [Tooltip("화면에 표시될 카드 슬롯 배열. Inspector 에서 연결하세요.")]
     public StackCardController[] myCards;
 
+    [Tooltip("덱(카드 뒷면) 시작 위치. Deck 같은 RectTransform 을 할당. null 이면 드로우 애니메이션 생략.")]
+    [SerializeField] private RectTransform cardStackAnchor;
+
+    [Tooltip("카드 영역의 HorizontalLayoutGroup. 드로우 트윈 중 임시 비활성. null 이면 자동 검색.")]
+    [SerializeField] private HorizontalLayoutGroup cardAreaLayout;
+
+    [Tooltip("손패 한도 초과 안내 팝업 텍스트 (TMP_Text). null 이면 콘솔 로그만.")]
+    [SerializeField] private TMPro.TMP_Text discardNoticeText;
+
+    // 손패 한도 초과 — 이번 턴 동안 누적된 "결과 처리 시 파괴할 카드 수"
+    // 사망 동료 카드가 손패에 없었을 때만 누적됨. HandleResultProcessing 에서 처리 후 0 리셋.
+    private int _pendingDiscardCount = 0;
+
+    // 사망 처리 중복 호출 가드. BattleManager.allies 가 사망 동료를 계속 보유하기 때문에
+    // 매 턴 ProcessDeathAndStress 가 같은 deadFellow 로 RemoveCardsOfFellow 를 재호출할 수 있다.
+    // (1st call: handRemoved=1 정상, 2nd call: handRemoved=0 → 잘못된 pending 누적 → 다음 턴 1장 더 파괴됨)
+    private readonly HashSet<FellowData> _processedDeadFellows = new();
+
     [Tooltip("카드 클릭 시 나타나는 확인/취소 팝업 오브젝트")]
     public GameObject checkButtonBox;
 
@@ -99,55 +118,96 @@ public class GameManager : Singleton<GameManager>
     /// </summary>
     public void StartMyTurn()
     {
-        // 매 턴 반복되어 주석 처리
-        // Debug.Log("[GameManager] 내 턴 시작! 카드 슬롯을 세팅합니다.");
+        AudioManager.Instance?.PlaySfxById(SfxId.CardDraw);
 
         // 손패 동적 상한 — 기획 §03_카드_설계_프레임 §손패/드로우:
         //   "손패 유지량 = 배치된 동료의 수와 동일" (4인 → 4장, 3인 → 3장)
-        //   PartyManager._activeFellows 에서 사망 동료는 즉시 제거되므로,
-        //   CompanionCount = 살아있는 동료 수 = 이번 턴의 슬롯 상한이 된다.
-        //   슬롯 [i >= aliveCompanionCount] 는 이번 턴 비활성 처리.
+        //   살아있는 동료 수 = aliveCompanionCount.
+        // ⚠️ 슬롯 인덱스(i)로 한도를 판정하면, 죽은 동료보다 뒤 인덱스의 살아있는 동료 카드가
+        //    잘못 비활성화됨. 한도는 "살아있는 카드 수" 기준으로 판정한다.
         int aliveCompanionCount = PartyManager.Instance != null
             ? PartyManager.Instance.CompanionCount
             : myCards.Length;
 
+        // 현재 살아있는 카드 수 (유지 가능한 카드)
+        int liveCardCount = 0;
         for (int i = 0; i < myCards.Length; i++)
         {
-            // ① 인덱스가 살아있는 동료 수 이상이면 슬롯 비활성
-            //    (myCards 인스펙터 슬롯이 4개여도 동료 3명이면 슬롯[3]은 비워둠)
-            if (i >= aliveCompanionCount)
+            if (myCards[i] != null
+                && myCards[i].gameObject.activeSelf
+                && myCards[i].owner != null
+                && !myCards[i].owner.isDead
+                && !myCards[i].isUsed)
+            {
+                liveCardCount++;
+            }
+        }
+
+        // 1차 패스: 슬롯 유지 / 비활성 / 새 카드 SetupCard + SetActive (트윈 호출 안 함)
+        var newlyDrawnIndices = new List<int>();
+        for (int i = 0; i < myCards.Length; i++)
+        {
+            // ① 살아있는 owner 의 활성·미사용 카드 → 유지 (인덱스 무관)
+            if (myCards[i].gameObject.activeSelf
+                && myCards[i].owner != null
+                && !myCards[i].owner.isDead
+                && !myCards[i].isUsed)
+            {
+                continue;
+            }
+
+            // ② 한도 초과 또는 덱 부족 → 빈 슬롯
+            if (liveCardCount >= aliveCompanionCount || currentDrawIndex >= drawDeck.Count)
             {
                 myCards[i].gameObject.SetActive(false);
                 continue;
             }
 
-            // ② 활성 + owner + 미사용 → 유지 (이전 턴에 뽑혔는데 안 쓴 카드)
-            if (myCards[i].gameObject.activeSelf && myCards[i].owner != null && !myCards[i].isUsed)
-            {
-                // 매 턴 반복되어 주석 처리
-                // Debug.Log($"[GameManager] myCards[{i}] 유지 (미사용 카드)");
-                continue;
-            }
-
-            // ③ 그 외 (비활성이거나 사용된 슬롯) → 새 카드 뽑기
-            if (currentDrawIndex >= drawDeck.Count)
-            {
-                myCards[i].gameObject.SetActive(false);
-                continue;
-            }
-
-            // 사용됐거나 초기화되지 않은 슬롯에만 새 카드 드로우
+            // ③ 새 카드 뽑기 — 스택 범위는 카드 owner 의 성향으로 결정
             var (cardData, owner) = drawDeck[currentDrawIndex];
             currentDrawIndex++;
-          
-            // ── 카드 스택 범위는 "카드 소유자(동료)의 성향" 으로 결정 ──
-			// 기획 README §성향: "스택값은 성향 4종에 따라 동료마다 다르게 해석된다."
-			// 즉 동료 A 의 카드는 A 의 affinity, B 의 카드는 B 의 affinity 로 범위 산출.
-			int stackValue = GenerateStackValue(owner.affinity);
+            int stackValue = GenerateStackValue(owner.affinity);
             myCards[i].SetupCard(stackValue, owner);
             myCards[i].gameObject.SetActive(true);
-            // 매 턴 반복되어 주석 처리
-            // Debug.Log($"[GameManager] myCards[{i}] 새 카드 드로우 → {stackValue:+#;-#;0} ({owner.displayName}, 다수파 성향: {AffinityHelper.GetLabel(affinityForStack)})");
+            newlyDrawnIndices.Add(i);
+            liveCardCount++;
+        }
+
+        // 2차 패스: 트윈 시작 — LayoutGroup 이 자식 위치 강제하므로 일시 비활성.
+        if (newlyDrawnIndices.Count > 0 && cardStackAnchor != null)
+        {
+            // Layout 자동 검색 fallback
+            if (cardAreaLayout == null && myCards[newlyDrawnIndices[0]] != null)
+                cardAreaLayout = myCards[newlyDrawnIndices[0]].transform.parent?.GetComponent<HorizontalLayoutGroup>();
+
+            if (cardAreaLayout != null)
+            {
+                // 모든 새 카드 SetActive 된 상태에서 layout 한 번 정확히 갱신 → rt.position 정확
+                LayoutRebuilder.ForceRebuildLayoutImmediate(cardAreaLayout.transform as RectTransform);
+                cardAreaLayout.enabled = false;
+            }
+
+            for (int k = 0; k < newlyDrawnIndices.Count; k++)
+            {
+                int idx = newlyDrawnIndices[k];
+                myCards[idx].PlayDrawAnimation(cardStackAnchor.position, k * 0.08f);
+            }
+
+            if (cardAreaLayout != null)
+            {
+                float totalDuration = (newlyDrawnIndices.Count - 1) * 0.08f + 0.5f + 0.05f;
+                StartCoroutine(ReenableLayoutAfter(totalDuration));
+            }
+        }
+    }
+
+    private IEnumerator ReenableLayoutAfter(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (cardAreaLayout != null)
+        {
+            cardAreaLayout.enabled = true;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(cardAreaLayout.transform as RectTransform);
         }
     }
 
@@ -162,6 +222,8 @@ public class GameManager : Singleton<GameManager>
     {
         drawDeck = deck;
         currentDrawIndex = 0;
+        _processedDeadFellows.Clear();
+        _pendingDiscardCount = 0;
         Debug.Log($"[GameManager] 덱 주입 완료: {drawDeck.Count}장");
     }
 
@@ -171,6 +233,16 @@ public class GameManager : Singleton<GameManager>
     /// </summary>
     public void RemoveCardsOfFellow(FellowData deadFellow)
     {
+        if (deadFellow == null) return;
+
+        // 같은 deadFellow 에 대해 중복 호출 차단.
+        // BattleManager.allies 에서 사망 동료가 빠지지 않아 매 턴 dyingAllies 에 재포함되는 케이스 방어.
+        if (!_processedDeadFellows.Add(deadFellow))
+        {
+            Debug.Log($"[GameManager] {deadFellow.displayName} — 이미 사망 처리됨, 중복 호출 무시");
+            return;
+        }
+
         // 이미 뽑힌 카드 중 해당 동료 카드 수 (인덱스 보정용)
         int removedBeforeIndex = drawDeck
             .Take(currentDrawIndex)
@@ -190,18 +262,102 @@ public class GameManager : Singleton<GameManager>
         int handRemoved = 0;
         if (myCards != null)
         {
-            foreach (var card in myCards)
+            for (int i = 0; i < myCards.Length; i++)
             {
+                var card = myCards[i];
                 if (card == null) continue;
-                if (card.owner == deadFellow)
+                bool wasActive = card.gameObject.activeSelf;
+                bool matched   = card.owner == deadFellow;
+                if (matched && wasActive)
                 {
                     card.gameObject.SetActive(false);
                     handRemoved++;
+                    Debug.Log($"  └ [손패 비활성] 슬롯 {i} (owner={card.owner.displayName}, deadFellow={deadFellow.displayName})");
+                }
+                else if (wasActive && card.owner != null)
+                {
+                    Debug.Log($"  · [손패 유지] 슬롯 {i} (owner={card.owner.displayName})");
                 }
             }
         }
 
         Debug.Log($"[GameManager] {deadFellow.displayName} 카드 제거 | 덱 -{removedCount}장, 손패 -{handRemoved}장 | 잔여 덱: {drawDeck.Count}장");
+
+        // 사망 동료 카드가 손패에 없었음 → 손패 한도 초과 상태.
+        // 기획 §02 §동료 사망 처리: "턴 종료 시 랜덤으로 N개의 카드가 파괴됩니다."
+        if (handRemoved == 0)
+        {
+            _pendingDiscardCount++;
+            MarkExcessHandPending();
+            ShowDiscardNotice(_pendingDiscardCount);
+        }
+    }
+
+    /// <summary>손패 한도 초과 마킹 — 활성·살아있는·미사용 카드 전체를 IsPendingDiscard=true 로.</summary>
+    private void MarkExcessHandPending()
+    {
+        if (myCards == null) return;
+        foreach (var card in myCards)
+        {
+            if (card == null) continue;
+            if (card.gameObject.activeSelf
+                && card.owner != null
+                && !card.owner.isDead
+                && !card.isUsed)
+            {
+                card.SetPendingDiscard(true);
+            }
+        }
+    }
+
+    /// <summary>결과 처리 단계에서 호출 — pending 카운트만큼 마킹된 손패 중 랜덤 파괴.</summary>
+    public void ProcessPendingDiscard()
+    {
+        if (_pendingDiscardCount <= 0) return;
+        if (myCards == null) { _pendingDiscardCount = 0; return; }
+
+        var marked = myCards
+            .Where(c => c != null && c.gameObject.activeSelf && c.IsPendingDiscard && !c.isUsed)
+            .ToList();
+
+        int discardCount = Mathf.Min(_pendingDiscardCount, marked.Count);
+        for (int i = 0; i < discardCount; i++)
+        {
+            int idx = Random.Range(0, marked.Count);
+            var card = marked[idx];
+            marked.RemoveAt(idx);
+            card.gameObject.SetActive(false);
+            Debug.Log($"[GameManager] 손패 한도 초과 — 랜덤 파괴: {(card.owner != null ? card.owner.displayName : "owner?")}");
+        }
+
+        // 남은 마킹은 해제 (다음 턴 정상 사용 가능)
+        foreach (var card in marked)
+        {
+            if (card != null) card.SetPendingDiscard(false);
+        }
+
+        _pendingDiscardCount = 0;
+        ClearDiscardNotice();
+    }
+
+    private void ShowDiscardNotice(int count)
+    {
+        string msg = $"턴 종료 시 랜덤으로 {count}개의 카드가 파괴됩니다.";
+        Debug.Log($"[GameManager] {msg}");
+        if (discardNoticeText != null)
+        {
+            discardNoticeText.text = msg;
+            discardNoticeText.gameObject.SetActive(true);
+        }
+    }
+
+    private void ClearDiscardNotice()
+    {
+        if (discardNoticeText != null)
+        {
+            discardNoticeText.text = "";
+            discardNoticeText.gameObject.SetActive(false);
+        }
     }
 
     /// <summary>

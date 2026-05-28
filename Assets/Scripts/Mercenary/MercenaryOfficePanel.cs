@@ -1,17 +1,17 @@
 // ============================================================
 // Mercenary/MercenaryOfficePanel.cs
-// 용병소 메인 패널 — 3카드 메뉴 (모집/성장/파티편집)
+// 용병소 메인 패널 — 2카드 메뉴 (모집/성장). 파티 편집은 LeftPanel/RestPanel 에서 진입.
 // ============================================================
 //
 // [흐름]
 //   NodeSystem.DispatchByRoomType(Shop) → MercenaryOfficePanel.OpenFromNode()
-//   3카드 중 하나 클릭 → 해당 서브 패널 Open + 자신은 일시 숨김
+//   2카드 중 하나 클릭 → 해당 서브 패널 Open + 자신은 일시 숨김
 //   서브 패널 닫기 → 자신 다시 노출
 //   "나가기" 클릭 → MercenaryService.OnLeaveNode() + NodeSystem 으로 복귀
 //
 // [부착]
 //   Canvas 자식으로 패널 GameObject + CanvasGroup + 이 컴포넌트.
-//   인스펙터에 3카드 Button + 서브 패널 참조 + 나가기 버튼 연결.
+//   인스펙터에 2카드 Button + 서브 패널 참조 + 나가기 버튼 연결.
 // ============================================================
 
 using System;
@@ -20,18 +20,16 @@ using UnityEngine.UI;
 
 public class MercenaryOfficePanel : PanelBase
 {
-    [Header("3카드 메뉴 버튼")]
+    [Header("2카드 메뉴 버튼")]
     [SerializeField] private Button recruitMenuButton;
     [SerializeField] private Button growthMenuButton;
-    [SerializeField] private Button partyEditMenuButton;
 
     [Header("나가기")]
     [SerializeField] private Button exitButton;
 
     [Header("서브 패널")]
-    [SerializeField] private RecruitPanel    recruitPanel;
-    [SerializeField] private GrowthPanel     growthPanel;
-    [SerializeField] private PartyEditPanel  partyEditPanel;
+    [SerializeField] private RecruitPanel recruitPanel;
+    [SerializeField] private GrowthPanel  growthPanel;
 
     /// <summary>"나가기" 클릭 시 호출될 콜백. NodeSystem 이 구독해 노드맵으로 복귀시킨다.</summary>
     public event Action OnExit;
@@ -44,8 +42,6 @@ public class MercenaryOfficePanel : PanelBase
             recruitMenuButton.onClick.AddListener(() => OpenSub(recruitPanel));
         if (growthMenuButton != null)
             growthMenuButton.onClick.AddListener(() => OpenSub(growthPanel));
-        if (partyEditMenuButton != null)
-            partyEditMenuButton.onClick.AddListener(() => OpenSub(partyEditPanel));
         if (exitButton != null)
             exitButton.onClick.AddListener(HandleExit);
     }

@@ -35,6 +35,7 @@ public partial class EnemyData
             if (_currentHp <= 0 && !isDead)
             {
                 isDead = true;
+                AudioManager.Instance?.PlaySfxById(SfxId.EnemyDeath);
                 OnDied?.Invoke();
             }
         }
@@ -79,5 +80,9 @@ public partial class EnemyData
     // ── 런타임 전용 (NonSerialized) ──────────────────────────────
     [System.NonSerialized] public System.Action<int>    OnHpChanged;
     [System.NonSerialized] public System.Action         OnDied;
+    /// <summary>피격 시 (쉴드 흡수량, HP 감소량). 적은 쉴드 없으므로 첫 인자는 항상 0.</summary>
+    [System.NonSerialized] public System.Action<int, int> OnDamaged;
+    /// <summary>스킬 발동 시 effectType("Damage"/"Heal"/…) 발행. View 가 모션 카테고리 분기에 사용.</summary>
+    [System.NonSerialized] public System.Action<string> OnSkillCast;
     [System.NonSerialized] public UnityEngine.UI.Slider HpSlider;
 }

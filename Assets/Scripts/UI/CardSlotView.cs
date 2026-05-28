@@ -62,7 +62,8 @@ public class CardSlotView : MonoBehaviour
         // 정적 정보
         if (nameText != null)      nameText.text      = !string.IsNullOrEmpty(_fellow.displayName) ? _fellow.displayName : _fellow.id;
         if (iconImage != null)     iconImage.sprite   = _fellow.portrait != null ? _fellow.portrait : _fellow.fellowSprite;
-        if (jobTagText != null)    jobTagText.text    = !string.IsNullOrEmpty(_fellow.jobClass) ? _fellow.jobClass : _fellow.role.ToString();
+        // 임시: 역할 1글자 (탱/딜/힐). 추후 아이콘 이미지로 교체 예정.
+        if (jobTagText != null)    jobTagText.text    = RoleShortLabel(_fellow.role);
         if (affinityTagText != null) affinityTagText.text = _fellow.AffinityLabel;
         if (affinityTagBg != null) affinityTagBg.color   = _fellow.AffinityColor;
 
@@ -92,7 +93,8 @@ public class CardSlotView : MonoBehaviour
         }
 
         // 이벤트 구독
-        _fellow.OnHpChanged += OnHpChanged;
+        _fellow.OnHpChanged     += OnHpChanged;
+        _fellow.OnShieldChanged += OnShieldChanged;
 
         RefreshHp();
     }
@@ -100,7 +102,8 @@ public class CardSlotView : MonoBehaviour
     public void Unbind()
     {
         if (_fellow == null) return;
-        _fellow.OnHpChanged -= OnHpChanged;
+        _fellow.OnHpChanged     -= OnHpChanged;
+        _fellow.OnShieldChanged -= OnShieldChanged;
         _fellow = null;
     }
 
@@ -109,17 +112,27 @@ public class CardSlotView : MonoBehaviour
     private void OnHpChanged(int hp)
     {
         if (hpSlider    != null) hpSlider.value   = hp;
-        if (hpScoreText != null) hpScoreText.text = hp.ToString();
+        if (hpScoreText != null) hpScoreText.text = FormatHpScore(hp, _fellow != null ? _fellow.shield : 0);
         UpdateHpColor(hp);
+    }
+
+    private void OnShieldChanged()
+    {
+        if (_fellow == null || hpScoreText == null) return;
+        hpScoreText.text = FormatHpScore(_fellow.CurrentHp, _fellow.shield);
     }
 
     private void RefreshHp()
     {
         if (_fellow == null) return;
         if (hpSlider    != null) hpSlider.value   = _fellow.CurrentHp;
-        if (hpScoreText != null) hpScoreText.text = _fellow.CurrentHp.ToString();
+        if (hpScoreText != null) hpScoreText.text = FormatHpScore(_fellow.CurrentHp, _fellow.shield);
         UpdateHpColor(_fellow.CurrentHp);
     }
+
+    /// <summary>실드 있으면 "HP(+S)", 없으면 "HP" 만.</summary>
+    private static string FormatHpScore(int hp, int shield)
+        => shield > 0 ? $"{hp}(+{shield})" : hp.ToString();
 
     // 포켓몬식 HP 색상: >50% 초록 / 25~50% 노랑 / ≤25% 빨강
     private void UpdateHpColor(int hp)
@@ -133,6 +146,14 @@ public class CardSlotView : MonoBehaviour
             : ratio > 0.25f ? new Color(0.95f, 0.80f, 0.20f)   // 노랑
             :                 new Color(0.85f, 0.25f, 0.25f);  // 빨강
     }
+
+    private static string RoleShortLabel(CompanionRole role) => role switch
+    {
+        CompanionRole.Dealer  => "딜",
+        CompanionRole.Tanker  => "탱",
+        CompanionRole.Support => "힐",
+        _                     => "?",
+    };
 
     private static void SetSkill(TMP_Text nameLabel, TMP_Text costLabel, SkillData skill)
     {

@@ -9,7 +9,7 @@
 //
 // [라이프사이클]
 //   - OnEnterNode()  : 노드 진입 시 후보 3인 새로 롤, 리롤 카운터 0
-//   - OnLeaveNode()  : 노드 이탈 시 후보·예비대·리롤 카운터 전부 초기화 (기획 §5-3 §5-4)
+//   - OnLeaveNode()  : 노드 이탈 시 후보·리롤 카운터 초기화. 예비대는 유지 (기획 §5-2 갱신)
 //   - TryHire(idx)   : 영혼석 차감 → 파티 빈 슬롯이면 즉시 합류, 만석이면 예비대로
 //   - TryReroll()    : 영혼석 차감 → 후보 3인 재롤, 비용 +1 누적
 //   - TrySynthesize(): 파티/예비대에서 동료 3명 선택 → 4가지 케이스 분기 → 상위 성급 동료 예비대로
@@ -69,13 +69,12 @@ public class MercenaryService : Singleton<MercenaryService>
         Debug.Log($"[Mercenary] 노드 진입 — 후보 {_candidates.Count}명 롤, 예비대 {_reserves.Count}/{ReservesCapacity}");
     }
 
-    /// <summary>용병소 노드 이탈 시 후보·예비대·리롤 모두 리셋. (기획 §5-3, §5-4)</summary>
+    /// <summary>용병소 노드 이탈 시 후보·리롤 리셋. 예비대는 런 종료 시까지 유지. (기획 §5-2)</summary>
     public void OnLeaveNode()
     {
         _candidates.Clear();
-        _reserves.Clear();
         _rerollCount = 0;
-        Debug.Log("[Mercenary] 노드 이탈 — 후보·예비대·리롤 카운터 초기화");
+        Debug.Log("[Mercenary] 노드 이탈 — 후보·리롤 카운터 초기화 (예비대 유지)");
     }
 
     // ----------------------------------------------------------
@@ -130,6 +129,7 @@ public class MercenaryService : Singleton<MercenaryService>
         }
 
         SoulstoneManager.Instance.Use(cost);
+        AudioManager.Instance?.PlaySfxById(SfxId.CoinSpend);
         _rerollCount++;
         RollCandidates();
         Debug.Log($"[Mercenary] 리롤 성공 (-{cost} 영혼석) | 다음 리롤 비용 {NextRerollCost}");
@@ -172,6 +172,7 @@ public class MercenaryService : Singleton<MercenaryService>
         }
 
         SoulstoneManager.Instance.Use(cost);
+        AudioManager.Instance?.PlaySfxById(SfxId.Recruit);
         _candidates[candidateIndex] = null; // 후보 슬롯 비움 (UI 가 회색 처리)
 
         if (partyHasRoom)
@@ -313,6 +314,26 @@ public class MercenaryService : Singleton<MercenaryService>
         Debug.Log($"[Mercenary] 예비대 방출 — {fellow.displayName} ({fellow.role}·{fellow.starLevel}★) | 예비대 {_reserves.Count}/{ReservesCapacity}");
         return true;
     }
+
+    /// <summary>
+    /// 예비대 동료 판매 — 모집비 × 1/3 환급 후 영구 제거.
+    /// 반환: 환급된 영혼석 수량 (실패 시 0).
+    /// </summary>
+    public int TrySellReserve(FellowData fellow)
+    {
+        if (fellow == null) return 0;
+        if (!_reserves.Remove(fellow)) return 0;
+
+        int refund = Mathf.Max(1, fellow.recruitCost / 3);
+        if (SoulstoneManager.Instance != null) SoulstoneManager.Instance.Add(refund);
+        AudioManager.Instance?.PlaySfxById(SfxId.Sell);
+        Debug.Log($"[Mercenary] 예비대 판매 — {fellow.displayName} (+{refund} 영혼석) | 예비대 {_reserves.Count}/{ReservesCapacity}");
+        return refund;
+    }
+
+    /// <summary>판매가 미리 계산 — UI 라벨용. fellow null 안전.</summary>
+    public static int CalcSellPrice(FellowData fellow)
+        => fellow == null ? 0 : Mathf.Max(1, fellow.recruitCost / 3);
 
     private CompanionRole PickRandomRole()
     {

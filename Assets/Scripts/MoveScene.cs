@@ -26,6 +26,12 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class MoveScene : MonoBehaviour
 {
+    void Start()
+    {
+        // GameStartScene 의 시작 BGM (제목 화면)
+        AudioManager.Instance?.PlayBgmById(BgmId.Title);
+    }
+
     /// <summary>
     /// InGameScene(전투 씬)으로 이동한다.
     /// 메인 메뉴의 "시작" 버튼 onClick 이벤트에 연결하세요.
@@ -33,6 +39,7 @@ public class MoveScene : MonoBehaviour
     public void InGameSceneLoaded()
     {
         Debug.Log("[MoveScene] InGameScene 으로 이동합니다.");
+        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
         SceneManager.LoadScene("GamePlayScene");
     }
 }

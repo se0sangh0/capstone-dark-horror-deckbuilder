@@ -34,8 +34,11 @@ public class PartyEditPanel : PanelBase
 {
     [Header("프리팹 / 부모")]
     [SerializeField] private FellowCardView fellowCardPrefab;
-    [SerializeField] private Transform      partySlotsParent;
     [SerializeField] private Transform      reservesParent;
+
+    [Header("파티 슬롯 (4개 고정 — Inspector 에 직접 배치)")]
+    [Tooltip("파티 슬롯 4개. 인덱스 0~3 단일 순번. 비워두면 폴백으로 instantiate.")]
+    [SerializeField] private FellowCardView[] partySlots = new FellowCardView[4];
 
     [Header("UI 라벨 / 버튼")]
     [SerializeField] private TMP_Text partyCountLabel;
@@ -49,8 +52,7 @@ public class PartyEditPanel : PanelBase
     private const string DefaultGuide       = "파티 슬롯을 선택해 교체하거나, 예비대 카드를 클릭해 빈 슬롯에 합류시키세요.";
     private const string UnsupportedMessage = "지원하지 않는 기능입니다";
 
-    // 카드 인스턴스 풀
-    private readonly List<FellowCardView> _partyCards   = new();
+    // 카드 인스턴스 풀 — 예비대는 가변, 파티는 고정 슬롯이라 풀 불필요
     private readonly List<FellowCardView> _reserveCards = new();
 
     // 현재 선택된 파티 슬롯 인덱스 (없으면 -1).
@@ -62,6 +64,34 @@ public class PartyEditPanel : PanelBase
     {
         base.Awake();
         if (closeButton != null) closeButton.onClick.AddListener(Close);
+
+        // 고정 슬롯 → 핸들러 1회 구독 (fellow 는 클릭 시점에 PartyManager 에서 동적 조회).
+        if (partySlots != null)
+        {
+            for (int i = 0; i < partySlots.Length && i < PartySize; i++)
+            {
+                int capIdx = i;
+                var slot = partySlots[i];
+                if (slot == null) continue;
+                slot.OnActionClicked += _ => HandlePartySlotClicked(capIdx);
+                slot.OnRemoveClicked += _ => HandlePartyRemove(capIdx);
+            }
+        }
+    }
+
+    // 전투 노드 진입 중에는 파티 편집 금지 — 무시하고 Open 자체를 건너뜀.
+    // BattleManager.gameObject 의 부모(RightMainArea)는 BattleNode 진입 시에만 활성화되므로
+    // activeInHierarchy 가 곧 "전투 노드 안" 신호.
+    public override void Open()
+    {
+        if (BattleManager.Instance != null
+            && BattleManager.Instance.gameObject.activeInHierarchy
+            && BattleManager.Instance.currentPhase != BattlePhase.BattleEnd)
+        {
+            Debug.Log("[PartyEditPanel] 전투 노드 진행 중 — 파티 편집 진입 차단");
+            return;
+        }
+        base.Open();
     }
 
     protected override void OnOpened()
@@ -88,34 +118,33 @@ public class PartyEditPanel : PanelBase
     }
 
     // ----------------------------------------------------------
-    // 파티 슬롯 빌드 (항상 4칸 — 빈 슬롯은 BindEmpty)
+    // 파티 슬롯 빌드 (항상 4칸 — Inspector 의 고정 슬롯에 Bind)
     // ----------------------------------------------------------
     private void RebuildPartySlots()
     {
-        ClearCardList(_partyCards);
-        if (fellowCardPrefab == null || partySlotsParent == null) return;
         if (PartyManager.Instance == null) return;
+        if (partySlots == null || partySlots.Length < PartySize) return;
 
         var fellows = PartyManager.Instance.GetActiveFellows();
         for (int i = 0; i < PartySize; i++)
         {
-            var card = Instantiate(fellowCardPrefab, partySlotsParent);
+            var card = partySlots[i];
+            if (card == null) continue;
+
             FellowData fellow = (i < fellows.Count) ? fellows[i] : null;
             card.Bind(fellow, FellowCardMode.PartySlot);
-
-            int capturedIndex = i;
-            FellowData capturedFellow = fellow;
-            card.OnActionClicked  += _ => HandlePartySlotClicked(capturedIndex, capturedFellow);
-            card.OnRemoveClicked  += _ => HandlePartyRemove(capturedFellow);
-            _partyCards.Add(card);
+            // 핸들러는 Awake 에서 1회 구독되어 있으므로 여기서는 Bind 만.
         }
         RefreshPartySelectionVisual();
     }
 
     private void RefreshPartySelectionVisual()
     {
-        for (int i = 0; i < _partyCards.Count; i++)
-            _partyCards[i].SetSelected(i == _selectedPartyIndex);
+        for (int i = 0; i < PartySize; i++)
+        {
+            if (partySlots[i] != null)
+                partySlots[i].SetSelected(i == _selectedPartyIndex);
+        }
     }
 
     // ----------------------------------------------------------
@@ -153,21 +182,37 @@ public class PartyEditPanel : PanelBase
     // 클릭 핸들러
     // ----------------------------------------------------------
 
-    /// <summary>파티 슬롯 클릭 — 빈 슬롯은 지원 안 함, 채워진 슬롯은 선택 토글.</summary>
-    private void HandlePartySlotClicked(int slotIndex, FellowData fellow)
+    /// <summary>파티 슬롯 클릭 — 선택 토글, 다른 슬롯 두 번째 클릭 시 두 슬롯 간 순서 교환.</summary>
+    private void HandlePartySlotClicked(int slotIndex)
     {
+        var fellow = GetPartyFellowAt(slotIndex);
         if (fellow == null)
         {
             ShowToast(UnsupportedMessage);
             return;
         }
+
+        // 이미 다른 파티 슬롯이 선택된 상태에서 다른 채워진 슬롯 클릭 → 두 슬롯 순서 교환
+        if (_selectedPartyIndex >= 0 && _selectedPartyIndex != slotIndex)
+        {
+            if (PartyManager.Instance != null && PartyManager.Instance.SwapFellows(_selectedPartyIndex, slotIndex))
+            {
+                _selectedPartyIndex = -1;
+                RebuildAll();
+                ShowGuide();
+                return;
+            }
+        }
+
+        // 같은 슬롯 재클릭 → 선택 해제, 처음 선택이면 → 선택 설정
         _selectedPartyIndex = (_selectedPartyIndex == slotIndex) ? -1 : slotIndex;
         RefreshPartySelectionVisual();
     }
 
     /// <summary>파티 슬롯의 [제거] 클릭 — 예비대로 빼낸다.</summary>
-    private void HandlePartyRemove(FellowData partyFellow)
+    private void HandlePartyRemove(int slotIndex)
     {
+        var partyFellow = GetPartyFellowAt(slotIndex);
         if (partyFellow == null)
         {
             ShowToast(UnsupportedMessage);
@@ -183,6 +228,13 @@ public class PartyEditPanel : PanelBase
         _selectedPartyIndex = -1;
         RebuildAll();
         ShowGuide();
+    }
+
+    private static FellowData GetPartyFellowAt(int slotIndex)
+    {
+        if (PartyManager.Instance == null) return null;
+        var fellows = PartyManager.Instance.GetActiveFellows();
+        return (slotIndex >= 0 && slotIndex < fellows.Count) ? fellows[slotIndex] : null;
     }
 
     /// <summary>예비대 카드 클릭 — 선택된 파티원과 교체, 없으면 빈 슬롯 합류.</summary>

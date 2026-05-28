@@ -98,8 +98,9 @@ public class GrowthPanel : PanelBase
             return;
         }
 
-        var excluded = BuildExcludedSet();
-        pickerPopup.OpenForSlot(slotIndex, excluded, picked => OnFellowPicked(slotIndex, picked), null);
+        var excluded   = BuildExcludedSet();
+        var lockedStar = BuildLockedStar();
+        pickerPopup.OpenForSlot(slotIndex, excluded, lockedStar, picked => OnFellowPicked(slotIndex, picked), null);
     }
 
     private HashSet<FellowData> BuildExcludedSet()
@@ -108,6 +109,14 @@ public class GrowthPanel : PanelBase
         for (int i = 0; i < 3; i++)
             if (_selectedFellows[i] != null) set.Add(_selectedFellows[i]);
         return set;
+    }
+
+    // 이미 선택된 동료의 성급으로 잠금. 아무도 없으면 null(=잠금없음).
+    private int? BuildLockedStar()
+    {
+        for (int i = 0; i < 3; i++)
+            if (_selectedFellows[i] != null) return _selectedFellows[i].starLevel;
+        return null;
     }
 
     private void OnFellowPicked(int slotIndex, FellowData picked)

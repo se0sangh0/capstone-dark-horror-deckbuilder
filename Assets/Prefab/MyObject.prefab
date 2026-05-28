@@ -58,7 +58,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -111,7 +111,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -1.2}
-  m_SizeDelta: {x: 100, y: 12.5}
+  m_SizeDelta: {x: 120, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2378923071687684086
 MonoBehaviour:
@@ -274,7 +274,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: 0, y: 8.8}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 320, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6928419922848503559
 CanvasRenderer:
@@ -331,8 +331,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 12
-  m_fontSizeBase: 12
+  m_fontSize: 24
+  m_fontSizeBase: 24
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -393,7 +393,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4605255372670206586
 RectTransform:
   m_ObjectHideFlags: 0
@@ -527,6 +527,8 @@ GameObject:
   - component: {fileID: 3419569264747253378}
   - component: {fileID: 1878813956506263886}
   - component: {fileID: 7428824977086248652}
+  - component: {fileID: 2508812674226017885}
+  - component: {fileID: 8887584561235902271}
   m_Layer: 0
   m_Name: MyObject
   m_TagString: Untagged
@@ -659,6 +661,50 @@ MonoBehaviour:
   hpSlider: {fileID: 2378923071687684086}
   damagePopupPrefab: {fileID: 3947856817772251457, guid: 2e6e43dd2be354739a2c8b585df126ac, type: 3}
   damagePopupAnchor: {fileID: 0}
+--- !u!95 &2508812674226017885
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5214129751848754868}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 0}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &8887584561235902271
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5214129751848754868}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 920a875b6c5d64ec394064ccf4bb26f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleCardSprites
+  idleSprite: {fileID: 0}
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  targetSpriteRenderer: {fileID: 0}
+  targetMeshRenderer: {fileID: 0}
+  targetImage: {fileID: 0}
+  motionDuration: 0.25
+  meleeDashDistance: 0.5
+  meleeDashDuration: 0.1
+  flipTarget: {fileID: 0}
 --- !u!1 &7436254362511362968
 GameObject:
   m_ObjectHideFlags: 0
