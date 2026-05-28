@@ -12,8 +12,10 @@ public class AnimationTest : MonoBehaviour
         if (Input.GetMouseButtonDown(0)) { // 좌클릭 시 공격
             anim.SetTrigger("doAttack");
         }
-        if (Input.GetKeyDown(KeyCode.H)) { // H키 누르면 피격
-            anim.SetTrigger("doHurt");
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            anim.SetTrigger("doAttack2");
         }
     }
 }
