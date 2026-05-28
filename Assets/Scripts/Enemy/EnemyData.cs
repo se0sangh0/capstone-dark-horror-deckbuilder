@@ -36,6 +36,9 @@ public partial class EnemyData : ScriptableObject
     public Sprite portrait;
     public string spritePath;
 
+    [Tooltip("RuntimeAnimatorController 의 Resources 기준 경로. 비면 Animator 비활성.")]
+    public string animatorPath;
+
     [Header("메모")]
     [TextArea(2, 4)]
     public string note;
@@ -47,6 +50,9 @@ public partial class EnemyData : ScriptableObject
 
     [Tooltip("소환 후 N턴 생존. 0 = 영구, >0 = 턴 카운터")]
     public int summonLifeTurns = 0;
+
+    /// <summary>처치 시 영혼석 드롭량. 기획 §15 보상 시스템 명세.</summary>
+    public int soulstoneDrop = 0;
 
     [Tooltip("수명 만료 시 파티 전체에 분산되는 데미지 (1마리당)")]
     public int expirePenaltyPower = 0;
@@ -70,6 +76,35 @@ public partial class EnemyData : ScriptableObject
 
     /// <summary>보스 상태머신용 — 까마귀 만료 후 다음 턴에 순간이동 강제 발동.</summary>
     [System.NonSerialized] public bool pendingTeleport = false;
+
+    /// <summary>적 스킬별 남은 쿨다운 (턴). 0 또는 키 없음 = 사용 가능.</summary>
+    [System.NonSerialized] private Dictionary<string, int> _skillCooldowns = new Dictionary<string, int>();
+
+    public int GetSkillCooldown(string skillId)
+    {
+        if (string.IsNullOrEmpty(skillId)) return 0;
+        return _skillCooldowns != null && _skillCooldowns.TryGetValue(skillId, out int v) ? v : 0;
+    }
+
+    public void StartSkillCooldown(string skillId, int turns)
+    {
+        if (string.IsNullOrEmpty(skillId) || turns <= 0) return;
+        if (_skillCooldowns == null) _skillCooldowns = new Dictionary<string, int>();
+        _skillCooldowns[skillId] = turns;
+    }
+
+    /// <summary>매 턴 종료 시 호출 — 모든 쿨다운 -1, 0 이하면 제거.</summary>
+    public void TickSkillCooldowns()
+    {
+        if (_skillCooldowns == null || _skillCooldowns.Count == 0) return;
+        var keys = new List<string>(_skillCooldowns.Keys);
+        foreach (var k in keys)
+        {
+            int next = _skillCooldowns[k] - 1;
+            if (next <= 0) _skillCooldowns.Remove(k);
+            else           _skillCooldowns[k] = next;
+        }
+    }
 
     /// <summary>현재 HP 비율 (0~1). maxHp 가 0 이하면 0.</summary>
     public float HpRatio => maxHp > 0 ? (float)CurrentHp / maxHp : 0f;

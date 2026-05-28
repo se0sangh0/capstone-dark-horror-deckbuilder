@@ -1,12 +1,15 @@
 // LogPopup.cs
-// Debug.Log 수집된 내용을 표시하는 팝업. PanelBase 의 페이드 패턴을 따름.
+// GameLogService.GetEntries() 의 게임 이벤트를 카테고리별 색상으로 표시.
+// 새 로그 추가 시 마지막 줄을 0.4초간 굵게 강조 후 일반화.
 //
 // ── 인스펙터 ───────────────────────────────────────────────────
-//   logText      : ScrollView 안의 TMP_Text (로그 한 줄씩 갱신)
+//   logText      : ScrollView 안의 TMP_Text — Rich Text 활성 필요
 //   scrollRect   : ScrollRect (새 로그 추가 시 하단으로 스크롤)
 //   closeButton  : 닫기 버튼
 //   clearButton  : (선택) 로그 비우기 버튼
 
+using System.Collections;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -21,11 +24,18 @@ public class LogPopup : PanelBase
     [SerializeField] private Button closeButton;
     [SerializeField] private Button clearButton;
 
+    [Header("강조 fade")]
+    [SerializeField, Tooltip("새 로그 추가 시 마지막 줄을 굵게 표시할 시간(초)")]
+    private float flashDuration = 0.4f;
+
+    private bool      _flashLast;
+    private Coroutine _flashCoroutine;
+
     protected override void OnOpened()
     {
         RefreshAll();
         if (GameLogService.Instance != null)
-            GameLogService.Instance.OnLogAdded += OnLogAdded;
+            GameLogService.Instance.OnGameEventAdded += OnLogAdded;
 
         if (closeButton != null)
         {
@@ -42,22 +52,76 @@ public class LogPopup : PanelBase
     protected override void OnClosed()
     {
         if (GameLogService.Instance != null)
-            GameLogService.Instance.OnLogAdded -= OnLogAdded;
+            GameLogService.Instance.OnGameEventAdded -= OnLogAdded;
+
+        if (_flashCoroutine != null) { StopCoroutine(_flashCoroutine); _flashCoroutine = null; }
 
         if (closeButton != null) closeButton.onClick.RemoveListener(Close);
         if (clearButton != null) clearButton.onClick.RemoveListener(OnClearClicked);
     }
 
-    private void OnLogAdded(string _) => RefreshAll();
+    private void OnLogAdded(GameLogEntry _)
+    {
+        _flashLast = true;
+        RefreshAll();
+
+        if (_flashCoroutine != null) StopCoroutine(_flashCoroutine);
+        _flashCoroutine = StartCoroutine(UnflashAfter(flashDuration));
+    }
+
+    private IEnumerator UnflashAfter(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        _flashLast = false;
+        RefreshAll();
+        _flashCoroutine = null;
+    }
 
     private void RefreshAll()
     {
         if (logText == null) return;
-        logText.text = GameLogService.Instance != null ? GameLogService.Instance.GetAll() : "";
-        // 다음 프레임에 스크롤 끝으로 — Content 레이아웃 갱신 이후
-        if (scrollRect != null) Canvas.ForceUpdateCanvases();
-        if (scrollRect != null) scrollRect.verticalNormalizedPosition = 0f;
+
+        if (GameLogService.Instance == null)
+        {
+            logText.text = "";
+            return;
+        }
+
+        var entries = GameLogService.Instance.GetEntries();
+        var sb = new StringBuilder(entries.Count * 64);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            string hex = ColorHex(e.category);
+            bool   isLast = (i == entries.Count - 1);
+            if (isLast && _flashLast)
+                sb.Append("<b><color=#").Append(hex).Append('>').Append(e.message).Append("</color></b>");
+            else
+                sb.Append("<color=#").Append(hex).Append('>').Append(e.message).Append("</color>");
+
+            if (i < entries.Count - 1) sb.Append('\n');
+        }
+
+        logText.text = sb.ToString();
+
+        if (scrollRect != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            scrollRect.verticalNormalizedPosition = 0f;
+        }
     }
+
+    private static string ColorHex(LogCategory c) => c switch
+    {
+        LogCategory.Damage  => "FF5252",  // 빨강 — 피해
+        LogCategory.Heal    => "66BB6A",  // 녹색 — 회복
+        LogCategory.Shield  => "FFC107",  // 노랑 — 실드
+        LogCategory.Death   => "9E9E9E",  // 회색 — 사망
+        LogCategory.Reward  => "29B6F6",  // 파랑 — 보상
+        LogCategory.Status  => "BA68C8",  // 보라 — 스트레스/패닉
+        LogCategory.Skill   => "4DD0E1",  // 시안 — 스킬
+        _                   => "FFFFFF",
+    };
 
     private void OnClearClicked()
     {

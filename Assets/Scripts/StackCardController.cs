@@ -27,6 +27,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using DG.Tweening;
 
 /// <summary>
 /// 개별 스택 카드의 UI 및 클릭 처리 컨트롤러.
@@ -78,6 +79,13 @@ public class StackCardController : MonoBehaviour
 
     private Image  myImage;
     private Button myButton;
+
+    // 드로우 애니메이션용 — 중복 호출 시 이전 트윈 정리.
+    private Sequence _drawSeq;
+
+    // 손패 한도 초과 — 턴 종료 시 랜덤 파괴 대상 마킹 (하스스톤 주문제작카드 풍 황금 tint)
+    public bool IsPendingDiscard { get; private set; }
+    private static readonly Color PendingDiscardColor = new Color(1f, 0.84f, 0.2f, 1f); // 황금색
 
     // ----------------------------------------------------------
     // 초기화
@@ -143,8 +151,19 @@ public class StackCardController : MonoBehaviour
         // 카드 상태 초기화
         isUsed                = false;
         myButton.interactable = true;
-        myImage.color = Color.gray1;
+        IsPendingDiscard      = false;
+        myImage.color         = Color.gray1;
         myImage.sprite        = null;
+    }
+
+    /// <summary>손패 한도 초과 시 호출 — 시각 마킹(황금색), 턴 종료 시 랜덤 파괴 대상.</summary>
+    public void SetPendingDiscard(bool pending)
+    {
+        IsPendingDiscard = pending;
+        if (myImage != null && !isUsed)
+        {
+            myImage.color = pending ? PendingDiscardColor : Color.gray1;
+        }
     }
 
     // ----------------------------------------------------------
@@ -157,8 +176,16 @@ public class StackCardController : MonoBehaviour
         // 이미 사용했거나 다른 카드의 확인 팝업이 열려있으면 무시
         if (isUsed || GameManager.Instance.checkButtonBox.activeSelf) return;
 
+        // 턴 종료~다음 턴 시작 전 (PlayerCardPlay 가 아닌 모든 페이즈) 에는 카드 선택 불가.
+        if (BattleManager.Instance != null
+            && BattleManager.Instance.currentPhase != BattlePhase.PlayerCardPlay)
+        {
+            return;
+        }
+
         // 1. 카드를 약간 크게 만들어 "선택됨" 을 표시
         transform.localScale = originalScale * 1.15f;
+        AudioManager.Instance?.PlaySfxById(SfxId.CardSelect);
 
         // 2. 확인/취소 팝업 표시 + 위치 이동
         GameManager.Instance.checkButtonBox.SetActive(true);
@@ -176,6 +203,7 @@ public class StackCardController : MonoBehaviour
     /// <summary>취소 버튼 클릭 시: 카드 크기 복구 + 팝업 닫기</summary>
     void HandleCancel()
     {
+        AudioManager.Instance?.PlaySfxById(SfxId.Cancel);
         transform.localScale = originalScale;
         GameManager.Instance.checkButtonBox.SetActive(false);
     }
@@ -186,6 +214,7 @@ public class StackCardController : MonoBehaviour
     /// </summary>
     void HandleConfirm()
     {
+        AudioManager.Instance?.PlaySfxById(SfxId.CardPlay);
         // 카드를 "사용됨" 상태로 전환 (클릭 불가 + 반투명)
         isUsed                = true;
         myImage.sprite        = emptySprite;
@@ -198,5 +227,30 @@ public class StackCardController : MonoBehaviour
 
         // GameManager 에 카드 사용 알림 → PlayerRoleCost 스택 반영
         GameManager.Instance.OnCardUsed(this);
+    }
+
+    // ----------------------------------------------------------
+    // 드로우 애니메이션 — 덱 위치에서 손패 자리로 flip + 슬라이드.
+    //   fromWorldPos : 시작점 (CardStack 의 world position)
+    //   delay        : 카드별 stagger 지연
+    // ----------------------------------------------------------
+    public void PlayDrawAnimation(Vector3 fromWorldPos, float delay)
+    {
+        var rt = (RectTransform)transform;
+        Vector3 targetPos   = rt.position;
+        Vector3 targetScale = (originalScale != Vector3.zero) ? originalScale : rt.localScale;
+
+        // 이전 트윈 정리 (연속 드로우 시 중복 방지)
+        _drawSeq?.Kill();
+
+        // 시작 상태: 덱 위치 + Y축 180° 회전(뒤집힌 상태) + 0.7배 스케일
+        rt.position         = fromWorldPos;
+        rt.localScale       = targetScale * 0.7f;
+        rt.localEulerAngles = new Vector3(0f, 180f, 0f);
+
+        _drawSeq = DOTween.Sequence().SetDelay(delay);
+        _drawSeq.Append(rt.DOMove(targetPos, 0.5f).SetEase(Ease.OutCubic));
+        _drawSeq.Join(rt.DOScale(targetScale, 0.5f).SetEase(Ease.OutBack));
+        _drawSeq.Join(rt.DOLocalRotate(Vector3.zero, 0.5f).SetEase(Ease.OutCubic));
     }
 }

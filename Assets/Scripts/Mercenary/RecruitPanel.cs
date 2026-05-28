@@ -45,6 +45,9 @@ public class RecruitPanel : PanelBase
     [SerializeField] private Button                   openFellowListButton;
     [SerializeField] private FellowSourcePickerPopup  pickerPopup;
 
+    [Header("예비대 카운트 표기 (예비대 (N/9))")]
+    [SerializeField] private TMP_Text                 reservesCountLabel;
+
     [Header("닫기")]
     [SerializeField] private Button closeButton;
 
@@ -106,6 +109,13 @@ public class RecruitPanel : PanelBase
 
         if (rerollButton != null)
             rerollButton.interactable = CanAffordReroll();
+
+        if (reservesCountLabel != null && MercenaryService.Instance != null)
+        {
+            int cur = MercenaryService.Instance.Reserves.Count;
+            int max = MercenaryService.ReservesCapacity;
+            reservesCountLabel.text = $"예비대 ({cur}/{max})";
+        }
     }
 
     private bool CanAffordReroll()
@@ -171,7 +181,8 @@ public class RecruitPanel : PanelBase
             Debug.LogWarning("[RecruitPanel] pickerPopup 미연결 — 인스펙터 슬롯 확인");
             return;
         }
-        pickerPopup.OpenForRecruit(onClosed: RefreshHeader);
+        // 동료 모집 컨텍스트는 판매 모드로 띄움 — 예비대만 표시 + "판매 (+N)" 버튼.
+        pickerPopup.OpenForSell(onClosed: RefreshHeader);
     }
 
     // ----------------------------------------------------------

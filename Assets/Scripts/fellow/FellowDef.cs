@@ -55,6 +55,13 @@ public class FellowDef
 
     public string[] skillIds;
     public string spritePath;
+
+    // ── 애니메이션 (TODO: sprite 4프레임 작업 완료 후 활성) ─────────
+    //   Resources 기준 경로의 RuntimeAnimatorController.
+    //   AnimatorController 안에 "Idle" / "Attack" state + "Attack" / "Hit" trigger 정의 필요.
+    //   예: "Animators/caster", "Animators/offender"
+    //   비어 있으면 DefaultSetting 에서 Animator 컴포넌트 무시 (기존 sprite 교체 방식 동작).
+    public string animatorPath;
 }
 
 [System.Serializable]

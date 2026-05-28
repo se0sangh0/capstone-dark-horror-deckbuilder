@@ -8,8 +8,13 @@
       "attackPower": 15,
       "attackCost": 1,
       "skillId": "",
-      "skillIds": ["enemy_skill_goblin_dagger", "enemy_skill_goblin_poison"],
-      "spritePath": "Characters/test_enemy_goblin"
+      "skillIds": [
+        "enemy_skill_goblin_dagger",
+        "enemy_skill_goblin_poison"
+      ],
+      "spritePath": "Characters/test_enemy_goblin",
+      "animatorPath": "Animators/test_common",
+      "soulstoneDrop": 8
     },
     {
       "id": "enemy_raider_01",
@@ -19,8 +24,14 @@
       "attackPower": 20,
       "attackCost": 2,
       "skillId": "",
-      "skillIds": ["enemy_skill_raider_swing", "enemy_skill_raider_smash", "enemy_skill_raider_throw"],
-      "spritePath": "Characters/test_enemy_goblin"
+      "skillIds": [
+        "enemy_skill_raider_swing",
+        "enemy_skill_raider_smash",
+        "enemy_skill_raider_throw"
+      ],
+      "spritePath": "Characters/test_enemy_goblin",
+      "animatorPath": "Animators/test_common",
+      "soulstoneDrop": 12
     },
     {
       "id": "enemy_reaper_boss",
@@ -30,23 +41,30 @@
       "attackPower": 30,
       "attackCost": 4,
       "skillId": "",
-      "skillIds": ["enemy_skill_reaper_swing", "enemy_skill_reaper_summon"],
-      "spritePath": "Characters/test_enemy_goblin"
+      "skillIds": [
+        "enemy_skill_reaper_swing",
+        "enemy_skill_reaper_summon"
+      ],
+      "spritePath": "Characters/test_enemy_goblin",
+      "animatorPath": "Animators/test_common",
+      "soulstoneDrop": 20
     },
     {
       "id": "enemy_crow_01",
       "displayName": "까마귀",
       "tier": "Weak",
-      "maxHp": 1,
+      "maxHp": 2,
       "attackPower": 0,
       "attackCost": 0,
       "skillId": "",
       "skillIds": [],
       "spritePath": "Characters/test_enemy_goblin",
+      "animatorPath": "Animators/test_common",
       "hitCountToDie": 2,
       "summonLifeTurns": 3,
       "expirePenaltyPower": 40,
-      "isPassive": true
+      "isPassive": true,
+      "soulstoneDrop": 0
     }
   ]
 }

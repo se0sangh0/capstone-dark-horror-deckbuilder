@@ -39,7 +39,8 @@ public partial class BattleManager
     // ----------------------------------------------------------
     private IEnumerator HandleDrawPhase()
     {
-        Debug.Log("--- [1] 드로우 페이즈 ---");
+        AdvanceTurnCounter();
+        Debug.Log($"--- [1] 드로우 페이즈 (턴 {CurrentTurn}) ---");
         GameManager.Instance?.StartMyTurn();
         currentPhase = BattlePhase.PlayerCardPlay;
         yield return null;
@@ -127,8 +128,18 @@ public partial class BattleManager
             _carryoverOrderList.Clear();
         }
 
+        // 손패 한도 초과 — 사망 후 손패에 사망 동료 카드가 없던 경우 누적된 pending count 만큼 랜덤 파괴.
+        // 기획 §02 §동료 사망 처리: "사용자가 해당 턴에 사용하지 않으면 결과 처리 단계에서 N개를 랜덤 파괴한다."
+        GameManager.Instance?.ProcessPendingDiscard();
+
         // 탈진 페널티 (기획 §02 §1) Hand Empty / §03 §탈진 — 손패 0 + 덱 0 시 스트레스 페널티)
         ApplyExhaustionPenaltyIfNeeded();
+
+        // 적 스킬 쿨다운 -1 (까마귀 부름 등 cooldownTurns 가진 스킬용).
+        foreach (var e in enemies)
+        {
+            if (e != null) e.TickSkillCooldowns();
+        }
 
         // 까마귀 등 소환체 수명 카운터 -1 + 만료 처리 (기획 §11 §3 보스 까마귀)
         ProcessSummonExpiration();
@@ -161,52 +172,94 @@ public partial class BattleManager
         yield return new WaitForSeconds(gameOverDelay);
         if (allEnemiesDead)
         {
+            GameLog.Event("전투에서 승리했다!", LogCategory.Reward);
             Debug.Log("[BattleManager] 전투 승리!");
-            GrantBattleReward();   // ✨ 승리 보상 지급
+            AudioManager.Instance?.PlaySfxById(SfxId.Victory);
+            // 영혼석 보상은 적 처치 즉시 ProcessDeathAndStress 에서 지급됨 (기획 §15).
+            // GrantBattleReward 는 추가 보상(예: 클리어 보너스) 자리로 남겨둠.
+            GrantBattleReward();
             GrantStressRecovery();
-            DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
-            DisplayChange.Instance.ToggleDisplay();
+
+            // 보스 클리어 판정 — 사용자 기획: "보스 오브젝트가 나온 노드 이겼을 때 기준".
+            // enemies 에 Boss tier 가 있었고 + RoomType.Boss 노드 였을 때만 엔딩 (둘 다 만족 필수).
+            bool bossWasInBattle = enemies.Any(e => e != null && e.tier == EnemyTier.Boss);
+            bool isBossRoom      = NodeSystem.Current != null && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
+            if (bossWasInBattle && isBossRoom)
+            {
+                GameLog.Event("보스를 쓰러트렸다!", LogCategory.Reward);
+                Debug.Log("[BattleManager] 🎉 보스 클리어 — 엔딩 진입");
+                if (endingPanel != null)
+                {
+                    // 부모가 비활성(PopUp 등) 이라도 보이도록 상위 트리 모두 활성화
+                    var t = endingPanel.transform;
+                    while (t != null)
+                    {
+                        if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+                        t = t.parent;
+                    }
+                    endingPanel.SetActive(true);
+                }
+                else
+                {
+                    Debug.LogWarning("[BattleManager] endingPanel 미할당 — 엔딩 UI 표시 생략");
+                }
+
+                // 엔딩 표시 후 일정 시간 대기 → 게임 리셋(파티+영혼석) + GameStartScene 복귀
+                // 마석은 메타 재화이므로 초기화 제외 (런 종료 후에도 유지)
+                yield return new WaitForSeconds(endingDisplayDuration);
+                Debug.Log("[BattleManager] 엔딩 종료 — 게임 초기화 + GameStartScene 복귀");
+                PartyManager.Instance?.ResetGame();
+                SoulstoneManager.Instance?.ResetCurrency();
+                SceneManager.LoadScene(gameOverSceneName);
+            }
+            else
+            {
+                DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+                DisplayChange.Instance.ToggleDisplay();
+                AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+            }
         }
         else
         {
+            GameLog.Event("전원 쓰러졌다…", LogCategory.Death);
             Debug.Log("[BattleManager] 아군 전멸! 게임 오버 씬으로 전환합니다.");
+            AudioManager.Instance?.PlaySfxById(SfxId.Defeat);
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
             PartyManager.Instance?.ResetGame();
+            SoulstoneManager.Instance?.ResetCurrency();
+            // 마석은 메타 재화이므로 초기화 제외 (런 종료 후에도 유지)
             SceneManager.LoadScene(gameOverSceneName);
         }
 
     }
 
     // ============================================================
-    // 전투 승리 보상 지급 — 기획 수치 미확정 (TODO)
+    // 전투 승리 보상 지급 — 노드 타입별 마석 차등
     // ============================================================
-    //   기획 README / MVP 노드 설계 / 스트레스 표 어디에도
-    //   전투 승리 시 영혼석·마나스톤 보상 수치가 명시되어 있지 않음.
-    //   → 노드 타입(전투/엘리트/보스)별 보상 테이블이 확정되면 본문 활성화.
-    //
-    //   추정 분기 (확정 시 참고용):
-    //     일반 전투 노드 → 영혼석 +N
-    //     엘리트 전투 노드 → 영혼석 +N (+α)
-    //     보스 노드      → 영혼석 +N, 마나스톤 +M
-    //
-    //   호출 지점은 HandleBattleEnd 의 승리 분기. 자리만 유지.
+    //   영혼석은 BattleManager.Combat 에서 적 처치 시 즉시 지급되므로 여기서는 처리하지 않음.
+    //   마석은 메타 재화 — 노드 타입별 차등 지급:
+    //     일반 전투 (RoomType.Combat) → +10
+    //     엘리트 (RoomType.Elite)    → +20
+    //     보스   (RoomType.Boss)     → +30
     // ============================================================
     private void GrantBattleReward()
     {
         int floor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
+        RoomType room = NodeSystem.Current != null ? NodeSystem.Current.CurrentRoomType : RoomType.Combat;
 
-        // TODO[보상]: 기획자가 노드별 영혼석/마나스톤 수치 확정 시 활성화
-        //            (현재 임시값 비활성화 — 기획 수치 미명시)
-        // int soulReward = 20;
-        // int manaReward = 0;
-        // if (floor >= 5)      { soulReward = 100; manaReward = 10; }   // 보스
-        // else if (floor == 3) { soulReward = 50; }                      // 엘리트
-        // if (SoulstoneManager.Instance != null && soulReward > 0)
-        //     SoulstoneManager.Instance.Add(soulReward);
-        // if (ManastoneManager.Instance != null && manaReward > 0)
-        //     ManastoneManager.Instance.Add(manaReward);
+        int reward = room switch
+        {
+            RoomType.Boss  => 30,
+            RoomType.Elite => 20,
+            _              => 10,   // Combat 및 그 외 안전 폴백
+        };
 
-        Debug.Log($"[BattleManager] 전투 승리 (층 {floor}) — 보상 수치 미확정, 지급 보류 (TODO)");
+        if (ManastoneManager.Instance != null)
+        {
+            ManastoneManager.Instance.Add(reward);
+            GameLog.Event($"마석 +{reward} 획득.", LogCategory.Reward);
+            Debug.Log($"[BattleManager] 전투 승리 (층 {floor} / {room}) — 노드 보상 마석 +{reward}");
+        }
     }
     
     // 기획 §스트레스 §기본 회복 — 전투 승리: -10
@@ -214,6 +267,7 @@ public partial class BattleManager
     {
         foreach (var ally in allies.Where(a => !a.isDead))
             ally.currentStress = Mathf.Max(0, ally.currentStress - 10);
+        GameLog.Event("생존한 동료들의 스트레스가 회복되었다 (-10).", LogCategory.Heal);
         Debug.Log("[BattleManager] 전투 승리 보상 — 생존 동료 스트레스 -10");
     }
 }

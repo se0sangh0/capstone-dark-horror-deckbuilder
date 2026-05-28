@@ -144,6 +144,10 @@ public class NodeSystem : MonoBehaviour
     [Tooltip("Rest(화툿불) 노드 클릭 시 열릴 패널. 9층 고정. 비어있으면 회복 없이 다음 층 진행.")]
     [SerializeField] private RestPanel restPanel;
 
+    [Header("교회 (Event 노드)")]
+    [Tooltip("Event(교회) 노드 클릭 시 열릴 패널. 비어있으면 안내 로그만 출력하고 다음 층 진행.")]
+    [SerializeField] private ChurchPanel churchPanel;
+
     // ----------------------------------------------------------
     // 초기화
     // ----------------------------------------------------------
@@ -173,6 +177,7 @@ public class NodeSystem : MonoBehaviour
     void Start()
     {
         UpdateNodeStates();
+        AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
     }
 
     // ----------------------------------------------------------
@@ -336,6 +341,29 @@ public class NodeSystem : MonoBehaviour
     // ----------------------------------------------------------
     /// <summary>
     /// 노드 버튼 클릭 시 호출된다.
+    /// <summary>
+    /// 🎮 치트 — 노드 1단계 전진 (F2). RoomType 분기/패널 진입 없이 currentRowIndex 만 증가.
+    /// 예: 3층에서 호출 → 4층으로 점프 (전투/용병소 등 패널은 띄우지 않음).
+    /// </summary>
+    public void CheatAdvanceFloor()
+    {
+        if (nodeRows == null || nodeRows.Count == 0)
+        {
+            Debug.LogWarning("[NodeSystem] 🎮 F2 치트 — nodeRows 미초기화");
+            return;
+        }
+        if (currentRowIndex >= nodeRows.Count)
+        {
+            Debug.Log($"[NodeSystem] 🎮 F2 치트 — 이미 마지막 층 도달 ({currentRowIndex})");
+            return;
+        }
+        int before = currentRowIndex;
+        currentRowIndex++;
+        UpdateNodeStates();
+        Debug.Log($"[NodeSystem] 🎮 F2 치트 — 층 {before} → {currentRowIndex}");
+    }
+
+    /// <summary>
     /// 현재 층의 버튼이면: 선택 처리 → RoomType 별 화면 분기 → 다음 층 진행.
     /// </summary>
     public void OnNodeClicked(int row, int col)
@@ -362,6 +390,9 @@ public class NodeSystem : MonoBehaviour
     /// <summary>RoomType 에 따라 적절한 화면을 켜거나 임시 진행 처리한다.</summary>
     private void DispatchByRoomType(RoomType type)
     {
+        // 노드 진입 시 게임 이벤트 로그 리셋 — 이전 노드 메시지가 누적되지 않도록.
+        GameLogService.Instance?.Clear();
+
         switch (type)
         {
             // ── 전투 계열: 기존 흐름 그대로 (DisplayChanger 가 전투 패널 토글) ──
@@ -369,6 +400,7 @@ public class NodeSystem : MonoBehaviour
             case RoomType.Elite:
             case RoomType.Boss:
                 DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
+                AudioManager.Instance?.PlayBgmById(BgmId.Battle);
                 break;
 
             // ── 화툿불 (E 작업 완료 — RestPanel 호출) ──
@@ -380,6 +412,7 @@ public class NodeSystem : MonoBehaviour
                     restPanel.OnExit -= HandleRestExit;
                     restPanel.OnExit += HandleRestExit;
                     restPanel.OpenFromNode();
+                    AudioManager.Instance?.PlayBgmById(BgmId.Rest);
                 }
                 else
                 {
@@ -396,6 +429,7 @@ public class NodeSystem : MonoBehaviour
                     mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
                     mercenaryOfficePanel.OnExit += HandleMercenaryExit;
                     mercenaryOfficePanel.OpenFromNode();
+                    AudioManager.Instance?.PlayBgmById(BgmId.Mercenary);
                 }
                 else
                 {
@@ -403,10 +437,21 @@ public class NodeSystem : MonoBehaviour
                 }
                 break;
 
-            // ── 교회 (백로그) ──
-            // TODO[교회·백로그]: 기획 §맵 노드 §교회 — HP 회복 + 사망 동료 부활. MVP 백로그.
+            // ── 교회 (Event 노드 매핑) ──
+            //   기획 §02_MVP_노드_설계 §교회 — HP 회복 + 스트레스 회복 + 사망 동료 부활
+            //   패널 미연결 시(인스펙터 빈 경우) 로그만 남기고 다음 층 진행.
             case RoomType.Event:
-                Debug.Log("[NodeSystem] (TODO·교회) 교회 노드 — 백로그, 다음 층으로 즉시 진행.");
+                if (churchPanel != null)
+                {
+                    churchPanel.OnExit -= HandleChurchExit;
+                    churchPanel.OnExit += HandleChurchExit;
+                    churchPanel.OpenFromNode();
+                    AudioManager.Instance?.PlayBgmById(BgmId.Rest);
+                }
+                else
+                {
+                    Debug.Log("[NodeSystem] 교회 노드 — ChurchPanel 미연결, 다음 층으로 진행.");
+                }
                 break;
 
             default:
@@ -424,6 +469,7 @@ public class NodeSystem : MonoBehaviour
         if (mercenaryOfficePanel != null)
             mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
         UpdateNodeStates();
+        AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
     }
 
     /// <summary>화툿불 패널의 "다음 층" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
@@ -432,6 +478,16 @@ public class NodeSystem : MonoBehaviour
         if (restPanel != null)
             restPanel.OnExit -= HandleRestExit;
         UpdateNodeStates();
+        AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+    }
+
+    /// <summary>교회 패널의 "다음 층" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
+    private void HandleChurchExit()
+    {
+        if (churchPanel != null)
+            churchPanel.OnExit -= HandleChurchExit;
+        UpdateNodeStates();
+        AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
     }
 
     /// <summary>인덱스 안전한 RoomType 조회. 범위 밖이면 Combat 폴백.</summary>

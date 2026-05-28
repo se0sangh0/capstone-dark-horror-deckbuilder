@@ -18,6 +18,7 @@
 // ============================================================
 
 using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// 스킬 1개의 JSON 데이터 클래스.
@@ -97,6 +98,19 @@ public class SkillData
 
     /// <summary>인게임 스킬 설명 텍스트</summary>
     public string description;
+
+    /// <summary>
+    /// 스킬 전용 스프라이트 리소스 경로 (Resources 폴더 기준).
+    /// 예: "Sprites/Skills/skill_fireball". 비어있으면 기본 fallback 사용.
+    /// </summary>
+    public string spritePath;
+
+    /// <summary>
+    /// 런타임에 spritePath 를 기반으로 SkillDatabase 가 채우는 실제 Sprite.
+    /// JsonUtility 는 [NonSerialized] 필드를 무시하므로 JSON 직렬화에 영향 없음.
+    /// 비어있으면 null — 호출 측에서 fallback 처리 필요.
+    /// </summary>
+    [System.NonSerialized] public Sprite sprite;
 }
 
 /// <summary>

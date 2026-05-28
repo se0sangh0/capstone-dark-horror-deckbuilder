@@ -32,6 +32,8 @@ public enum FellowCardMode
     Reserve,        // 예비대 — 정보만 + 클릭
     PartySlot,      // 파티 슬롯 — 정보만 + 클릭
     SynthesizeSlot, // 합성 슬롯 — 토글 선택
+    Sell,           // 예비대 판매 — "판매 (+N)" 라벨
+    Revive,         // 교회 부활 — "부활 (N)" 라벨 (성급별 비용)
 }
 
 [DisallowMultipleComponent]
@@ -183,6 +185,32 @@ public class FellowCardView : MonoBehaviour
     {
         IsSelected = selected;
         if (selectionOutline != null) selectionOutline.SetActive(selected);
+        ApplySelectionLift(selected);
+    }
+
+    // 선택 시 카드 본체가 위로 솟구치는 양 (px).
+    private const float SelectedLiftY = 20f;
+    // 자식들의 anchoredPosition.y 에 가산된 offset 추적 — Bind 후 재선택 시 중복 가산 방지.
+    private bool _liftApplied = false;
+
+    // CardPrefab 자체엔 LayoutGroup 이 없어 자식 anchoredPosition 자유.
+    // 부모(PartySlot)의 Layout 은 카드 본체 위치를 강제하므로 자식 전체를 +Y 로 이동.
+    private void ApplySelectionLift(bool selected)
+    {
+        if (_liftApplied == selected) return;
+        float delta = selected ? SelectedLiftY : -SelectedLiftY;
+        var rt = transform as RectTransform;
+        if (rt == null) return;
+        for (int i = 0; i < rt.childCount; i++)
+        {
+            if (rt.GetChild(i) is RectTransform child)
+            {
+                var pos = child.anchoredPosition;
+                pos.y += delta;
+                child.anchoredPosition = pos;
+            }
+        }
+        _liftApplied = selected;
     }
 
     /// <summary>인터랙티브 가능 여부 — 영혼석 부족 등 외부 조건으로 끌 때.</summary>
@@ -239,6 +267,8 @@ public class FellowCardView : MonoBehaviour
         FellowCardMode.Reserve        => "선택",
         FellowCardMode.PartySlot      => "선택",
         FellowCardMode.SynthesizeSlot => "선택",
+        FellowCardMode.Sell           => $"판매 (+{cost})",
+        FellowCardMode.Revive         => $"부활 ({cost})",
         _                             => "선택",
     };
 

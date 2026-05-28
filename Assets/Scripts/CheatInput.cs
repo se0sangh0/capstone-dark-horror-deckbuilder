@@ -1,12 +1,13 @@
 // ============================================================
 // CheatInput.cs
-// F1 키 치트 입력 처리 (개발/디버깅 전용)
+// 치트 입력 처리 (개발/디버깅 전용)
 // ============================================================
 //
 // [동작]
-//   F1 입력 시점에 BattleManager 활성 여부로 분기:
+//   F1 — BattleManager 활성 여부로 분기:
 //     ✦ 배틀 노드 진행 중 → 모든 역할 스택을 999 로 설정
 //     ✦ 그 외 (노드맵 등)  → 소울스톤 +10000, 마나스톤 +10000
+//   F2 — 노드 1단계 전진 (현재 층에서 다음 층으로 점프, RoomType 패널 없이)
 //
 // [씬 배치 — ⭐ 사용자 직접]
 //   영구 살아있는 GameObject(DontDestroyOnLoad 적용) 에 이 컴포넌트를 부착하세요.
@@ -32,10 +33,17 @@ public class CheatInput : MonoBehaviour
     void Update()
     {
         if (Keyboard.current == null) return;
-        if (!Keyboard.current.f1Key.wasPressedThisFrame) return;
 
-        if (IsInBattle()) ApplyStackCheat();
-        else              ApplyCurrencyCheat();
+        if (Keyboard.current.f1Key.wasPressedThisFrame)
+        {
+            if (IsInBattle()) ApplyStackCheat();
+            else              ApplyCurrencyCheat();
+        }
+
+        if (Keyboard.current.f2Key.wasPressedThisFrame)
+        {
+            ApplyAdvanceFloorCheat();
+        }
     }
 
     /// <summary>BattleManager 가 씬에서 활성 상태이면 "배틀 노드 진행 중" 으로 본다.</summary>
@@ -67,5 +75,15 @@ public class CheatInput : MonoBehaviour
         if (manaOk) ManastoneManager.Instance.Add(cheatCurrencyValue);
 
         Debug.Log($"[CheatInput] 🎮 F1(배틀 외) — 소울스톤+{(soulOk ? cheatCurrencyValue.ToString() : "스킵")}, 마나스톤+{(manaOk ? cheatCurrencyValue.ToString() : "스킵")}");
+    }
+
+    private void ApplyAdvanceFloorCheat()
+    {
+        if (NodeSystem.Current == null)
+        {
+            Debug.LogWarning("[CheatInput] 🎮 F2 — NodeSystem 미초기화, 무시");
+            return;
+        }
+        NodeSystem.Current.CheatAdvanceFloor();
     }
 }

@@ -23,13 +23,9 @@ public static class FloorTierResolver
     /// <summary>0-base 층 인덱스를 받아 등장시킬 적 tier 를 반환한다 (Combat 노드 폴백용).</summary>
     public static EnemyTier ResolveTier(int floorIndex)
     {
-        // 10층 이상은 보스 (이쪽으론 안 옴 — EnemySpawner 가 RoomType=Boss 로 분기)
-        if (floorIndex >= 10) return EnemyTier.Boss;
-
-        // 4~9층은 일반 (약탈자급)
+        // Combat 노드 폴백은 절대 Boss 를 반환하지 않는다 — 일반 노드에 보스가 spawn 되어
+        // 엔딩이 잘못 트리거되는 버그 방지. 보스 등장은 RoomType.Boss 노드에서만.
         if (floorIndex >= 4) return EnemyTier.Normal;
-
-        // 1~3층은 약함 (고블린)
         return EnemyTier.Weak;
     }
 

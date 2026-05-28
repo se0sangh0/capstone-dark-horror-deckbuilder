@@ -37,6 +37,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 
 // ----------------------------------------------------------
@@ -83,6 +84,15 @@ public partial class BattleManager : Singleton<BattleManager>
     [Tooltip("적 엔티티 목록")]
     public List<EnemyData> enemies = new();
 
+    /// <summary>
+    /// 전투 중 새로운 적이 enemies 리스트에 추가됐을 때 발행.
+    /// 시각 카드 spawn(DefaultSetting), 소환 이펙트, 사운드 등 구독자가 알아서 반응.
+    /// </summary>
+    public event System.Action<EnemyData> OnEnemySpawned;
+
+    /// <summary>BattleManager 내부에서만 호출 (소환 등). 구독자 전체에 알림.</summary>
+    internal void RaiseEnemySpawned(EnemyData spawned) => OnEnemySpawned?.Invoke(spawned);
+
     // ----------------------------------------------------------
     // [카드 풀]
     // ----------------------------------------------------------
@@ -99,6 +109,35 @@ public partial class BattleManager : Singleton<BattleManager>
 
     [Tooltip("행동 실행 후 대기 시간 (초)")]
     public float actionDelayTime = 0.5f;
+
+    [Tooltip("10층 보스 클리어 시 표시할 엔딩 패널. 미할당 시 콘솔 로그만.")]
+    [SerializeField] private GameObject endingPanel;
+
+    [Tooltip("엔딩 패널 표시 후 GameStartScene 복귀까지 대기 시간 (초)")]
+    [SerializeField] private float endingDisplayDuration = 4.0f;
+
+    [Tooltip("기획 §04 §51~99 압박 — 스킬 퍼포먼스 감소율 (% 단위, 기준 -5~-15)")]
+    [Range(0f, 50f)]
+    [SerializeField] private float pressureSkillPenaltyPercent = 10f;
+
+    [Tooltip("현재 턴 번호 표시용 TMP 텍스트 (예: show_turn). 미할당 시 표시 생략.")]
+    [SerializeField] private TMP_Text turnDisplayText;
+
+    // 현재 턴 번호 — InitBattle 에서 0 으로 초기화, 매 DrawPhase 진입 시 ++.
+    public int CurrentTurn { get; private set; } = 0;
+
+    // ── 턴 표시 ────────────────────────────────────────────
+    public void AdvanceTurnCounter()
+    {
+        CurrentTurn++;
+        UpdateTurnDisplay();
+    }
+
+    private void UpdateTurnDisplay()
+    {
+        if (turnDisplayText != null)
+            turnDisplayText.text = $"턴 {CurrentTurn}";
+    }
 
     [Tooltip("턴 종료 후 다음 턴 시작 전 대기 시간 (초)")]
     public float turnTransitionDelay = 1.0f;
@@ -152,6 +191,9 @@ public partial class BattleManager : Singleton<BattleManager>
 
     private void OnEnable()
     {
+        // 엔딩 패널은 보스 클리어 시에만 표시 — 진입 시 무조건 비활성화 (부모 PopUp 활성 시 자동 노출 방지)
+        if (endingPanel != null) endingPanel.SetActive(false);
+
         InitBattle();
         StartCoroutine(BattleLoop());
     }
@@ -181,6 +223,8 @@ public partial class BattleManager : Singleton<BattleManager>
 
         _initiativeDecided = false;
         _carryoverBonus.Clear();
+        CurrentTurn = 0;
+        UpdateTurnDisplay();
 
         allies.Clear();
         foreach (var fellow in fellows)

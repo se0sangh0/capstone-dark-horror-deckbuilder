@@ -37,10 +37,22 @@ public class LeftPanelView : MonoBehaviour
     [Tooltip("마석 ValueText (Magic_SoulStone > ValueText). ManastoneManager 이벤트로 자동 갱신.")]
     [SerializeField] private TMP_Text manastoneText;
 
+    [Header("영혼석 드롭 트윈 목적지 (SoulstoneDropPool 용)")]
+    [Tooltip("영혼석 아이콘 컨테이너(Item_SoulStone) 의 Transform. 드롭 오브젝트가 이쪽으로 빨려들어감.")]
+    [SerializeField] private Transform soulstoneIconTransform;
+
+    /// <summary>외부에서 풀이 참조 — SoulstoneDropPool.SetTarget 에 연결.</summary>
+    public Transform SoulstoneIconTransform => soulstoneIconTransform;
+
     [Header("하단 버튼")]
+    [SerializeField] private Button partyEditButton;
     [SerializeField] private Button settingButton;
     [SerializeField] private Button logButton;
     // 팝업은 PopupManager 싱글톤이 관리 — 직접 GameObject 참조 불필요.
+
+    [Header("파티 편집 패널 (씬 인스턴스)")]
+    [Tooltip("좌측패널 PartyEdit 버튼 클릭 시 Open(). 씬의 PartyEditPanel 을 연결.")]
+    [SerializeField] private PartyEditPanel partyEditPanel;
 
     private readonly List<FellowData> _bound = new();
 
@@ -122,6 +134,11 @@ public class LeftPanelView : MonoBehaviour
 
     private void WireButtons()
     {
+        if (partyEditButton != null)
+        {
+            partyEditButton.onClick.RemoveListener(OpenPartyEdit);
+            partyEditButton.onClick.AddListener(OpenPartyEdit);
+        }
         if (settingButton != null)
         {
             settingButton.onClick.RemoveListener(OpenSetting);
@@ -142,6 +159,17 @@ public class LeftPanelView : MonoBehaviour
     private void OpenLog()
     {
         if (PopupManager.Instance != null) PopupManager.Instance.OpenLog();
+    }
+
+    // PartyEditPanel.Open() 내부에 전투 노드 진입 시 차단 가드 있음 (A-6).
+    private void OpenPartyEdit()
+    {
+        if (partyEditPanel == null)
+        {
+            Debug.LogWarning("[LeftPanelView] partyEditPanel 미연결 — 인스펙터 슬롯 확인");
+            return;
+        }
+        partyEditPanel.Open();
     }
 
     /// <summary>

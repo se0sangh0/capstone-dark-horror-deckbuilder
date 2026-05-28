@@ -1,39 +1,81 @@
 // GameLogService.cs
-// Application.logMessageReceived 를 구독해 최근 로그를 모아 두는 싱글톤.
-// LogPopup 이 OnLogAdded 이벤트를 구독해 UI 에 표시한다.
+// 게임 이벤트 로그 (자연어, 카테고리 색상) 와 시스템 디버그 로그 (Application.logMessageReceived) 를 분리 보관.
 //
 // ── 사용 ────────────────────────────────────────────────────────
-//   GameLogService.Instance.GetAll()    → 모은 로그 전체(개행 join)
-//   GameLogService.Instance.OnLogAdded  → 새 로그가 추가될 때 발화
-//
-// ── 영속 ────────────────────────────────────────────────────────
-//   persistAcrossScenes 체크하면 씬 전환에도 유지.
+//   GameLog.Event("고블린이 5의 피해를 입었다!", LogCategory.Damage)  → 게임 이벤트 채널에 기록 + UI 갱신
+//   GameLogService.Instance.GetEntries()         → 게임 이벤트 엔트리 리스트 (LogPopup 이 색상 빌드용으로 사용)
+//   GameLogService.Instance.OnGameEventAdded     → 새 게임 이벤트 발생 시 발화
+//   GameLogService.Instance.Clear()              → 노드 진입/이탈 시 호출 — 두 채널 모두 비움
 
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum LogCategory
+{
+    Default,  // 흰색  (분류 안 한 일반 메시지)
+    Damage,   // 빨강  (피해)
+    Heal,     // 녹색  (회복)
+    Shield,   // 노랑  (실드 부여 / 흡수)
+    Death,    // 회색  (사망)
+    Reward,   // 파랑  (영혼석/마석/아이템 획득)
+    Status,   // 보라  (스트레스/패닉/탈진)
+    Skill,    // 시안  (스킬 사용 — 아군/적)
+}
+
+public readonly struct GameLogEntry
+{
+    public readonly string      message;
+    public readonly LogCategory category;
+    public GameLogEntry(string message, LogCategory category)
+    {
+        this.message  = message;
+        this.category = category;
+    }
+}
+
 public class GameLogService : Singleton<GameLogService>
 {
-    [SerializeField, Tooltip("보관할 최대 로그 개수")]
-    private int maxLogs = 200;
+    [SerializeField, Tooltip("표시 보관할 게임 이벤트 최대 개수")]
+    private int maxGameEvents = 30;
 
-    private readonly Queue<string> _logs = new();
-    public  event System.Action<string> OnLogAdded;
+    [SerializeField, Tooltip("보관할 시스템 디버그 로그 최대 개수")]
+    private int maxSystemLogs = 200;
+
+    private readonly List<GameLogEntry> _gameEvents = new();
+    private readonly Queue<string>      _systemLogs = new();
+
+    /// <summary>새 게임 이벤트 발생 시 발화. LogPopup 이 구독해 라인 강조 fade 와 RefreshAll 트리거.</summary>
+    public event System.Action<GameLogEntry> OnGameEventAdded;
 
     protected override void Awake()
     {
         base.Awake();
         if (Instance != this) return;
-        Application.logMessageReceived += HandleLog;
+        Application.logMessageReceived += HandleSystemLog;
     }
 
     private void OnDestroy()
     {
         if (Instance == this)
-            Application.logMessageReceived -= HandleLog;
+            Application.logMessageReceived -= HandleSystemLog;
     }
 
-    private void HandleLog(string condition, string stackTrace, LogType type)
+    // ── 게임 이벤트 (사용자 노출용) ───────────────────────────
+    public void LogEvent(string message, LogCategory category = LogCategory.Default)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+
+        var entry = new GameLogEntry(message, category);
+        _gameEvents.Add(entry);
+        while (_gameEvents.Count > maxGameEvents) _gameEvents.RemoveAt(0);
+
+        OnGameEventAdded?.Invoke(entry);
+    }
+
+    public IReadOnlyList<GameLogEntry> GetEntries() => _gameEvents;
+
+    // ── 시스템 디버그 로그 (콘솔 전용, UI 비공개) ────────────
+    private void HandleSystemLog(string condition, string stackTrace, LogType type)
     {
         string prefix = type switch
         {
@@ -45,17 +87,26 @@ public class GameLogService : Singleton<GameLogService>
         };
         string line = prefix + condition;
 
-        _logs.Enqueue(line);
-        while (_logs.Count > maxLogs) _logs.Dequeue();
-
-        OnLogAdded?.Invoke(line);
+        _systemLogs.Enqueue(line);
+        while (_systemLogs.Count > maxSystemLogs) _systemLogs.Dequeue();
     }
 
-    public string GetAll() => string.Join("\n", _logs);
+    public string GetAllSystemLogs() => string.Join("\n", _systemLogs);
 
+    // ── 노드 진입/이탈 시 호출. 두 채널 모두 비움 + UI 갱신용 빈 이벤트 발화 ──
     public void Clear()
     {
-        _logs.Clear();
-        OnLogAdded?.Invoke(""); // 빈 갱신
+        _gameEvents.Clear();
+        _systemLogs.Clear();
+        OnGameEventAdded?.Invoke(new GameLogEntry("", LogCategory.Default));
+    }
+}
+
+/// <summary>전역 편의 헬퍼 — `GameLog.Event("...", LogCategory.Damage)` 한 줄로 호출.</summary>
+public static class GameLog
+{
+    public static void Event(string message, LogCategory category = LogCategory.Default)
+    {
+        if (GameLogService.Instance != null) GameLogService.Instance.LogEvent(message, category);
     }
 }

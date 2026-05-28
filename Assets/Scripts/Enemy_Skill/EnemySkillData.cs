@@ -20,6 +20,7 @@
 // ============================================================
 
 using System.Collections.Generic;
+using UnityEngine;
 
 [System.Serializable]
 public class EnemySkillData
@@ -71,11 +72,30 @@ public class EnemySkillData
     public int weight;
     
     // ── 코스트 (기획 §선공 판정 — 적 스킬 코스트 합산용) ──
-    public int costAmount; 
+    public int costAmount;
+
+    /// <summary>
+    /// 쿨다운 (턴 수). 사용 직후 N 턴 동안 가중치 룰렛에서 제외된다.
+    /// 0 = 쿨다운 없음 (매 턴 사용 가능). 예) 까마귀 부름 = 3.
+    /// </summary>
+    public int cooldownTurns;
 
     // ── 설명 ───────────────────────────────────────────────
     /// <summary>인게임/디버그 설명</summary>
     public string description;
+
+    /// <summary>
+    /// 적 스킬 전용 스프라이트 리소스 경로 (Resources 폴더 기준).
+    /// 예: "Sprites/EnemySkills/enemy_skill_goblin_dagger". 비어있으면 기본 fallback 사용.
+    /// </summary>
+    public string spritePath;
+
+    /// <summary>
+    /// 런타임에 spritePath 기반으로 EnemySkillDatabase 가 채우는 실제 Sprite.
+    /// JsonUtility 는 [NonSerialized] 를 무시하므로 JSON 직렬화에 영향 없음.
+    /// 비어있으면 null — 호출 측에서 fallback 처리 필요.
+    /// </summary>
+    [System.NonSerialized] public Sprite sprite;
 }
 
 /// <summary>enemy_skills.json 최상위 래퍼: { "enemySkills": [ ... ] }</summary>

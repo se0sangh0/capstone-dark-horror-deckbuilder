@@ -53,6 +53,7 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.skillId     = def.skillId;
         e.skillIds    = def.skillIds;     // 신규: JSON 의 다중 스킬 ID 배열 복사
         e.spritePath  = def.spritePath;
+        e.animatorPath = def.animatorPath; // TODO: sprite 4프레임 작업 + AnimatorController 준비 후 JSON 채움
         e.isDead      = false;
 
         // ── 소환체 메커니즘 필드 복사 (기획 §11 §3 까마귀) ──
@@ -60,6 +61,7 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.summonLifeTurns     = def.summonLifeTurns;
         e.expirePenaltyPower  = def.expirePenaltyPower;
         e.isPassive           = def.isPassive;
+        e.soulstoneDrop       = def.soulstoneDrop;
         e.currentHits         = 0;
         e.currentLifeTurns    = def.summonLifeTurns; // 생성 시 만수명으로 시작
         e.pendingTeleport     = false;
