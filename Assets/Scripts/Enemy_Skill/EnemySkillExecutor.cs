@@ -29,11 +29,21 @@ public static class EnemySkillExecutor
     /// <summary>
     /// 적 스킬의 targeting 문자열을 보고, 데미지를 받을 살아있는 아군 목록을 반환한다.
     /// 살아있는 아군이 0명이면 빈 리스트 반환.
+    /// caster 에 taunt 가 활성이고 SingleEnemy/FrontFirst/BackLast 류 타겟팅이면 taunter 가 우선 (워크라이).
+    /// AllAllies / FrontTwo 류는 도발 영향 없음 ("도발 불가" 폴백 = 데미지만).
     /// </summary>
-    public static List<FellowData> ResolveTargets(EnemySkillData skill, List<FellowData> allies)
+    public static List<FellowData> ResolveTargets(EnemySkillData skill, List<FellowData> allies, EnemyData caster = null)
     {
         var live = allies.Where(a => !a.isDead).ToList();
         if (live.Count == 0) return new List<FellowData>();
+
+        // 도발 우선 — 단일 타겟 류 (FrontFirst, BackLast, RandomAlly) 일 때만 적용. taunter 가 살아있고 allies 에 포함되어야 함.
+        bool single = skill.targeting == "FrontFirst" || skill.targeting == "BackLast" || skill.targeting == "RandomAlly";
+        if (single && caster != null && caster.tauntTurnsLeft > 0
+            && caster.taunter != null && !caster.taunter.isDead && live.Contains(caster.taunter))
+        {
+            return new List<FellowData> { caster.taunter };
+        }
 
         switch (skill.targeting)
         {

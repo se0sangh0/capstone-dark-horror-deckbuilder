@@ -174,9 +174,10 @@ public class DefaultSetting : MonoBehaviour
         newObj.transform.parent = this.transform;
         newObj.name = ObjectPrefab.name + "_" + i;
 
-        // 3D 오브젝트라면 MeshRenderer 에 이미지 텍스처 적용
-        MeshRenderer renderer = newObj.GetComponent<MeshRenderer>();
-        if (renderer != null) ApplyObjectImage(i, renderer, newObj.name);
+        // 카드 sprite 적용 — root SpriteRenderer 에 정적 초기 sprite 할당.
+        // Animator + .anim 가 있으면 즉시 덮어쓰지만 (아군), 적은 Animator controller 없이 정적 표시 유지.
+        var rootSr = newObj.GetComponent<SpriteRenderer>();
+        if (rootSr != null) ApplyObjectSprite(i, rootSr, newObj.name);
 
         if (factionType == FactionType.Ally && i < allies.Count)
         {
@@ -215,6 +216,10 @@ public class DefaultSetting : MonoBehaviour
             var battleCard = newObj.GetComponent<BattleCardView>();
             if (battleCard != null) battleCard.BindEnemy(enemies[i]);
 
+            // 적별 visualScale 적용 — prefab 기본 scale 에 곱셈. enemies.json 의 visualScale 필드.
+            float vs = enemies[i].visualScale > 0 ? enemies[i].visualScale : 1.0f;
+            newObj.transform.localScale = ObjectPrefab.transform.localScale * vs;
+
             SubscribeRelayoutOnDeath(enemies[i]);
         }
 
@@ -233,10 +238,19 @@ public class DefaultSetting : MonoBehaviour
         //   prefab 의 Animator 컴포넌트에 끼우고 BattleCardSprites 에 전달.
         //   비어 있거나 로드 실패 시 sprite 교체 방식(idleSprite/attackSprite) 으로 fallback.
         string animatorPath = null;
+        string attack1Name = null, attack2Name = null;
         if (factionType == FactionType.Ally && i < allies.Count)
+        {
             animatorPath = allies[i].animatorPath;
+            attack1Name  = allies[i].attack1Anim;
+            attack2Name  = allies[i].attack2Anim;
+        }
         else if (factionType == FactionType.Enemy && i < enemies.Count)
+        {
             animatorPath = enemies[i].animatorPath;
+            attack1Name  = enemies[i].attack1Anim;
+            attack2Name  = enemies[i].attack2Anim;
+        }
 
         if (!string.IsNullOrEmpty(animatorPath))
         {
@@ -247,7 +261,7 @@ public class DefaultSetting : MonoBehaviour
                 if (animator != null)
                 {
                     animator.runtimeAnimatorController = ctrl;
-                    if (sprites != null) sprites.AttachAnimator(animator);
+                    if (sprites != null) sprites.AttachAnimator(animator, attack1Name, attack2Name);
                 }
                 else Debug.LogWarning($"[DefaultSetting] {newObj.name}: Animator 컴포넌트 없음 — prefab 에 추가 필요");
             }
@@ -353,26 +367,23 @@ public class DefaultSetting : MonoBehaviour
     // ----------------------------------------------------------
 
     /// <summary>
-    /// 소속(factionType)에 따라 적절한 이미지를 카드에 적용한다.
+    /// 카드의 root SpriteRenderer 에 sprite 를 적용한다.
+    /// 아군: fellowSprite 가 있으면 정적 표시. Animator + .anim 가 있으면 Idle 첫 프레임이 곧 덮어씀.
+    /// 적: enemySprite 정적 표시 (현재 적은 Animator controller 없음).
     /// </summary>
-    void ApplyObjectImage(int index, MeshRenderer renderer, string objName)
+    void ApplyObjectSprite(int index, SpriteRenderer sr, string objName)
     {
         if (factionType == FactionType.Ally)
         {
             var allies = BattleManager.Instance.allies;
             if (index < allies.Count && allies[index] != null && allies[index].fellowSprite != null)
-            {
-                renderer.material.mainTexture = allies[index].fellowSprite.texture;
-                // 로그 주석 처리 (사용자 요청)
-                // Debug.Log($"[DefaultSetting] 아군 이미지 적용 성공: {objName}");
-            }
+                sr.sprite = allies[index].fellowSprite;
         }
         else if (factionType == FactionType.Enemy)
         {
-            // TODO: 적 이미지 적용 로직 (EnemyData.enemySprite 로 적용 예정)
             var enemies = BattleManager.Instance.enemies;
             if (index < enemies.Count && enemies[index].enemySprite != null)
-                renderer.material.mainTexture = enemies[index].enemySprite.texture;
+                sr.sprite = enemies[index].enemySprite;
         }
     }
 }

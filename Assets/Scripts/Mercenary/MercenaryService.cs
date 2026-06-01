@@ -77,6 +77,15 @@ public class MercenaryService : Singleton<MercenaryService>
         Debug.Log("[Mercenary] 노드 이탈 — 후보·리롤 카운터 초기화 (예비대 유지)");
     }
 
+    /// <summary>런 종료 → 새 런 시작 시 예비대/후보/리롤 전체 초기화 (기획 §16 로그라이크 루프).</summary>
+    public void ResetForNewRun()
+    {
+        _reserves.Clear();
+        _candidates.Clear();
+        _rerollCount = 0;
+        Debug.Log("[Mercenary] 새 런 — 예비대/후보/리롤 전체 초기화");
+    }
+
     // ----------------------------------------------------------
     // 후보 롤 / 리롤
     // ----------------------------------------------------------

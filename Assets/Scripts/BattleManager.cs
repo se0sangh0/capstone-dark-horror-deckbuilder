@@ -104,11 +104,12 @@ public partial class BattleManager : Singleton<BattleManager>
     // [타이밍 설정]
     // ----------------------------------------------------------
     [Header("타이밍 설정 (Timers)")]
-    [Tooltip("씬 전환 실패 시 돌아갈 씬 이름")]
-    public string gameOverSceneName = "GameStartScene";
 
-    [Tooltip("행동 실행 후 대기 시간 (초)")]
+    [Tooltip("행동 실행 후 대기 시간 (초). 카드 사이 짧은 텀.")]
     public float actionDelayTime = 0.5f;
+
+    [Tooltip("스킬 발동(OnSkillCast) → 데미지/힐/실드 적용 사이 대기. 모션의 dashForward + holdAttack 합과 동일하게 맞춤. 기본 1.25초.")]
+    public float impactDelay = 1.25f;
 
     [Tooltip("10층 보스 클리어 시 표시할 엔딩 패널. 미할당 시 콘솔 로그만.")]
     [SerializeField] private GameObject endingPanel;
@@ -119,6 +120,10 @@ public partial class BattleManager : Singleton<BattleManager>
     [Tooltip("기획 §04 §51~99 압박 — 스킬 퍼포먼스 감소율 (% 단위, 기준 -5~-15)")]
     [Range(0f, 50f)]
     [SerializeField] private float pressureSkillPenaltyPercent = 10f;
+
+    [Tooltip("기획 §04 §51~99 압박 — 피격 시 받는 스트레스 추가 증가율 (% 단위, 기본 +10)")]
+    [Range(0f, 50f)]
+    [SerializeField] private float pressureStressGainPercent = 10f;
 
     [Tooltip("현재 턴 번호 표시용 TMP 텍스트 (예: show_turn). 미할당 시 표시 생략.")]
     [SerializeField] private TMP_Text turnDisplayText;
@@ -240,6 +245,16 @@ public partial class BattleManager : Singleton<BattleManager>
             fellow.shield          = 0;
             fellow.isFrozen        = false;
             fellow.isOverBreathing = false;
+            fellow.hasSevereDebuff = false;   // 역할별 중증 디버프 — 전투마다 리셋 (기획 §04)
+            fellow.comboTargetIid  = 0;       // 거합 집중 콤보 — 전투마다 리셋 (기획 §16)
+            fellow.comboStacks     = 0;
+            // 메타 패시브 — 런 시작 1회 배정 (미배정이면 해금된 풀에서 무작위). 인스턴스 유지.
+            if (string.IsNullOrEmpty(fellow.activePassiveId))
+            {
+                fellow.activePassiveId = MetaPassiveManager.RollPassive(fellow.jobClass);
+                if (!string.IsNullOrEmpty(fellow.activePassiveId))
+                    Debug.Log($"[MetaPassive] {fellow.jobClass} 패시브 배정: {MetaPassiveManager.NameOf(fellow.activePassiveId)}");
+            }
             fellow.positionStack   = (StackType)(int)fellow.role;
 
             // ── 성급 배율 (기획 백로그 §5 성급 설계안) ─────────────────
@@ -270,12 +285,37 @@ public partial class BattleManager : Singleton<BattleManager>
             {
                 if (!fellow.HasSkills)
                 {
-                    // 최초 배정 — fellow.skillIds 우선 (기획 §10 동료별 고정 스킬)
-                    //   캐스터→magic_missile/fireball, 오펜더→draw/flash 등 고정.
-                    //   skillIds 비어있으면(모집 등 동적 생성) 랜덤 폴백.
-                    string[] ids = (fellow.skillIds != null && fellow.skillIds.Length > 0)
-                        ? fellow.skillIds
-                        : SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
+                    // 최초 배정 — fellow.skillIds 풀에서 2개 랜덤 선택 (2026-05-29 갱신).
+                    //   기획 §10 갱신: 직업당 4개 스킬 풀 보유 → 동료 인스턴스마다 그중 2개만 랜덤 사용.
+                    //   skillIds 비어있으면(모집 등 동적 생성) role 기반 랜덤 폴백.
+                    string[] ids;
+                    // 기획 §16 — 미해금 시그니처 스킬은 풀에서 제외 (마석 해금 시 포함)
+                    var unlockedIds = new System.Collections.Generic.List<string>();
+                    if (fellow.skillIds != null)
+                        foreach (var sid in fellow.skillIds)
+                            if (MetaPassiveManager.IsSkillUnlocked(sid)) unlockedIds.Add(sid);
+
+                    if (unlockedIds.Count >= 2)
+                    {
+                        // 풀에서 2개 랜덤 추출 (중복 없음)
+                        var skillPool = new System.Collections.Generic.List<string>(unlockedIds);
+                        int target = 2;
+                        ids = new string[System.Math.Min(target, skillPool.Count)];
+                        for (int s = 0; s < ids.Length; s++)
+                        {
+                            int idx = UnityEngine.Random.Range(0, skillPool.Count);
+                            ids[s] = skillPool[idx];
+                            skillPool.RemoveAt(idx);
+                        }
+                    }
+                    else if (unlockedIds.Count > 0)
+                    {
+                        ids = unlockedIds.ToArray(); // 해금 스킬이 1개뿐이면 그대로
+                    }
+                    else
+                    {
+                        ids = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
+                    }
                     fellow.AssignSkills(ids);
                 }
                 else

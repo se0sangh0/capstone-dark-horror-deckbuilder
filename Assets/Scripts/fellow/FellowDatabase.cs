@@ -209,7 +209,10 @@ public class FellowDatabase : Singleton<FellowDatabase>
         f.recruitCost   = def.recruitCost;
         f.skillIds      = def.skillIds ?? new string[0];
         f.spritePath    = def.spritePath;
-        f.animatorPath  = def.animatorPath;   // TODO: sprite 4프레임 작업 + AnimatorController 준비 후 JSON 채움
+        f.animatorPath  = def.animatorPath;
+        f.idleAnim      = def.idleAnim;
+        f.attack1Anim   = def.attack1Anim;
+        f.attack2Anim   = def.attack2Anim;
 
         // 이름 생성 폐기 — 캐릭터 식별은 직업명(jobClass)으로 통일.
         // UI 의 nameText 들이 displayName 을 그대로 읽으므로 여기서 한 번에 직업명으로 채움.
@@ -232,13 +235,18 @@ public class FellowDatabase : Singleton<FellowDatabase>
         // ── 런타임 상태 초기값 ──
         f.positionStack = (StackType)(int)f.role;
 
+        // ── 메타 패시브 배정 (기획 §16) ──
+        // 생성 시점(런 시작/모집)에 해금된 풀에서 무작위 1개 배정 → 전투 전 좌패널 아코디언에도 표시.
+        f.activePassiveId = MetaPassiveManager.RollPassive(f.jobClass);
+
         // ── HP 초기값 — maxHp 로 풀피 시작 ──
         // 기존엔 BattleManager 전투 카드 생성 시 InitHp() 가 채워주지만
         // LeftPanel 같은 전투 외 UI 는 그 전에 표시되어 0 으로 보임.
         f.CurrentHp = f.maxHp;
 
-        // ── 초상화 sprite 로드 (Resources 경로 기반) ──
-        // FellowDef.spritePath 가 비어 있지 않으면 Resources 에서 로드해 portrait/fellowSprite 둘 다 채움.
+        // ── 초상화 sprite 로드 ──
+        // 1순위: FellowDef.spritePath (정적 sprite 자산, 기존 호환)
+        // 2순위: animatorPath 의 Idle 클립 첫 프레임 sprite 추출 (신규 — JSON 에 spritePath 없을 때)
         // (LeftPanel CardSlotView 가 portrait → fellowSprite 순으로 fallback)
         if (!string.IsNullOrEmpty(def.spritePath))
         {
@@ -247,6 +255,15 @@ public class FellowDatabase : Singleton<FellowDatabase>
             {
                 f.portrait     = sprite;
                 f.fellowSprite = sprite;
+            }
+        }
+        if (f.portrait == null && !string.IsNullOrEmpty(def.animatorPath))
+        {
+            var first = ExtractFirstSpriteFromController(def.animatorPath, string.IsNullOrEmpty(def.idleAnim) ? "Idle" : def.idleAnim);
+            if (first != null)
+            {
+                f.portrait     = first;
+                f.fellowSprite = first;
             }
         }
 
@@ -272,5 +289,39 @@ public class FellowDatabase : Singleton<FellowDatabase>
         }
 
         return f;
+    }
+
+    // ============================================================
+    // 컨트롤러의 default state (보통 Idle) 의 첫 프레임 sprite 를 런타임에 추출.
+    //   임시 GameObject + SpriteRenderer + Animator 를 생성, controller 할당 후
+    //   Animator.Update(0f) 으로 default state 의 t=0 sprite 를 SpriteRenderer.sprite 에 적용.
+    //   → 작업자가 .anim 의 t=0 키프레임으로 의도한 정확한 sprite (예: Caster_Idle_5) 를 얻음.
+    //   실패 시 폴더 LoadAll 폴백.
+    // ============================================================
+    private static Sprite ExtractFirstSpriteFromController(string animatorPath, string idleClipName)
+    {
+        if (string.IsNullOrEmpty(animatorPath)) return null;
+        var rctrl = Resources.Load<RuntimeAnimatorController>(animatorPath);
+        if (rctrl != null)
+        {
+            var tmp = new GameObject("_FellowPortraitSampler");
+            tmp.hideFlags = HideFlags.HideAndDontSave;
+            var sr   = tmp.AddComponent<SpriteRenderer>();
+            var anim = tmp.AddComponent<Animator>();
+            anim.runtimeAnimatorController = rctrl;
+            anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            anim.Update(0f);              // default state t=0 강제 sample
+            Sprite picked = sr.sprite;
+            Object.Destroy(tmp);
+            if (picked != null) return picked;
+        }
+        // 폴백 — 폴더 안 모든 sprite 에서 "Idle" 매칭 첫 번째
+        string folder = System.IO.Path.GetDirectoryName(animatorPath).Replace('\\', '/');
+        if (string.IsNullOrEmpty(folder)) return null;
+        var allSprites = Resources.LoadAll<Sprite>(folder);
+        if (allSprites == null || allSprites.Length == 0) return null;
+        foreach (var s in allSprites)
+            if (s != null && s.name.IndexOf("Idle", System.StringComparison.OrdinalIgnoreCase) >= 0) return s;
+        return allSprites[0];
     }
 }

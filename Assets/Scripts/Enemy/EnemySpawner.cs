@@ -21,7 +21,8 @@ public class EnemySpawner : MonoBehaviour
     private void SpawnIntoBattleManager()
     {
         var bm = BattleManager.Instance;
-        if (bm == null) bm = FindObjectOfType<BattleManager>(true);   // ← 이 줄 추가
+        // 비활성 포함 검색 (FindObjectOfType<T>(bool) 은 Unity 2023+ 에서 deprecated)
+        if (bm == null) bm = FindFirstObjectByType<BattleManager>(FindObjectsInactive.Include);
         if (bm == null) {
             Debug.LogError("[EnemySpawner] 씬에 BattleManager 없음.");
             return;
@@ -31,16 +32,45 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        // ── 층 + RoomType 기반 적 결정 ──────────────────────────
+        // 튜토리얼 모드 — RoomType 별 적 1마리 고정 (기획 §15 + 5노드 시퀀스 확장)
+        //   · Boss  → 까마귀 보스 (즉사 연출용 — 실제 보스를 보여준 뒤 1턴에 전멸)
+        //   · Elite → 약탈자 (엘리트답게 고블린보다 강한 단일 적)
+        //   · 그 외(Combat 등) → 고블린 (기획 §3-2 학습용 기본 적)
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
+        {
+            string tutId = "enemy_goblin_01";
+            RoomType tutRoom = RoomType.Combat;
+            if (NodeSystem.Current != null)
+            {
+                tutRoom = NodeSystem.Current.CurrentRoomType;
+                switch (tutRoom)
+                {
+                    case RoomType.Boss:  tutId = "enemy_reaper_boss"; break;
+                    case RoomType.Elite: tutId = "enemy_raider_01";   break;
+                }
+            }
+
+            var def = EnemyDatabase.Instance.GetEnemy(tutId);
+            if (def != null)
+            {
+                bm.enemies = new List<EnemyData> { EnemyDatabase.CreateRuntimeEnemy(def) };
+                Debug.Log($"[EnemySpawner] 튜토리얼 모드 — {tutId} 1마리 고정 스폰 (RoomType={tutRoom})");
+                return;
+            }
+            Debug.LogWarning($"[EnemySpawner] 튜토리얼이지만 {tutId} def 못 찾음 — 일반 흐름 진행");
+        }
+
+        // ── 층 + RoomType 기반 적 결정 (2026-05-29 갱신) ─────────
         // 우선순위:
         //   1) Inspector enemyIds 채워져있으면 → 그것 우선 (수동 강제)
         //   2) NodeSystem.CurrentRoomType 보고 분기:
-        //      · Boss   → enemy_reaper_boss
-        //      · Elite  → 약탈자 ×3 (기획 §10 §엘리트 — 약탈자 1종만 정의됨)
-        //      · Combat → FloorTierResolver.ResolveEnemyIds(floor) 층별 매핑
-        //   3) NodeSystem 없으면 → tier 기반 랜덤 폴백
+        //      · Boss   → enemy_reaper_boss × 1
+        //      · Elite  → 약탈자 풀 + RollCount 마릿수 (후반일수록 4 가중)
+        //      · Combat → FloorTierResolver 풀 + RollCount 마릿수
+        //   3) NodeSystem 없으면 → tier 기반 랜덤 폴백 (인스펙터 randomCount)
         EnemyTier tierToUse = randomTier;
-        string[] floorIds   = null;
+        string[] enemyPool  = null;   // 적 ID 풀 (Boss 만 단일, Elite/Combat 은 풀)
+        int      spawnCount = 0;      // RollCount 결과 (Boss 만 1 고정)
         RoomType currentRoom = RoomType.Combat;
 
         if (NodeSystem.Current != null)
@@ -51,43 +81,53 @@ public class EnemySpawner : MonoBehaviour
             switch (currentRoom)
             {
                 case RoomType.Boss:
-                    floorIds = new[] { "enemy_reaper_boss" };
-                    tierToUse = EnemyTier.Boss;
+                    enemyPool  = new[] { "enemy_reaper_boss" };
+                    spawnCount = 1;
+                    tierToUse  = EnemyTier.Boss;
                     break;
 
                 case RoomType.Elite:
-                    // TODO[엘리트 구성]: 기획 §10_적_스킬_시트 §엘리트는 약탈자 1종만 정의됨.
-                    //                  마릿수/구성 확정되면 본문 수정.
-                    floorIds = new[] { "enemy_raider_01", "enemy_raider_01", "enemy_raider_01" };
-                    tierToUse = EnemyTier.Normal;
+                    // 엘리트 풀: 현재 약탈자 1종 (기획 §10 §엘리트). 마릿수는 일반 전투와 같은 RollCount 공식.
+                    enemyPool  = new[] { "enemy_raider_01" };
+                    spawnCount = FloorTierResolver.RollCount(floor);
+                    tierToUse  = EnemyTier.Normal;
                     break;
 
                 case RoomType.Combat:
                 default:
-                    floorIds = FloorTierResolver.ResolveEnemyIds(floor);
-                    tierToUse = FloorTierResolver.ResolveTier(floor);
+                    enemyPool  = FloorTierResolver.GetEnemyPool(floor);
+                    spawnCount = FloorTierResolver.RollCount(floor);
+                    tierToUse  = FloorTierResolver.ResolveTier(floor);
                     break;
             }
 
-            Debug.Log($"[EnemySpawner] 층 {floor} / RoomType={currentRoom} | 매핑 적: {(floorIds == null ? "(없음 → tier 폴백)" : string.Join(", ", floorIds))} | tier 폴백: {tierToUse}");
+            Debug.Log($"[EnemySpawner] 층 {floor} / RoomType={currentRoom} | 풀=[{(enemyPool == null ? "null" : string.Join(",", enemyPool))}] | count={spawnCount} | tier 폴백={tierToUse}");
         }
 
-        // 우선순위: 1)Inspector → 2)RoomType/층 매핑 → 3)tier 랜덤
-        string[] idsToSpawn = null;
-        if (enemyIds != null && enemyIds.Count > 0)       idsToSpawn = enemyIds.ToArray();
-        else if (floorIds != null && floorIds.Length > 0) idsToSpawn = floorIds;
-
+        // 우선순위: 1)Inspector → 2)RoomType/층 풀+RollCount → 3)tier 랜덤
         var spawned = new List<EnemyData>();
-        if (idsToSpawn != null)
+        if (enemyIds != null && enemyIds.Count > 0)
         {
-            foreach (var id in idsToSpawn)
+            // 수동 강제 — 인스펙터 순서 그대로
+            foreach (var id in enemyIds)
             {
                 var def = EnemyDatabase.Instance.GetEnemy(id);
                 if (def != null) spawned.Add(EnemyDatabase.CreateRuntimeEnemy(def));
             }
         }
+        else if (enemyPool != null && enemyPool.Length > 0 && spawnCount > 0)
+        {
+            // 풀에서 spawnCount 만큼 랜덤 선택 — 같은 ID 중복 허용 (예: 고블린×3)
+            for (int i = 0; i < spawnCount; i++)
+            {
+                string id  = enemyPool[Random.Range(0, enemyPool.Length)];
+                var    def = EnemyDatabase.Instance.GetEnemy(id);
+                if (def != null) spawned.Add(EnemyDatabase.CreateRuntimeEnemy(def));
+            }
+        }
         else
         {
+            // tier 기반 랜덤 폴백 (NodeSystem 없을 때 등)
             for (int i = 0; i < randomCount; i++)
             {
                 var def = EnemyDatabase.Instance.GetRandomEnemy(tierToUse);

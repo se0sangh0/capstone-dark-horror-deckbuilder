@@ -82,7 +82,9 @@ public partial class EnemyData
     [System.NonSerialized] public System.Action         OnDied;
     /// <summary>피격 시 (쉴드 흡수량, HP 감소량). 적은 쉴드 없으므로 첫 인자는 항상 0.</summary>
     [System.NonSerialized] public System.Action<int, int> OnDamaged;
-    /// <summary>스킬 발동 시 effectType("Damage"/"Heal"/…) 발행. View 가 모션 카테고리 분기에 사용.</summary>
-    [System.NonSerialized] public System.Action<string> OnSkillCast;
+    /// <summary>스킬 발동 시 (effectType, skillIndex, isRanged). 적은 보통 skillIndex 0 (적은 Attack2 미사용). isRanged=true 면 dash 없이 제자리 모션.</summary>
+    [System.NonSerialized] public System.Action<string, int, bool> OnSkillCast;
+    /// <summary>소환체 남은 수명 턴 변동 시 (currentLifeTurns). 까마귀 카운트다운 UI 가 구독.</summary>
+    [System.NonSerialized] public System.Action<int> OnLifeTurnsChanged;
     [System.NonSerialized] public UnityEngine.UI.Slider HpSlider;
 }

@@ -53,7 +53,11 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.skillId     = def.skillId;
         e.skillIds    = def.skillIds;     // 신규: JSON 의 다중 스킬 ID 배열 복사
         e.spritePath  = def.spritePath;
-        e.animatorPath = def.animatorPath; // TODO: sprite 4프레임 작업 + AnimatorController 준비 후 JSON 채움
+        e.visualScale = def.visualScale > 0 ? def.visualScale : 1.0f; // JSON 미설정/0 이면 1.0 폴백
+        e.animatorPath = def.animatorPath;
+        e.idleAnim     = def.idleAnim;
+        e.attack1Anim  = def.attack1Anim;
+        e.attack2Anim  = def.attack2Anim;
         e.isDead      = false;
 
         // ── 소환체 메커니즘 필드 복사 (기획 §11 §3 까마귀) ──

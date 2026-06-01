@@ -24,10 +24,10 @@ using DG.Tweening;
 
 public class BattleCardSprites : MonoBehaviour
 {
-    [Header("스프라이트 (Idle/Attack/Hit)")]
+    [Header("스프라이트 (Idle/Attack)")]
     [SerializeField] private Sprite idleSprite;
     [SerializeField] private Sprite attackSprite;
-    [SerializeField] private Sprite hitSprite;
+    // 피격은 애니/스프라이트 교체 없이 DOTween 흰색 깜빡임(PlayHitFlash)으로만 처리 (포켓몬 도트식).
 
     [Header("렌더 대상 (Renderer 또는 Image 중 하나)")]
     [SerializeField] private SpriteRenderer       targetSpriteRenderer;
@@ -38,10 +38,15 @@ public class BattleCardSprites : MonoBehaviour
     [SerializeField] private float motionDuration = 0.25f;
 
     [Header("Melee 모션")]
-    [Tooltip("Melee 시 transform localPosition.x 이동량")]
+    [Tooltip("Melee 시 fallback 이동량 (target 못 찾을 때만 사용)")]
     [SerializeField] private float meleeDashDistance = 0.5f;
-    [Tooltip("Melee 한 방향 이동 시간 (전진/복귀 각각)")]
-    [SerializeField] private float meleeDashDuration = 0.1f;
+    [Tooltip("Melee 한 방향 이동 시간 (forward/back 각각). 너무 짧으면 안 보임 — 0.2~0.3 권장.")]
+    [SerializeField] private float meleeDashDuration = 0.25f;
+    [Tooltip("적 위치까지 이동 비율. 1.0 = 정확한 적 위치, 0.85 = 약간 못 미친 위치 (겹침 방지).")]
+    [Range(0.5f, 1.0f)]
+    [SerializeField] private float meleeDashApproachRatio = 0.85f;
+    [Tooltip("적 앞에서 공격 모션 재생 대기 시간. Animator State Attack speed=0.5 일 때 ~1.0초 권장.")]
+    [SerializeField] private float attackHoldDuration = 1.0f;
 
     [Header("Facing (자동: 렌더러 transform 만 flip — Canvas 자식 안 건드림)")]
     [Tooltip("비워두면 targetMeshRenderer → targetSpriteRenderer → targetImage 순으로 자동 선택")]
@@ -68,8 +73,15 @@ public class BattleCardSprites : MonoBehaviour
     //   DefaultSetting 에서 AttachAnimator() 로 주입.
     //   주입되지 않으면 sprite 교체 방식(idleSprite/attackSprite/hitSprite) 으로 fallback.
     private Animator _animator;
-    private static readonly int HashAttack = Animator.StringToHash("Attack");
-    private static readonly int HashHit    = Animator.StringToHash("Hit");
+    // 기본 트리거명 (JSON 에 attack1Anim/attack2Anim 미지정 시 폴백)
+    private const string DefaultAttack1 = "Attack";
+    private const string DefaultAttack2 = "Attack2";
+    // 피격(Hit)은 애니메이터 트리거를 쓰지 않음 — DOTween 깜빡임으로만 처리.
+    // 런타임 트리거 해시 — JSON 에서 받은 이름으로 결정 (AttachAnimator 에서 세팅)
+    private int _hashAttack1;
+    private int _hashAttack2;
+    private bool _hasAttack1;
+    private bool _hasAttack2;
 
     private void Awake()
     {
@@ -85,50 +97,139 @@ public class BattleCardSprites : MonoBehaviour
     }
 
     /// <summary>
-    /// 카테고리별 공격 모션.
+    /// 카테고리별 공격 모션. skillIndex 로 Attack/Attack2 분기 (1번 스킬 → Attack, 2번 스킬 → Attack2).
+    /// Attack2 파라미터가 컨트롤러에 없는 종(Defender/Offender/Priest)은 자동으로 Attack 폴백.
     ///   Ranged     — sprite 교체만 (제자리, 추후 발사체)
     ///   Melee      — sprite 교체 + DOTween 짧은 전진/복귀 (방향: 아군 +X, 적군 -X)
     ///   Stationary — sprite 교체만
     /// </summary>
-    public void PlayAttack(MotionCategory cat)
+    public void PlayAttack(MotionCategory cat, int skillIndex = 0)
     {
-        // Animator 가 주입돼 있으면 trigger, 아니면 sprite 교체 fallback
-        if (_animator != null && _animator.runtimeAnimatorController != null)
-            _animator.SetTrigger(HashAttack);
-        else if (attackSprite != null)
-            PlayTemporary(attackSprite);
+        bool hasAnim = _animator != null && _animator.runtimeAnimatorController != null;
 
-        if (cat == MotionCategory.Melee) PlayMeleeDash();
+        if (cat == MotionCategory.Melee)
+        {
+            // 순차 흐름: forward dash → 적 앞에서 SetTrigger + 모션 재생 대기 → back dash
+            PlayMeleeAttackSequence(skillIndex, hasAnim);
+        }
+        else
+        {
+            // Ranged/Stationary: 즉시 트리거 (제자리)
+            if (hasAnim) TriggerAttackImmediate(skillIndex);
+            else if (attackSprite != null) PlayTemporary(attackSprite);
+        }
     }
 
-    /// <summary>DefaultSetting 에서 RuntimeAnimatorController 주입 직후 호출.</summary>
-    public void AttachAnimator(Animator animator)
+    /// <summary>제자리에서 즉시 Attack(또는 Attack2) 트리거. Melee 가 아닌 카테고리에서 사용.</summary>
+    private void TriggerAttackImmediate(int skillIndex)
+    {
+        if (skillIndex >= 1 && _hasAttack2) _animator.SetTrigger(_hashAttack2);
+        else if (_hasAttack1)               _animator.SetTrigger(_hashAttack1);
+    }
+
+    /// <summary>현재 근접 공격 시퀀스 (dash + 모션 + 복귀) 가 진행 중인지. BattleManager 가 턴 전환 시 polling.</summary>
+    public bool IsAttacking => _meleeSeq != null && _meleeSeq.IsActive();
+
+    /// <summary>씬 안의 모든 BattleCardSprites 중 하나라도 공격 시퀀스 진행 중이면 true.</summary>
+    public static bool AnyAttacking()
+    {
+        var all = UnityEngine.Object.FindObjectsByType<BattleCardSprites>(FindObjectsSortMode.None);
+        foreach (var c in all) if (c != null && c.IsAttacking) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// DefaultSetting 에서 RuntimeAnimatorController 주입 직후 호출.
+    /// JSON 에 지정된 트리거 이름을 받아 해시 캐싱 + 컨트롤러 보유 여부 검사.
+    /// 이름이 비어있으면 기본값 (Attack / Attack2) 사용.
+    /// </summary>
+    public void AttachAnimator(Animator animator, string attack1Name = null, string attack2Name = null)
     {
         _animator = animator;
+
+        string n1 = string.IsNullOrEmpty(attack1Name) ? DefaultAttack1 : attack1Name;
+        string n2 = string.IsNullOrEmpty(attack2Name) ? DefaultAttack2 : attack2Name;
+        _hashAttack1 = Animator.StringToHash(n1);
+        _hashAttack2 = Animator.StringToHash(n2);
+
+        _hasAttack1 = false;
+        _hasAttack2 = false;
+        if (animator != null)
+        {
+            foreach (var p in animator.parameters)
+            {
+                if (p.nameHash == _hashAttack1) _hasAttack1 = true;
+                if (p.nameHash == _hashAttack2) _hasAttack2 = true;
+            }
+        }
     }
 
-    private void PlayMeleeDash()
+    // ============================================================
+    // 근접 공격 시퀀스 — 세븐나이츠 스타일 순차 흐름:
+    //   ① forward dash    (meleeDashDuration)        : 적 위치까지 이동
+    //   ② attack 모션 재생 (attackHoldDuration)        : 적 앞에서 SetTrigger + 대기
+    //   ③ back dash       (meleeDashDuration)        : 원위치 복귀
+    // 타겟 못 찾으면 fallback 으로 인스펙터 meleeDashDistance 사용.
+    // ============================================================
+    private void PlayMeleeAttackSequence(int skillIndex, bool hasAnim)
     {
         if (_meleeSeq != null && _meleeSeq.IsActive()) _meleeSeq.Kill(complete: true);
 
-        float dir = _isEnemyFaction ? -1f : 1f;
-        float dx  = meleeDashDistance * dir;
-
         Vector3 origin = transform.localPosition;
+        float dx;
+        Transform target = FindMeleeTarget();
+        if (target != null)
+        {
+            float worldDx = target.position.x - transform.position.x;
+            float parentScaleX = (transform.parent != null && transform.parent.lossyScale.x != 0f)
+                ? transform.parent.lossyScale.x : 1f;
+            float localDx = worldDx / parentScaleX;
+            dx = localDx * meleeDashApproachRatio;
+        }
+        else
+        {
+            float dir = _isEnemyFaction ? -1f : 1f;
+            dx = meleeDashDistance * dir;
+        }
+
         _meleeSeq = DOTween.Sequence();
+        // ① forward
         _meleeSeq.Append(transform.DOLocalMoveX(origin.x + dx, meleeDashDuration).SetEase(Ease.OutQuad));
-        _meleeSeq.Append(transform.DOLocalMoveX(origin.x,      meleeDashDuration).SetEase(Ease.InOutQuad));
+        // ② SetTrigger + 모션 재생 대기 (Animator 없으면 sprite 교체 fallback)
+        _meleeSeq.AppendCallback(() => {
+            if (hasAnim) TriggerAttackImmediate(skillIndex);
+            else if (attackSprite != null) PlayTemporary(attackSprite);
+        });
+        _meleeSeq.AppendInterval(attackHoldDuration);
+        // ③ back
+        _meleeSeq.Append(transform.DOLocalMoveX(origin.x, meleeDashDuration).SetEase(Ease.InOutQuad));
         _meleeSeq.OnKill(() => transform.localPosition = origin);
+    }
+
+    /// <summary>
+    /// 가장 가까운 적/아군 카드의 transform 반환. 아군이면 "EnemyObject*", 적이면 "MyObject*".
+    /// 없으면 null (PlayMeleeDash 가 fallback 거리 사용).
+    /// </summary>
+    private Transform FindMeleeTarget()
+    {
+        string prefix = _isEnemyFaction ? "MyObject" : "EnemyObject";
+        var all = UnityEngine.Object.FindObjectsByType<BattleCardSprites>(FindObjectsSortMode.None);
+        Transform best = null;
+        float bestDist = float.MaxValue;
+        foreach (var c in all)
+        {
+            if (c == this) continue;
+            if (c == null || !c.gameObject.activeInHierarchy) continue;
+            if (!c.name.StartsWith(prefix)) continue;
+            float d = Mathf.Abs(c.transform.position.x - transform.position.x);
+            if (d < bestDist) { bestDist = d; best = c.transform; }
+        }
+        return best;
     }
 
     public void PlayHit()
     {
-        if (_animator != null && _animator.runtimeAnimatorController != null)
-            _animator.SetTrigger(HashHit);
-        else if (hitSprite != null)
-            PlayTemporary(hitSprite);
-
-        // 흰색 깜빡임 — Animator/Sprite 와 동시 실행
+        // 피격 피드백 = DOTween 흰색 깜빡임 (포켓몬 도트식). 애니메이터 Hit 트리거/sprite 교체 불필요.
         PlayHitFlash();
     }
 
@@ -244,6 +345,23 @@ public class BattleCardSprites : MonoBehaviour
             if      (mat.HasProperty(MatColorIdUrp))    mat.SetColor(MatColorIdUrp,    _originalMaterialColor);
             else if (mat.HasProperty(MatColorIdLegacy)) mat.SetColor(MatColorIdLegacy, _originalMaterialColor);
         }
+    }
+
+    // ── 지속 tint (상태이상 표시용) ────────────────────────────────
+    /// <summary>
+    /// 지속 색조 적용 — DoT / 디버프 상태이상 시각화. DoT 활성 동안 카드 sprite 에 tint.
+    /// 사망 침몰(PlayDeathFall) / 일시 색 변화와 별개. ClearPersistentTint 로 해제.
+    /// </summary>
+    public void SetPersistentTint(Color c)
+    {
+        CacheOriginalColors();
+        SetCardColor(c);
+    }
+
+    /// <summary>지속 tint 해제 — 원래 색 복원.</summary>
+    public void ClearPersistentTint()
+    {
+        if (_colorsCached) RestoreCardColor();
     }
 
     /// <summary>SpriteRenderer/Image/MeshRenderer.material 중 첫 비-null 대상에 대해 alpha 페이드 tween 반환.</summary>

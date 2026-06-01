@@ -167,14 +167,14 @@ public abstract class BaseCurrency<T> : MonoBehaviour where T : BaseCurrency<T>
         OnCurrencyChanged?.Invoke(_amount);
     }
 
-    /// <summary>PlayerPrefs 키 삭제 후 StartingAmount 로 리셋. 셋팅 팝업 등에서 호출.</summary>
-    public void ResetCurrency()
+    /// <summary>PlayerPrefs 키 삭제 후 StartingAmount(+bonus) 로 리셋. 셋팅 팝업 / 런 종료 변환 적립용.</summary>
+    public void ResetCurrency(int bonus = 0)
     {
         PlayerPrefs.DeleteKey(SaveKey);
-        _amount = StartingAmount;
+        _amount = Mathf.Max(0, StartingAmount + bonus);
         OnCurrencyChanged?.Invoke(_amount);
         SaveCurrency();
-        Debug.Log($"[{SaveKey}] 재화 리셋 → {_amount}");
+        Debug.Log($"[{SaveKey}] 재화 리셋 → {_amount} (StartingAmount={StartingAmount}, bonus={bonus})");
     }
 
     // ----------------------------------------------------------

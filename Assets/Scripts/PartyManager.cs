@@ -157,6 +157,20 @@ public class PartyManager : Singleton<PartyManager>
         OnPartyChanged?.Invoke();
     }
 
+    /// <summary>
+    /// 파티를 현재 모드(IsTutorial)에 맞춰 강제 재초기화한다.
+    /// PartyManager 는 DontDestroyOnLoad 이므로 Start() 가 단 1회만 돌아 InitDefaultParty 가 재호출되지 않는다.
+    /// 따라서 튜토리얼 ↔ 일반 모드 전환 시 호출자가 명시적으로 부른다.
+    /// MoveScene 의 게임 시작/튜토리얼 재진입 핸들러가 호출.
+    /// </summary>
+    public void ForceReinitParty()
+    {
+        _activeFellows.Clear();
+        _deadFellowArchive.Clear();
+        InitDefaultParty(); // IsTutorial 보고 튜토리얼/일반 자동 분기
+        Debug.Log($"[PartyManager] ForceReinitParty 완료 — 파티 {_activeFellows.Count(f => f != null)}명");
+    }
+
     /// <summary>보관소에 있는 사망 동료 수</summary>
     public int DeadCount => _deadFellowArchive.Count;
 
@@ -220,8 +234,51 @@ public class PartyManager : Singleton<PartyManager>
     // ----------------------------------------------------------
     private void InitDefaultParty()
     {
+        // 튜토리얼 모드 — 기획 §15 §파티 구성: 캐스터/프리스트/디펜더 3명 고정 + 4번 슬롯 null.
+        // 이전 일반 게임 파티가 있어도 강제 클리어 후 재생성 (기획 §5-3 데이터 격리).
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
+        {
+            _activeFellows.Clear();
+            _deadFellowArchive.Clear();
+            GenerateTutorialParty();
+            return;
+        }
+
         if (_activeFellows.Count > 0) return;
         GenerateRandomParty(4);
+    }
+
+    /// <summary>
+    /// 튜토리얼 전용 파티 생성 — 캐스터/프리스트/디펜더 3명 고정 + 4번 슬롯 null.
+    /// 기획 §15 §3-1. 본 게임 파티 데이터와 격리되어야 하므로 호출 전에 _activeFellows.Clear() 가 선행되어야 함.
+    /// </summary>
+    private void GenerateTutorialParty()
+    {
+        var ids = new[] { "ally_caster_01", "ally_priest_01", "ally_defender_01" };
+        if (FellowDatabase.Instance == null)
+        {
+            Debug.LogWarning("[PartyManager] FellowDatabase 없음 — 튜토리얼 폴백 파티 사용");
+            for (int i = 0; i < 3; i++) _activeFellows.Add(CreateFallbackFellow(i));
+            _activeFellows.Add(null);
+            OnPartyChanged?.Invoke();
+            return;
+        }
+
+        foreach (var id in ids)
+        {
+            var def = FellowDatabase.Instance.GetFellow(id);
+            if (def == null)
+            {
+                Debug.LogWarning($"[PartyManager] 튜토리얼 동료 ID '{id}' 못 찾음 — 슬롯 비움");
+                _activeFellows.Add(null);
+                continue;
+            }
+            _activeFellows.Add(FellowDatabase.CreateRuntimeFellow(def, RandomAffinity()));
+        }
+        _activeFellows.Add(null); // slot 3 = 빈 자리
+
+        Debug.Log($"[PartyManager] 튜토리얼 파티 생성: {_activeFellows.Count(f => f != null)}명 + 빈 슬롯 1");
+        OnPartyChanged?.Invoke();
     }
 
     // ----------------------------------------------------------

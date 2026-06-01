@@ -37,6 +37,7 @@ public class BattleCardView : MonoBehaviour
     private int                _lastHp     = -1;
     private int                _lastShield = -1;
     private BattleCardSprites  _sprites; // 같은 GameObject 의 모션 컴포넌트 (있으면 사용)
+    private TMP_Text           _countdownText; // 까마귀(소환체) 자폭까지 남은 턴 표시 — hpScoreText 복제로 동적 생성
 
     /// <summary>바인딩된 동료 데이터 (적 카드면 null).</summary>
     public FellowData Fellow => _fellow;
@@ -54,9 +55,11 @@ public class BattleCardView : MonoBehaviour
         fellow.OnShieldChanged += OnShieldChanged;
         fellow.OnDamaged       += OnDamaged;
         fellow.OnSkillCast     += HandleSkillCast;
+        fellow.OnDotChanged    += OnDotChanged;
         _lastHp     = fellow.CurrentHp;
         _lastShield = fellow.shield;
         Refresh(_lastHp, fellow.maxHp);
+        OnDotChanged(); // 바인딩 직후 현재 DoT 상태로 tint 동기화 (재진입 시 안전망)
     }
 
     public void BindEnemy(EnemyData enemy)
@@ -70,6 +73,14 @@ public class BattleCardView : MonoBehaviour
         enemy.OnSkillCast += HandleSkillCast;
         _lastHp = enemy.CurrentHp;
         Refresh(_lastHp, enemy.maxHp);
+
+        // 까마귀 등 소환체 — HP 라인 아래에 "자폭까지 N턴" 텍스트 동적 생성
+        if (enemy.summonLifeTurns > 0)
+        {
+            EnsureCountdownText();
+            enemy.OnLifeTurnsChanged += OnCrowLifeTurnsChanged;
+            UpdateCountdownText(enemy.currentLifeTurns);
+        }
     }
 
     private void Unbind()
@@ -80,14 +91,17 @@ public class BattleCardView : MonoBehaviour
             _fellow.OnShieldChanged -= OnShieldChanged;
             _fellow.OnDamaged       -= OnDamaged;
             _fellow.OnSkillCast     -= HandleSkillCast;
+            _fellow.OnDotChanged    -= OnDotChanged;
         }
         if (_enemy  != null)
         {
             _enemy.OnHpChanged -= OnEnemyHpChanged;
             _enemy.OnDamaged   -= OnDamaged;
             _enemy.OnSkillCast -= HandleSkillCast;
+            _enemy.OnLifeTurnsChanged -= OnCrowLifeTurnsChanged;
         }
         _fellow = null; _enemy = null; _lastHp = -1;
+        if (_countdownText != null) _countdownText.gameObject.SetActive(false);
     }
 
     /// <summary>OnDamaged — 쉴드 흡수(노랑)/HP 감소(빨강) popup 분리 표시 + Hit 모션 1회.</summary>
@@ -137,15 +151,65 @@ public class BattleCardView : MonoBehaviour
         return _sprites;
     }
 
+    // ── DoT 상태 시각화 — 초록 tint ──────────────────────────────────
+    private static readonly Color DotTintColor = new Color(0.55f, 1f, 0.55f);
+
+    private void OnDotChanged()
+    {
+        if (_fellow == null) return;
+        var sprites = EnsureSprites();
+        if (sprites == null) return;
+        if (_fellow.dotTurnsLeft > 0) sprites.SetPersistentTint(DotTintColor);
+        else                          sprites.ClearPersistentTint();
+    }
+
+    // ── 까마귀 자폭 카운트다운 ─────────────────────────────────────
+    //   hpScoreText 를 복제해서 HP 라인 바로 아래에 배치. prefab 수정 없이 동적 생성.
+    //   재사용 — 한번 만든 _countdownText 는 SetActive 만 토글.
+    private void EnsureCountdownText()
+    {
+        if (_countdownText != null) { _countdownText.gameObject.SetActive(true); return; }
+        if (hpScoreText == null) return;
+
+        var go = Instantiate(hpScoreText.gameObject, hpScoreText.transform.parent);
+        go.name = "CrowCountdownText";
+        _countdownText = go.GetComponent<TMP_Text>();
+        if (_countdownText == null) { Destroy(go); return; }
+
+        // HP 텍스트 바로 아래로 — 같은 부모 좌표계에서 Y 만 살짝 내림
+        var srcRt = hpScoreText.rectTransform;
+        var dstRt = _countdownText.rectTransform;
+        dstRt.anchorMin        = srcRt.anchorMin;
+        dstRt.anchorMax        = srcRt.anchorMax;
+        dstRt.pivot            = srcRt.pivot;
+        dstRt.sizeDelta        = srcRt.sizeDelta;
+        dstRt.localScale       = srcRt.localScale;
+        dstRt.localRotation    = srcRt.localRotation;
+        dstRt.anchoredPosition = srcRt.anchoredPosition + new Vector2(0f, -(srcRt.rect.height * 0.9f));
+
+        _countdownText.fontSize = hpScoreText.fontSize * 0.85f;
+        _countdownText.color    = new Color(1f, 0.55f, 0.25f); // 위협적인 주황
+    }
+
+    private void UpdateCountdownText(int lifeTurns)
+    {
+        if (_countdownText == null) return;
+        _countdownText.text = lifeTurns > 0 ? $"자폭까지 {lifeTurns}턴" : "자폭!";
+    }
+
+    private void OnCrowLifeTurnsChanged(int lifeTurns) => UpdateCountdownText(lifeTurns);
+
     /// <summary>
-    /// OnSkillCast 이벤트 핸들러. effectType + actor 의 jobClass 로 카테고리 결정 후
-    /// BattleCardSprites.PlayAttack(cat) 호출. (적군은 jobClass 없음 — null 전달)
+    /// OnSkillCast 이벤트 핸들러. effectType + actor 의 jobClass + isRanged 로 카테고리 결정 후
+    /// BattleCardSprites.PlayAttack(cat, skillIndex) 호출. skillIndex 로 Attack/Attack2 분기.
+    /// isRanged=true 면 dash 시퀀스 생략, 제자리에서 모션만 재생 (적 원거리 스킬용).
+    /// (적군은 jobClass 없음 — null 전달, 적은 보통 skillIndex 0)
     /// </summary>
-    private void HandleSkillCast(string effectType)
+    private void HandleSkillCast(string effectType, int skillIndex, bool isRanged)
     {
         string jobClass = _fellow != null ? _fellow.jobClass : null;
-        var cat = MotionCategoryResolver.Resolve(jobClass, effectType);
-        EnsureSprites()?.PlayAttack(cat);
+        var cat = MotionCategoryResolver.Resolve(jobClass, effectType, isRanged);
+        EnsureSprites()?.PlayAttack(cat, skillIndex);
     }
 
     private void Refresh(int hp, int maxHp)

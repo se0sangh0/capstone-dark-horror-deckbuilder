@@ -220,6 +220,7 @@ public class SettingPopup : PanelBase
     {
         if (SoulstoneManager.Instance != null) SoulstoneManager.Instance.ResetCurrency();
         if (ManastoneManager.Instance != null) ManastoneManager.Instance.ResetCurrency();
-        Debug.Log("[SettingPopup] 영혼석/마석 PlayerPrefs 리셋 완료");
+        MetaPassiveManager.ResetAll();   // 메타 패시브 해금도 초기화 (기획 §16 §4)
+        Debug.Log("[SettingPopup] 영혼석/마석/메타패시브 PlayerPrefs 리셋 완료");
     }
 }

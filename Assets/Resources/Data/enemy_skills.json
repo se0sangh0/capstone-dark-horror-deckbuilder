@@ -21,7 +21,10 @@
       "power": 30,
       "weight": 30,
       "costAmount": 1,
-      "description": "후열 마지막 아군에게 30 데미지. 도트 효과는 백로그. (기획 §10 1번 — 30%)",
+      "isRanged": true,
+      "dotPower": 10,
+      "dotTurns": 2,
+      "description": "후열 마지막 아군에게 30 데미지 + 다음 2턴 각 10 도트. (기획 §11 §독침 도트 적용)",
       "spritePath": ""
     },
     {
@@ -31,21 +34,9 @@
       "targeting": "FrontFirst",
       "effectType": "Damage",
       "power": 20,
-      "weight": 50,
+      "weight": 100,
       "costAmount": 2,
-      "description": "전열 1번에게 20 데미지. (기획 §10_적_스킬_시트 2번 — 50%)",
-      "spritePath": ""
-    },
-    {
-      "id": "enemy_skill_raider_smash",
-      "displayName": "도끼 내려찍기",
-      "skillGroup": "단일",
-      "targeting": "FrontFirst",
-      "effectType": "Damage",
-      "power": 40,
-      "weight": 50,
-      "costAmount": 2,
-      "description": "전열 1번에게 40 강화 데미지. (기획 §10 2번 — 50%)",
+      "description": "전열 1번에게 20 데미지. HP>30% 시 100% 발동 (기획 §11 §2 행동패턴).",
       "spritePath": ""
     },
     {
@@ -57,6 +48,7 @@
       "power": 60,
       "weight": 0,
       "costAmount": 1,
+      "isRanged": true,
       "description": "전열 1번에게 60 데미지. HP≤30% 시 1회 강제 발동 (TryGetForcedSkill 에서 처리, weight 0 = 룰렛 제외). 기획 §11 §2",
       "spritePath": ""
     },
@@ -82,9 +74,23 @@
       "weight": 40,
       "costAmount": 3,
       "cooldownTurns": 3,
+      "isRanged": true,
       "summonEnemyId": "enemy_crow_01",
       "summonCount": 2,
       "description": "까마귀 2마리 소환. 2 hit 처치 / 3턴 생존 / 만료 시 1마리당 40 데미지 파티 분산 → 다음 보스 턴 순간이동. 사용 후 3턴 쿨다운. (기획 §11 §3)",
+      "spritePath": ""
+    },
+    {
+      "id": "enemy_skill_reaper_harvest",
+      "displayName": "수확",
+      "skillGroup": "광역",
+      "targeting": "AllAllies",
+      "effectType": "Harvest",
+      "power": 50,
+      "weight": 0,
+      "costAmount": 0,
+      "isRanged": true,
+      "description": "HP ≤ 50% 시 1회 강제. 각 아군 50 데미지. 실드가 먼저 흡수, 실드 초과분 총합만큼 보스 HP 회복. (기획 §11 §3 4번)",
       "spritePath": ""
     },
     {
@@ -96,6 +102,7 @@
       "power": 0,
       "weight": 0,
       "costAmount": 0,
+      "isRanged": true,
       "description": "파티 배치 순서를 역순으로 뒤집는다. 까마귀 부름 실패(만료) 후 다음 보스 턴에 강제 발동. weight 0 = 룰렛 제외, 강제 트리거 전용. (기획 §11 §3)",
       "spritePath": ""
     }

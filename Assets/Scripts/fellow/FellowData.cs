@@ -82,6 +82,11 @@ public partial class FellowData : ScriptableObject
     [Tooltip("RuntimeAnimatorController 의 Resources 기준 경로. 비면 Animator 비활성.")]
     public string animatorPath;
 
+    [Tooltip("모션 트리거 이름. 비면 기본값 Idle/Attack/Attack2 사용.")]
+    public string idleAnim;
+    public string attack1Anim;
+    public string attack2Anim;
+
     // ── 런타임 상태 ──────────────────────────────────────────────
     [Header("런타임 상태")]
     public StackType positionStack;
@@ -92,6 +97,17 @@ public partial class FellowData : ScriptableObject
     public bool      isDead          = false;
     public bool      isFrozen        = false;    // 공포 경직: 이번 턴 행동 불가
     public bool      isOverBreathing = false;    // 과호흡: 스킬 코스트 +1
+    // 역할별 중증 디버프 (기획 §04) — 첫 패닉 시 부착, 전투 종료까지 유지 (InitBattle 에서 리셋).
+    //   딜러: 받는 피해 +30% / 탱커: 부여 실드 -50% / 서포터: 광역힐→단일힐 강제
+    public bool      hasSevereDebuff = false;
+
+    // 거합 집중 (오펜더 시그니처 패시브, 기획 §16) — 전투 한정 콤보 상태. InitBattle 에서 리셋.
+    [System.NonSerialized] public int comboTargetIid = 0; // 직전 단일 공격 대상 적 InstanceID (0=없음)
+    [System.NonSerialized] public int comboStacks    = 0; // 동일 대상 연속 타격 수
+
+    // 메타 패시브 (기획 §16) — 런 시작 시 해금된 풀에서 무작위 1개 배정. 런 내내 유지.
+    //   null = 미배정(해금된 패시브 없음). InitBattle 에서 미배정이면 RollPassive 로 배정.
+    [System.NonSerialized] public string activePassiveId = null;
 
     /// <summary>
     /// PartyEditPanel 배치 순번 (0~3). 0=맨앞, 3=맨뒤 — 행 구분 없음.

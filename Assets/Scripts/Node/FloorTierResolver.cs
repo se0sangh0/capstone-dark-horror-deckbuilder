@@ -1,6 +1,6 @@
 // ============================================================
 // Node/FloorTierResolver.cs
-// 현재 층 인덱스 → 등장 적 tier / ID 매핑 (Combat 노드 전용)
+// 현재 층 인덱스 → 등장 적 풀 + 마릿수 범위 매핑 (Combat 노드 전용)
 // ============================================================
 //
 // [왜 이 파일이 필요한가요?]
@@ -8,14 +8,18 @@
 //   Boss/Elite 는 NodeSystem.CurrentRoomType 으로 EnemySpawner 가 직접 처리하고,
 //   이 클래스는 일반 전투(Combat) 노드의 층별 적 구성만 책임진다.
 //
-// [매핑 정책 — 기획 §11_맵_노드 + §10_적_스킬_시트 반영, 10층 자동맵]
-//   floorIndex 1~3 → Weak    (고블린)
-//   floorIndex 4~8 → Normal  (약탈자)
-//   floorIndex 9   → 화툿불 (적 안 뜸, 호출되지 않음)
-//   floorIndex 10  → Boss   (이 파일이 처리하지 않음 — EnemySpawner 분기)
+// [매핑 정책 — 2026-05-29 갱신]
+//   일반 전투(Combat) 노드는 고블린만 등장. 약탈자(엘리트급)는 Elite 노드 전용으로 분리.
+//   마릿수는 층 인덱스 기반 동적 계산 (RollCount):
+//     1~2층: 2 고정
+//     3~4층: 2~3 균등
+//     5~6층: 3~4 균등
+//     7~8층: 3~4 (4 가중치 70%)
+//   최대 4마리 제한 — 모든 층에서 4 초과 불가.
 //
-// [범위 가드]
-//   floorIndex 가 음수면 Weak, 9 이상이면 Normal 로 클램프 (예외 안 던짐).
+// [tier 폴백 — Combat 노드 한정]
+//   GetEnemyPool 이 비어있을 때 EnemySpawner 가 사용. Boss tier 는 절대 반환 안 함
+//   (일반 노드에 보스가 spawn 되어 엔딩이 잘못 트리거되는 버그 방지).
 // ============================================================
 
 public static class FloorTierResolver
@@ -30,33 +34,33 @@ public static class FloorTierResolver
     }
 
     // ============================================================
-    // 층별 적 ID 리스트 — 자동 생성 10층 맵 기준 (Combat 노드만 사용)
+    // 일반 전투 노드 — 적 ID 풀 (Combat 노드만 사용)
     // ============================================================
-    //
-    // [floorIndex 기준]
-    //   NodeSystem.CurrentFloor 는 노드 클릭 직후 ++ 되어 1부터 시작 → 1=1층.
-    //   layer 0 (1층) = Combat 고정, layer 8 (9층) = Rest, layer 9 (10층) = Boss.
     //
     // [반환값]
-    //   매핑이 있으면 적 ID 배열 / 없으면 null (EnemySpawner 에서 tier 기반 폴백)
+    //   풀 (unique IDs). EnemySpawner 가 RollCount() 마릿수만큼 풀에서 랜덤 선택.
+    //   매핑이 없으면 null → tier 기반 폴백.
     //
-    // TODO[밸런스]: 마릿수/구성은 MVP 전투 테스트 후 확정. 현재는 임시값.
+    // [현 정책]
+    //   모든 층 = 고블린만. 약탈자는 Elite 노드에서만 등장.
+    //   추후 신규 일반 적 추가 시 풀에 합류.
     // ============================================================
-    public static string[] ResolveEnemyIds(int floorIndex)
+    public static string[] GetEnemyPool(int floorIndex)
     {
-        switch (floorIndex)
-        {
-            case 1: return new[] { "enemy_goblin_01", "enemy_goblin_01" };                                          // 1층 — 고블린×2
-            case 2: return new[] { "enemy_goblin_01", "enemy_goblin_01", "enemy_goblin_01" };                       // 2층 — 고블린×3
-            case 3: return new[] { "enemy_raider_01", "enemy_goblin_01", "enemy_goblin_01" };                       // 3층 — 약탈자×1 + 고블린×2
-            case 4: return new[] { "enemy_raider_01", "enemy_raider_01" };                                          // 4층 — 약탈자×2
-            case 5: return new[] { "enemy_raider_01", "enemy_raider_01", "enemy_goblin_01" };                       // 5층 — 약탈자×2 + 고블린×1
-            case 6: return new[] { "enemy_raider_01", "enemy_raider_01", "enemy_raider_01" };                       // 6층 — 약탈자×3
-            case 7: return new[] { "enemy_raider_01", "enemy_raider_01", "enemy_raider_01" };                       // 7층 — 약탈자×3
-            case 8: return new[] { "enemy_raider_01", "enemy_raider_01", "enemy_raider_01" };                       // 8층 — 약탈자×3
-            // case 9: 화툿불 — 호출되지 않음
-            // case 10: Boss — EnemySpawner 가 RoomType=Boss 로 직접 처리
-            default: return null;                                                                                    // 정의 없음 → tier 기반 폴백
-        }
+        if (floorIndex >= 1 && floorIndex <= 8)
+            return new[] { "enemy_goblin_01" };
+        return null;
+    }
+
+    // ============================================================
+    // 마릿수 결정 — 층 인덱스 기반 (2~4, 후반 가중)
+    // ============================================================
+    public static int RollCount(int floorIndex)
+    {
+        if (floorIndex <= 2) return 2;                                  // 1~2층: 2 고정
+        if (floorIndex <= 4) return UnityEngine.Random.Range(2, 4);     // 3~4층: 2 or 3 (Range max exclusive)
+        if (floorIndex <= 6) return UnityEngine.Random.Range(3, 5);     // 5~6층: 3 or 4
+        // 7~8층: 3~4, 4 가중치 70%
+        return UnityEngine.Random.value < 0.7f ? 4 : 3;
     }
 }

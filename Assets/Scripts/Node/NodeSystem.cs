@@ -160,7 +160,7 @@ public class NodeSystem : MonoBehaviour
         if (mapGenerator == null) mapGenerator = GetComponent<MapGenerator>();
         if (mapGenerator == null) mapGenerator = GetComponentInChildren<MapGenerator>(true);
         if (mapGenerator == null) mapGenerator = GetComponentInParent<MapGenerator>();
-        if (mapGenerator == null) mapGenerator = FindObjectOfType<MapGenerator>(true); // 씬 전체 폴백
+        if (mapGenerator == null) mapGenerator = FindFirstObjectByType<MapGenerator>(FindObjectsInactive.Include); // 씬 전체 폴백 (비활성 포함)
 
         // 2) 자동 맵 생성 + 버튼에 RoomType 매핑
         GenerateAndAssignRoomTypes();
@@ -178,6 +178,8 @@ public class NodeSystem : MonoBehaviour
     {
         UpdateNodeStates();
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+        // 튜토리얼 첫 노드맵 진입 시 인트로 모달 (1회만)
+        TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.NodeMapIntro);
     }
 
     // ----------------------------------------------------------
@@ -392,6 +394,20 @@ public class NodeSystem : MonoBehaviour
     {
         // 노드 진입 시 게임 이벤트 로그 리셋 — 이전 노드 메시지가 누적되지 않도록.
         GameLogService.Instance?.Clear();
+
+        // 튜토리얼 모달 — 노드 유형별 1회 안내
+        var tm = TutorialManager.Instance;
+        if (tm != null && tm.IsTutorial)
+        {
+            switch (type)
+            {
+                case RoomType.Combat: tm.TryShowDialogue(TutorialManager.DialogueId.CombatIntro); break;
+                case RoomType.Elite:  tm.TryShowDialogue(TutorialManager.DialogueId.EliteIntro);  break;
+                case RoomType.Boss:   tm.TryShowDialogue(TutorialManager.DialogueId.BossIntro);   break;
+                case RoomType.Shop:   tm.TryShowDialogue(TutorialManager.DialogueId.ShopIntro);   break;
+                case RoomType.Event:  tm.TryShowDialogue(TutorialManager.DialogueId.ChurchIntro); break;
+            }
+        }
 
         switch (type)
         {
