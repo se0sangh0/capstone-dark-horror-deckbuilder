@@ -56,6 +56,21 @@ public class EnemySkillData
     /// <summary>기본 효과 수치 (각 대상에게 적용될 데미지). Summon 의 경우 사용 안 함.</summary>
     public int power;
 
+    /// <summary>
+    /// 원거리 스킬 여부. true 면 BattleCardSprites 가 dash 시퀀스 없이 제자리에서 공격 모션만 재생한다.
+    /// 예) 고블린 독침, 약탈자 도끼 던지기, 보스 까마귀 부름/수확/순간이동.
+    /// </summary>
+    public bool isRanged;
+
+    /// <summary>
+    /// DoT(지속 피해) — 매 턴 끝 적용될 데미지. 0 이면 DoT 없음.
+    /// 기획 §11 §독침: 즉시 power 데미지 + 다음 dotTurns 턴 동안 매 턴 dotPower 데미지.
+    /// </summary>
+    public int dotPower;
+
+    /// <summary>DoT 지속 턴 수. 0 이면 DoT 미부착.</summary>
+    public int dotTurns;
+
     // ── 소환 스킬 (effectType = "Summon" 일 때만 사용) ──────────
     /// <summary>소환할 적의 ID (enemies.json 의 id). 예: "enemy_crow_01"</summary>
     public string summonEnemyId;

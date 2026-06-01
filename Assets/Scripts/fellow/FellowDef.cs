@@ -56,12 +56,17 @@ public class FellowDef
     public string[] skillIds;
     public string spritePath;
 
-    // ── 애니메이션 (TODO: sprite 4프레임 작업 완료 후 활성) ─────────
+    // ── 애니메이션 ─────────────────────────────────────────────────
     //   Resources 기준 경로의 RuntimeAnimatorController.
-    //   AnimatorController 안에 "Idle" / "Attack" state + "Attack" / "Hit" trigger 정의 필요.
-    //   예: "Animators/caster", "Animators/offender"
     //   비어 있으면 DefaultSetting 에서 Animator 컴포넌트 무시 (기존 sprite 교체 방식 동작).
     public string animatorPath;
+
+    // ── 모션 트리거 매핑 (JSON 으로 지정) ──────────────────────────
+    //   컨트롤러 안의 State/Trigger 이름. 비어있으면 기본값 (Idle/Attack/Attack2) 사용.
+    //   attack2Anim 이 없거나 컨트롤러에 트리거가 없으면 attack1Anim 으로 폴백.
+    public string idleAnim;     // 기본 "Idle" — 컨트롤러 default state 라 보통 트리거 불필요
+    public string attack1Anim;  // 기본 "Attack"  — skillIds[0] 사용 시
+    public string attack2Anim;  // 기본 "Attack2" — skillIds[1] 사용 시 (없으면 attack1 폴백)
 }
 
 [System.Serializable]

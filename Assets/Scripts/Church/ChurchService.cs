@@ -12,7 +12,7 @@
 //   ReviveCost1  = 50  (1성 동료 부활)
 //   ReviveCost2  = 100 (2성 동료 부활)
 //   ReviveCost3  = 200 (3성 동료 부활)
-//   부활 시 HP = maxHp × 0.5
+//   부활 시 HP = maxHp × 1.0 (기획자 결정 2026-05-28 — 풀피 복귀)
 //
 // [사용처]
 //   ChurchPanel 이 각 버튼 클릭 시 TrySpend... 호출.
@@ -33,7 +33,7 @@ public static class ChurchService
     // ── 회복량 ──────────────────────────────────────────────
     public const int HpAmount     = 50;
     public const int StressAmount = 25;
-    public const float ReviveHpRatio = 0.5f;
+    public const float ReviveHpRatio = 1.0f; // 기획자 결정 2026-05-28 — 부활 시 풀피 복귀
 
     /// <summary>성급에 따른 부활 비용. 1성 50 / 2성 100 / 3성 200 / 그 이상 200 (안전 폴백).</summary>
     public static int GetReviveCost(int starLevel) => starLevel switch

@@ -82,7 +82,17 @@ public partial class FellowData
     [System.NonSerialized] public System.Action             OnShieldChanged;
     /// <summary>피격 시 (쉴드 흡수량, HP 감소량). UI 가 노란/빨강 popup + Hit 모션 트리거에 사용.</summary>
     [System.NonSerialized] public System.Action<int, int>   OnDamaged;
-    /// <summary>스킬 발동 시 effectType("Damage"/"Heal"/"Shield"/…) 발행. View 가 모션 카테고리 분기에 사용.</summary>
-    [System.NonSerialized] public System.Action<string>     OnSkillCast;
+    /// <summary>스킬 발동 시 (effectType, skillIndex, isRanged). skillIndex 는 skillIds 배열 내 인덱스 (0 또는 1). isRanged 는 동료 스킬에는 항상 false (MotionCategoryResolver 가 jobClass 로 분기). View 가 모션 카테고리 + Attack/Attack2 분기에 사용.</summary>
+    [System.NonSerialized] public System.Action<string, int, bool> OnSkillCast;
+
+    /// <summary>DoT 남은 턴. 매 턴 끝 dotPerTurn 데미지 적용 후 -1. 0 도달 시 해제. 새 DoT 부여 시 덮어쓰기.</summary>
+    [System.NonSerialized] public int dotTurnsLeft;
+
+    /// <summary>DoT 1회당 데미지. dotTurnsLeft > 0 일 때만 의미 있음.</summary>
+    [System.NonSerialized] public int dotPerTurn;
+
+    /// <summary>DoT 상태 변화 (부착/해제) 시 호출 — UI 가 카드 색을 초록 tint 로 토글.</summary>
+    [System.NonSerialized] public System.Action OnDotChanged;
+
     [System.NonSerialized] public UnityEngine.UI.Slider     HpSlider;
 }

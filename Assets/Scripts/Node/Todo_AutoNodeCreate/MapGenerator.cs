@@ -36,21 +36,23 @@ public class MapGenerator : MonoBehaviour
     [Tooltip("0 이면 매 실행마다 새 맵, 그 외는 시드 고정")]
     public int fixedSeed = 0;
 
-    // ── 룸 타입 가중치 (합계 100) ─────────────────────────────────
-    // 기획 §11_맵_노드 §노드 타입 비율: 전투 70% / 이벤트 30%
-    // 임시 테스트값(용병소 확인용): 전투 55 / 엘리트 10 / 용병소 25 / 교회 10
-    // 확인 끝나면 원복 (Combat 70 / Shop 10).
-    [Header("룸 타입 확률 (%) — 기획 §11 §노드 타입 비율")]
-    [Tooltip("전투 (오픈)")]
-    public int combatWeight = 55;
+    // ── 룸 타입 가중치 (층별 동적 계산) ───────────────────────────
+    // 2026-05-29 정책: 엘리트는 후반에 몰리고, 일반 전투는 초반에 몰리도록 layer 기반 가중치.
+    // Shop/Event 는 20/10 고정, Combat + Elite = 70 을 layer 따라 분배.
+    //
+    // | layer | 층 | Combat | Elite | Shop | Event |
+    // |   1   | 2 |   70   |   0   |  20  |  10   |
+    // |   2   | 3 |   65   |   5   |  20  |  10   |
+    // |   3   | 4 |   55   |  15   |  20  |  10   |
+    // |   4   | 5 |   45   |  25   |  20  |  10   |
+    // |   5   | 6 |   40   |  30   |  20  |  10   |
+    // |   6   | 7 |   35   |  35   |  20  |  10   |
+    // |   7   | 8 |   30   |  40   |  20  |  10   |
+    [Header("룸 타입 확률 — 층별 동적 (기획 §11 + 2026-05-29 분포 조정)")]
+    [Tooltip("Shop 가중치 (전 층 동일)")]
+    public int shopWeight = 20;
 
-    [Tooltip("엘리트 전투 (이벤트) — MVP 백로그")]
-    public int eliteWeight = 10;
-
-    [Tooltip("용병소 (이벤트) — 테스트용으로 일시 상향 (10→25)")]
-    public int shopWeight = 25;
-
-    [Tooltip("교회 (이벤트) — MVP 백로그")]
+    [Tooltip("Event(교회) 가중치 (전 층 동일)")]
     public int eventWeight = 10;
 
     [Header("연속 방지")]
@@ -69,6 +71,13 @@ public class MapGenerator : MonoBehaviour
     public MapData GenerateMap()
     {
         rng = fixedSeed == 0 ? new System.Random() : new System.Random(fixedSeed);
+
+        // 튜토리얼 모드 — 기획 §15 + 2026-05-29 결정: 5노드 일렬 (Combat→Shop→Event→Elite→Boss)
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
+        {
+            return GenerateTutorialMap();
+        }
+
         mapData = new MapData
         {
             totalLayers = totalLayers,
@@ -86,6 +95,45 @@ public class MapGenerator : MonoBehaviour
             layers[0][0].isAccessible = true;
 
         Debug.Log($"[MapGenerator] 맵 생성 완료 — {totalLayers}층 / 총 노드 {mapData.nodes.Count}개");
+        return mapData;
+    }
+
+    /// <summary>
+    /// 튜토리얼 전용 맵 — 5개 노드 일렬 (분기 없음). 사용자가 게임 전체 흐름 체험.
+    /// 1층: Combat (고블린) → 2층: Shop (용병소) → 3층: Event (교회) → 4층: Elite (약탈자) → 5층: Boss (즉사 시나리오)
+    /// </summary>
+    private MapData GenerateTutorialMap()
+    {
+        const int tutorialLayers = 5;
+        var sequence = new[] { RoomType.Combat, RoomType.Shop, RoomType.Event, RoomType.Elite, RoomType.Boss };
+
+        mapData = new MapData
+        {
+            totalLayers = tutorialLayers,
+            maxNodesPerLayer = 1,
+        };
+
+        int nodeId = 0;
+        var nodes = new System.Collections.Generic.List<RoomNode>();
+        for (int layer = 0; layer < tutorialLayers; layer++)
+        {
+            var node = new RoomNode
+            {
+                id          = nodeId++,
+                layer       = layer,
+                nextNodeIds = new System.Collections.Generic.List<int>(),
+                roomType    = sequence[layer],
+                position    = new Vector2(0.5f, (float)layer / (tutorialLayers - 1)),
+            };
+            nodes.Add(node);
+            mapData.nodes.Add(node);
+        }
+        // 일렬 연결
+        for (int i = 0; i < nodes.Count - 1; i++)
+            nodes[i].nextNodeIds.Add(nodes[i + 1].id);
+
+        nodes[0].isAccessible = true;
+        Debug.Log("[MapGenerator] 튜토리얼 맵 생성 — 5노드 일렬 (Combat→Shop→Event→Elite→Boss)");
         return mapData;
     }
 
@@ -160,7 +208,7 @@ public class MapGenerator : MonoBehaviour
         // 2) 가중치 랜덤 + 연속 방지 재롤
         for (int attempt = 0; attempt < maxRerollAttempts; attempt++)
         {
-            RoomType picked = WeightedRollRoomType();
+            RoomType picked = WeightedRollRoomType(layer);
 
             // 연속 같은 타입 maxConsecutiveSameType 회 도달 시 재롤
             bool wouldExceedConsecutive =
@@ -172,11 +220,30 @@ public class MapGenerator : MonoBehaviour
         }
 
         // 재롤 다 실패하면 일단 반환 (안전장치)
-        return WeightedRollRoomType();
+        return WeightedRollRoomType(layer);
     }
 
-    private RoomType WeightedRollRoomType()
+    /// <summary>layer 1~7 (2~8층) 의 Combat/Elite 가중치를 표 기반으로 반환. 초반은 Combat, 후반은 Elite 우세.</summary>
+    private (int combat, int elite) GetCombatEliteWeights(int layer)
     {
+        // 표 lookup — layer=1 → Combat 70/Elite 0, layer=7 → Combat 30/Elite 40
+        switch (layer)
+        {
+            case 1: return (70, 0);
+            case 2: return (65, 5);
+            case 3: return (55, 15);
+            case 4: return (45, 25);
+            case 5: return (40, 30);
+            case 6: return (35, 35);
+            case 7: return (30, 40);
+            default: return (55, 15); // 안전 폴백 (호출되지 않아야 함 — 1·9·10층은 ResolveRoomType 앞단에서 고정)
+        }
+    }
+
+    private RoomType WeightedRollRoomType(int layer)
+    {
+        var (combatWeight, eliteWeight) = GetCombatEliteWeights(layer);
+
         int total = combatWeight + eliteWeight + shopWeight + eventWeight;
         if (total <= 0) return RoomType.Combat; // 가중치 다 0이면 안전 폴백
 

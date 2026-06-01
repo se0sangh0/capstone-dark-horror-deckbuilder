@@ -26,6 +26,7 @@
 //   → 둘 다 기존 attackPower 단순 공격으로 동작 → 적이 절대 멈추지 않음
 // ============================================================
 
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -35,19 +36,19 @@ public partial class BattleManager
     // ============================================================
     // 적 1명의 턴 행동 — Combat.cs 의 적 행동 블록에서 호출
     // ============================================================
-    private void ExecuteEnemyTurn(EnemyData enemy)
+    private IEnumerator ExecuteEnemyTurn(EnemyData enemy)
     {
-        if (enemy == null || enemy.isDead) return;
+        if (enemy == null || enemy.isDead) yield break;
 
         // 까마귀 같은 패시브 소환체는 행동 안 함 (기획 §11 §3)
         if (enemy.isPassive)
         {
             Debug.Log($"[적 행동/스킵] {enemy.displayName} — passive 소환체");
-            return;
+            yield break;
         }
 
         // 살아있는 아군이 0명이면 행동 자체가 의미 없음
-        if (allies.All(a => a.isDead)) return;
+        if (allies.All(a => a.isDead)) yield break;
 
         AudioManager.Instance?.PlaySfxById(SfxId.EnemySkill);
 
@@ -62,39 +63,49 @@ public partial class BattleManager
         }
 
         // 모션 트리거 — View 가 effectType 기반 카테고리 결정 (적은 jobClass 없음 → Damage 면 Melee)
-        // Fallback (skill null) 도 attackPower 직타이므로 "Damage" 로 발행.
-        enemy.OnSkillCast?.Invoke(skill != null ? skill.effectType : "Damage");
+        // Fallback (skill null) 도 attackPower 직타이므로 "Damage" 로 발행. 적은 보통 skillIndex 0 (Attack2 미사용).
+        int enemySkillIndex = (skill != null && enemy.skillIds != null) ? System.Array.IndexOf(enemy.skillIds, skill.id) : 0;
+        if (enemySkillIndex < 0) enemySkillIndex = 0;
+        // 적 원거리 스킬(독침/도끼던지기/까마귀 부름/수확/순간이동) — JSON 의 isRanged 플래그가 dash 시퀀스 차단.
+        bool enemySkillIsRanged = skill != null && skill.isRanged;
+        enemy.OnSkillCast?.Invoke(skill != null ? skill.effectType : "Damage", enemySkillIndex, enemySkillIsRanged);
 
         if (skill == null)
         {
             // ── Fallback: 스킬 미정의 / 스킬 DB 없음 → 기존 단순 공격 ──
             var firstAlive = allies.FirstOrDefault(a => !a.isDead);
-            if (firstAlive == null) return;
+            if (firstAlive == null) yield break;
 
+            yield return new WaitForSeconds(impactDelay);
             ApplyDamageToAlly(firstAlive, enemy.attackPower);
             GameLog.Event($"{enemy.displayName}이(가) {firstAlive.displayName ?? firstAlive.positionStack.ToString()}을(를) 공격!", LogCategory.Skill);
             Debug.Log($"[적 행동/Fallback] {enemy.displayName} → {firstAlive.positionStack} 에게 {enemy.attackPower} 데미지 (스킬 미정의)");
-            return;
+            yield break;
         }
 
-        // ── 2) effectType 별 분기 ──────────────────────────────
+        // ── 2) effectType 별 분기 — Summon/Teleport 는 즉시 효과 (모션 없음, impactDelay 불필요)
         if (skill.effectType == "Summon")
         {
             ExecuteSummonSkill(enemy, skill);
-            return;
+            yield break;
         }
         if (skill.effectType == "Teleport")
         {
             ExecuteTeleportSkill(enemy, skill);
-            return;
+            yield break;
+        }
+        if (skill.effectType == "Harvest")
+        {
+            yield return StartCoroutine(ExecuteHarvestSkill(enemy, skill));
+            yield break;
         }
 
         // ── 3) 타겟 결정 + 데미지 적용 ──────────────────────────
-        var targets = EnemySkillExecutor.ResolveTargets(skill, allies);
+        var targets = EnemySkillExecutor.ResolveTargets(skill, allies, enemy);
         if (targets.Count == 0)
         {
             Debug.Log($"[적 스킬] {enemy.displayName} → {skill.displayName} 타겟 없음 (전 아군 사망)");
-            return;
+            yield break;
         }
 
         string targetNames = string.Join(", ",
@@ -108,8 +119,23 @@ public partial class BattleManager
         Debug.Log($"│  설명: {skill.description}");
         Debug.Log($"└─────────────────────────────────────────");
 
+        // 모션 (forward dash + hold) 끝 후 데미지 적용
+        yield return new WaitForSeconds(impactDelay);
         foreach (var t in targets)
+        {
             ApplyDamageToAlly(t, skill.power);
+
+            // DoT 부착 — 기획 §11 §독침. dotTurns > 0 이면 즉시 데미지에 더해 다음 N턴 dotPower 누적.
+            // 사망한 대상은 제외 (기획 §02 §2 사망 시 효과 대상 제외).
+            if (skill.dotTurns > 0 && skill.dotPower > 0 && !t.isDead)
+            {
+                t.dotTurnsLeft = skill.dotTurns;        // 덮어쓰기 (스택 없음)
+                t.dotPerTurn   = skill.dotPower;
+                t.OnDotChanged?.Invoke(); // UI 초록 tint 토글
+                GameLog.Event($"{t.displayName ?? t.positionStack.ToString()}이(가) 중독되었다! ({skill.dotPower}×{skill.dotTurns}턴)", LogCategory.Status);
+                Debug.Log($"[DoT 부착] {t.displayName} ← {skill.dotPower}/턴 × {skill.dotTurns}턴");
+            }
+        }
     }
 
     // ============================================================
@@ -150,7 +176,7 @@ public partial class BattleManager
             // 소환된 턴 끝 ResultProcessing 에서 -1 되어도 정확히 summonLifeTurns 후 만료되도록 +1 보정
             summoned.currentLifeTurns = summoned.summonLifeTurns + 1;
             enemies.Add(summoned);
-            RaiseEnemySpawned(summoned); // 시각 카드/이펙트/사운드 구독자에게 알림
+            RaiseEnemySpawned(summoned); // 시각 카드/이펙트/사운드 구독자에게 알림 (BattleCardView 가 이 시점에 BindEnemy 호출, 초기 표시는 BindEnemy 내부에서 처리)
             GameLog.Event($"{summoned.displayName}이(가) 등장!", LogCategory.Skill);
             Debug.Log($"  └ [소환됨] {summoned.displayName} (수명 {summoned.summonLifeTurns}턴 / {summoned.hitCountToDie} hit 처치)");
         }
@@ -253,6 +279,7 @@ public partial class BattleManager
         foreach (var summon in summonsAlive)
         {
             summon.currentLifeTurns--;
+            summon.OnLifeTurnsChanged?.Invoke(summon.currentLifeTurns); // 카운트다운 UI 갱신
             if (summon.currentLifeTurns > 0)
             {
                 Debug.Log($"[소환체] {summon.displayName} 남은 수명 {summon.currentLifeTurns}턴");
@@ -301,6 +328,23 @@ public partial class BattleManager
                 return EnemySkillDatabase.Instance.GetSkill(AXE_THROW);
         }
 
+        // [L] 보스 — HP ≤ 50% 시 수확 강제 발동 (1회 한정).
+        //     기획 §11 §3 거두는 자 §행동 패턴 — "[HP ≤ 50% && 수확 미사용] → 수확 강제 발동 → [기본 상태] 복귀"
+        //     수확 발동 후 까마귀/순간이동 흐름 계속.
+        if (enemy.tier == EnemyTier.Boss)
+        {
+            const string HARVEST = "enemy_skill_reaper_harvest";
+            if (enemy.HpRatio <= 0.50f && !enemy.usedOnceSkills.Contains(HARVEST))
+            {
+                var harvest = EnemySkillDatabase.Instance.GetSkill(HARVEST);
+                if (harvest != null)
+                {
+                    Debug.Log($"[적 스킬/강제] {enemy.displayName} → 수확 (HP {enemy.CurrentHp}/{enemy.maxHp} ≤ 50% — 확정 발동)");
+                    return harvest;
+                }
+            }
+        }
+
         // [J] 보스 — 필드에 까마귀가 한 마리도 없으면 까마귀 부름 강제 발동.
         //     사용자 기획: "필드에 까마귀가 없을 시 소환 (룰렛 무관, 확정 발동)"
         //     단 cooldown 잔여가 있으면 강제 안 함 (cooldown 우선).
@@ -338,6 +382,51 @@ public partial class BattleManager
         }
 
         return null;
+    }
+
+    // ============================================================
+    // 수확 스킬 — effectType="Harvest"
+    //   기획 §11 §3 거두는 자 4번 수확:
+    //     · 각 살아있는 아군에게 skill.power 데미지 (실드 우선 흡수)
+    //     · 실드를 초과해 HP 에 실제 들어간 데미지 총합만큼 보스 HP 회복 (드레인)
+    //     · 예: 실드 20 인 아군 (50 데미지) → 실드 20 흡수, HP 30 차감 → 보스 +30 회복
+    //   TryGetForcedSkill [L] 이 HP ≤ 50% 시 1회 강제 발동.
+    // ============================================================
+    private IEnumerator ExecuteHarvestSkill(EnemyData caster, EnemySkillData skill)
+    {
+        GameLog.Event($"{caster.displayName}이(가) [{skill.displayName}]을(를) 사용했다!", LogCategory.Skill);
+        Debug.Log($"┌─────────────────────────────────────────");
+        Debug.Log($"│ [적 스킬·수확] {caster.displayName} → {skill.displayName} (각 아군 {skill.power} 데미지 + 드레인)");
+        Debug.Log($"└─────────────────────────────────────────");
+
+        // 모션 (forward dash + hold) 끝 후 데미지 + 드레인 적용
+        yield return new WaitForSeconds(impactDelay);
+
+        int totalDrain = 0;
+        foreach (var ally in allies)
+        {
+            if (ally == null || ally.isDead) continue;
+            // 실드 흡수분은 드레인에서 제외 — 기획 명시. 오버킬 시 실제 차감 HP 까지만 흡수 (HP 5 잔여에 50 데미지면 5 흡수).
+            int absorbed     = ally.shield > 0 ? Mathf.Min(ally.shield, skill.power) : 0;
+            int hpLoss       = skill.power - absorbed;
+            int actualHpLoss = Mathf.Min(hpLoss, ally.CurrentHp);
+            totalDrain      += actualHpLoss;
+            ApplyDamageToAlly(ally, skill.power);
+        }
+
+        if (totalDrain > 0)
+        {
+            int beforeHp = caster.CurrentHp;
+            int maxHp    = caster.maxHp > 0 ? caster.maxHp : 1;
+            caster.CurrentHp = Mathf.Min(maxHp, caster.CurrentHp + totalDrain);
+            int healed = caster.CurrentHp - beforeHp;
+            GameLog.Event($"{caster.displayName}이(가) {healed}의 HP를 흡수!", LogCategory.Heal);
+            Debug.Log($"  └ [수확 드레인] 실드 초과 데미지 총 {totalDrain} → {caster.displayName} HP +{healed} ({beforeHp} → {caster.CurrentHp}/{maxHp})");
+        }
+        else
+        {
+            Debug.Log($"  └ [수확 드레인] 실드가 모두 흡수 — 보스 회복 없음");
+        }
     }
 
     // ============================================================

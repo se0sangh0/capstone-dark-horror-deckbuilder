@@ -47,6 +47,7 @@ public class CardSlotView : MonoBehaviour
     [SerializeField] private TMP_Text    skill2NameText;
     [SerializeField] private TMP_Text    skill2CostText;
 
+
     private FellowData  _fellow;
     private ShieldBarUI _shieldUI;
     private Image       _hpFillImage; // hpSlider.fillRect 의 Image (색상 동적 변경용)
@@ -62,8 +63,18 @@ public class CardSlotView : MonoBehaviour
         // 정적 정보
         if (nameText != null)      nameText.text      = !string.IsNullOrEmpty(_fellow.displayName) ? _fellow.displayName : _fellow.id;
         if (iconImage != null)     iconImage.sprite   = _fellow.portrait != null ? _fellow.portrait : _fellow.fellowSprite;
-        // 임시: 역할 1글자 (탱/딜/힐). 추후 아이콘 이미지로 교체 예정.
-        if (jobTagText != null)    jobTagText.text    = RoleShortLabel(_fellow.role);
+        // Job 자리에 활성 메타 패시브 표시 (기획 §16). 미배정/미해금이면 "패시브 잠금".
+        // 긴 패시브명이 칸을 넘치지 않도록 폰트 자동 축소 (max=기본 20, min=11).
+        if (jobTagText != null)
+        {
+            string pn = MetaPassiveManager.NameOf(_fellow.activePassiveId);
+            jobTagText.text = string.IsNullOrEmpty(pn) ? "패시브 잠금" : pn;
+            jobTagText.enableAutoSizing = true;
+            jobTagText.fontSizeMax = 20f;
+            jobTagText.fontSizeMin = 11f;
+            jobTagText.enableWordWrapping = false;
+            jobTagText.overflowMode = TMPro.TextOverflowModes.Ellipsis;
+        }
         if (affinityTagText != null) affinityTagText.text = _fellow.AffinityLabel;
         if (affinityTagBg != null) affinityTagBg.color   = _fellow.AffinityColor;
 
@@ -146,14 +157,6 @@ public class CardSlotView : MonoBehaviour
             : ratio > 0.25f ? new Color(0.95f, 0.80f, 0.20f)   // 노랑
             :                 new Color(0.85f, 0.25f, 0.25f);  // 빨강
     }
-
-    private static string RoleShortLabel(CompanionRole role) => role switch
-    {
-        CompanionRole.Dealer  => "딜",
-        CompanionRole.Tanker  => "탱",
-        CompanionRole.Support => "힐",
-        _                     => "?",
-    };
 
     private static void SetSkill(TMP_Text nameLabel, TMP_Text costLabel, SkillData skill)
     {

@@ -69,8 +69,27 @@ public class SkillData
     /// </summary>
     public string effectType;
 
-    /// <summary>기본 효과 수치. 예: 데미지 15, 힐 10</summary>
+    /// <summary>기본 효과 수치. 예: 데미지 15, 힐 10. Mixed 타입에서는 주 효과(데미지)의 수치.</summary>
     public int power;
+
+    /// <summary>
+    /// 원거리 스킬 여부 (모션 포지션). true=Ranged(제자리 발사), false=Melee(전진 타격).
+    /// Damage 계열에만 의미 있음. Heal/Shield/Mixed 는 effectType 기준 Stationary 처리되므로 무관.
+    /// MotionCategoryResolver 가 이 값을 최우선으로 사용. 미지정(JSON 없음) 시 false.
+    /// </summary>
+    public bool isRanged;
+
+    /// <summary>
+    /// 보조 실드 수치 — effectType="MixedDamageShield" 일 때만 사용 (전장의 방패).
+    /// AllEnemies 데미지 power 적용 후, AllAllies 에 이 만큼 실드 부여.
+    /// </summary>
+    public int shieldPower;
+
+    /// <summary>
+    /// 도발 지속 턴 — effectType="MixedDamageTaunt" 일 때만 사용 (워크라이).
+    /// 적이 이 만큼 턴 동안 시전자를 우선 타격. SingleEnemy 류 타겟팅에만 영향, AllAllies 류는 그대로.
+    /// </summary>
+    public int tauntTurns;
 
     // ----------------------------------------------------------
     // [AI 힌트]

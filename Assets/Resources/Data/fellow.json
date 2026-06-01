@@ -6,13 +6,15 @@
       "displayName": "캐스터",
       "role": "Dealer",
       "gender": "Female",
-      "spritePath": "Characters/test_allies_dealer",
       "maxHp": 100,
       "stressResist": 0,
       "recruitCost": 30,
       "starLevel": 1,
-      "skillIds": ["skill_magic_missile", "skill_fireball"],
-      "animatorPath": "Animators/test_common"
+      "skillIds": ["skill_magic_missile", "skill_fireball", "skill_magic_shield", "skill_ice_storm"],
+      "animatorPath": "Animators/Fellows/Caster/Caster",
+      "idleAnim": "Idle",
+      "attack1Anim": "Attack",
+      "attack2Anim": "Attack2"
     },
     {
       "id": "ally_offender_01",
@@ -20,13 +22,15 @@
       "displayName": "오펜더",
       "role": "Dealer",
       "gender": "Male",
-      "spritePath": "Characters/test_allies_dealer",
       "maxHp": 150,
       "stressResist": 5,
       "recruitCost": 30,
       "starLevel": 1,
-      "skillIds": ["skill_draw", "skill_flash"],
-      "animatorPath": "Animators/test_common"
+      "skillIds": ["skill_draw", "skill_sky_slash", "skill_moonlight_slash", "skill_flash"],
+      "animatorPath": "Animators/Fellows/Offender/Offender",
+      "idleAnim": "Idle",
+      "attack1Anim": "Attack",
+      "attack2Anim": ""
     },
     {
       "id": "ally_defender_01",
@@ -34,13 +38,15 @@
       "displayName": "디펜더",
       "role": "Tanker",
       "gender": "Male",
-      "spritePath": "Characters/test_allies_tank",
       "maxHp": 200,
       "stressResist": 10,
       "recruitCost": 40,
       "starLevel": 1,
-      "skillIds": ["skill_guard", "skill_battle_stance"],
-      "animatorPath": "Animators/test_common"
+      "skillIds": ["skill_guard", "skill_war_shield", "skill_shield_bash", "skill_battle_stance"],
+      "animatorPath": "Animators/Fellows/Defender/Defender",
+      "idleAnim": "Idle",
+      "attack1Anim": "Attack",
+      "attack2Anim": ""
     },
     {
       "id": "ally_attacker_01",
@@ -48,13 +54,15 @@
       "displayName": "어택커",
       "role": "Tanker",
       "gender": "Female",
-      "spritePath": "Characters/test_allies_tank",
       "maxHp": 150,
       "stressResist": 10,
       "recruitCost": 40,
       "starLevel": 1,
-      "skillIds": ["skill_reckless", "skill_indomitable"],
-      "animatorPath": "Animators/test_common"
+      "skillIds": ["skill_reckless", "skill_indomitable", "skill_war_cry", "skill_counter_flow"],
+      "animatorPath": "Animators/Fellows/Attacker/Attacker",
+      "idleAnim": "Idle",
+      "attack1Anim": "Attack",
+      "attack2Anim": "Attack2"
     },
     {
       "id": "ally_priest_01",
@@ -62,13 +70,15 @@
       "displayName": "프리스트",
       "role": "Support",
       "gender": "Female",
-      "spritePath": "Characters/test_allies_support",
       "maxHp": 100,
       "stressResist": 0,
       "recruitCost": 35,
       "starLevel": 1,
-      "skillIds": ["skill_starlight", "skill_prayer"],
-      "animatorPath": "Animators/test_common"
+      "skillIds": ["skill_consecration", "skill_judgment", "skill_starlight", "skill_prayer"],
+      "animatorPath": "Animators/Fellows/Priest/Priest",
+      "idleAnim": "Idle",
+      "attack1Anim": "Attack",
+      "attack2Anim": ""
     }
   ]
 }

@@ -56,7 +56,22 @@ public partial class BattleManager
     {
     	if (isAllyTurn)
         {
-            foreach (var ally in allies.Where(a => !a.isDead))
+            // 행동 순서 결정 — 미행동자(전 턴 _carryoverOrderList) 우선 + 나머지 allies 진형 순서.
+            // ★ allies 리스트 자체는 절대 변경 안 함 (적 FrontFirst 타겟 = 진형 첫 슬롯 유지).
+            var actionOrder = new List<FellowData>();
+            foreach (var p in _carryoverOrderList)
+            {
+                if (p != null && !p.isDead && allies.Contains(p) && !actionOrder.Contains(p))
+                    actionOrder.Add(p);
+            }
+            foreach (var a in allies)
+            {
+                if (a != null && !a.isDead && !actionOrder.Contains(a))
+                    actionOrder.Add(a);
+            }
+            _carryoverOrderList.Clear(); // 새 턴 미행동자 받을 준비 — 아래 미행동 처리에서 다시 채움
+
+            foreach (var ally in actionOrder)
             {
                 // 공포 경직: 이번 턴 행동 불가
                 if (ally.isFrozen)
@@ -102,7 +117,7 @@ public partial class BattleManager
                     int afterStack  = currentStack - effectiveCost;
                     GameLog.Event($"{allyName}이(가) [{bestSkill.displayName}]을(를) 사용했다!", LogCategory.Skill);
                     Debug.Log($"[아군 행동] {allyName} ({allyRole}) → {bestSkill.displayName}  (스택 {effectiveCost} 사용 / {currentStack}→{afterStack}{(panicCostBonus > 0 ? $", 과호흡 +{panicCostBonus}" : "")})");
-                    UseSkill(ally, bestSkill);
+                    yield return StartCoroutine(UseSkill(ally, bestSkill));
                     usedAny = true;
                     yield return new WaitForSeconds(actionDelayTime);
                 }
@@ -135,10 +150,14 @@ public partial class BattleManager
             foreach (var enemy in liveEnemies)
             {
                 if (allies.All(a => a.isDead)) break;
-                ExecuteEnemyTurn(enemy);
+                yield return StartCoroutine(ExecuteEnemyTurn(enemy));
                 yield return new WaitForSeconds(actionDelayTime);
             }
         }
+
+        // 턴 끝 — 진행 중인 근접 공격 시퀀스(dash→모션→복귀)가 모두 완료될 때까지 대기.
+        // 다음 턴 (적 또는 아군) 의 모션이 마지막 카드 모션과 겹치지 않도록.
+        yield return new WaitUntil(() => !BattleCardSprites.AnyAttacking());
     }
 
     // ===========================================================
@@ -151,8 +170,60 @@ public partial class BattleManager
     /// 실드가 있으면 먼저 소모하고, 남은 데미지를 HP 에 적용한다.
     /// 피격 시 스트레스가 증가하며 100 도달 시 패닉이 발동된다.
     /// </summary>
-    private void ApplyDamageToAlly(FellowData target, int damage)
+    private void ApplyDamageToAlly(FellowData target, int damage, bool allowBondRedirect = true)
     {
+        // 튜토리얼 보스전 — 보스는 절대 못 죽이고 첫 행동에 아군 전멸 시나리오.
+        // 기획: 보스 압도감 체험 + 자연스러운 튜토리얼 종료.
+        bool isTutorialBossRoom = TutorialManager.Instance != null
+                                  && TutorialManager.Instance.IsTutorial
+                                  && NodeSystem.Current != null
+                                  && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
+        if (isTutorialBossRoom)
+        {
+            damage = target.maxHp > 0 ? target.maxHp : 9999; // 즉사
+        }
+
+        // ── 딜러 중증 디버프 (기획 §04) — 받는 피해 +30% ──
+        if (target.role == CompanionRole.Dealer && target.hasSevereDebuff)
+        {
+            int boosted = Mathf.RoundToInt(damage * 1.30f);
+            Debug.Log($"[중증디버프·딜러] {target.positionStack} 받는 피해 {damage} → {boosted} (+30%)");
+            damage = boosted;
+        }
+
+        // ── 불굴의 벽 (디펜더 본인, 기획 §16) — 받는 피해 -20% ──
+        if (target.activePassiveId == MetaPassiveManager.DefenderWall)
+        {
+            int r = Mathf.RoundToInt(damage * (1f - MetaPassiveManager.DefenderWallReduce));
+            Debug.Log($"[불굴의벽] {target.positionStack} 받는 피해 {damage}→{r}");
+            damage = r;
+        }
+
+        // ── 투혼 (어택커 생존 시, 기획 §16) — 모든 아군 받는 피해 -10%. 원 피해에만 1회 적용(수호 결속 분담분 재적용 방지) ──
+        if (allowBondRedirect && allies.Any(a => !a.isDead && a.activePassiveId == MetaPassiveManager.AttackerSpirit))
+        {
+            int r = Mathf.RoundToInt(damage * (1f - MetaPassiveManager.AttackerSpiritReduce));
+            if (r != damage) Debug.Log($"[투혼] {target.positionStack} 받는 피해 {damage}→{r}");
+            damage = r;
+        }
+
+        // ── 수호 결속 (디펜더, 기획 §16) — 다른 아군 피해의 25%를 실드 보유 디펜더가 분담 ──
+        if (allowBondRedirect)
+        {
+            var defender = allies.FirstOrDefault(a => a != target && !a.isDead && a.activePassiveId == MetaPassiveManager.DefenderBond && a.shield > 0);
+            if (defender != null)
+            {
+                int share = Mathf.RoundToInt(damage * MetaPassiveManager.DefenderBondRatio);
+                if (share > 0)
+                {
+                    damage -= share;
+                    GameLog.Event($"수호 결속 — {defender.displayName ?? defender.positionStack.ToString()}가 피해 {share} 분담.", LogCategory.Shield);
+                    Debug.Log($"[수호결속] {defender.positionStack}가 {target.positionStack} 피해 {share} 분담");
+                    ApplyDamageToAlly(defender, share, false); // 분담분은 재분담 안 함
+                }
+            }
+        }
+
         AudioManager.Instance?.PlaySfxById(SfxId.HurtAlly);
         // 피격 알림 — 쉴드 흡수량/HP 감소량 분리 발행. UI 가 노란(흡수)/빨강(HP) popup 각각 표시.
         if (damage > 0)
@@ -190,10 +261,13 @@ public partial class BattleManager
         // ── 스트레스 증가 (기획서 §스트레스: damage×0.25 - stressResist, 최소 0) ──
         int stressGain = Mathf.Max(0, Mathf.RoundToInt(damage * 0.25f) - target.stressResist);
 
-        // TODO[M·압박 디버프]: 기획 §04 §51~99 압박 — 피격 시 스트레스 추가 +10%
-        //                     이미 51~99 구간일 때만 적용. 수치 (1.10) 확정 시 활성화.
-        // if (target.currentStress >= 51 && target.currentStress <= 99)
-        //     stressGain = Mathf.RoundToInt(stressGain * 1.10f);
+        // 기획 §04 §51~99 압박 — 이미 압박 구간이면 받는 스트레스 +N%(기본 +10%). 스트레스 악화 가속.
+        if (target.currentStress >= 51 && target.currentStress <= 99 && stressGain > 0)
+        {
+            int before = stressGain;
+            stressGain = Mathf.RoundToInt(stressGain * (1f + pressureStressGainPercent / 100f));
+            Debug.Log($"[압박 디버프] {targetName} 스트레스 {target.currentStress}(압박) → 피격 스트레스 {before}→{stressGain} (+{pressureStressGainPercent}%)");
+        }
 
         target.currentStress = Mathf.Min(100, target.currentStress + stressGain);
         GameLog.Event($"{targetName}의 스트레스 +{stressGain} ({target.currentStress}/100)", LogCategory.Status);
@@ -227,6 +301,21 @@ public partial class BattleManager
         if (ally.currentStress < 100) return;
 
         ally.currentStress = 50;
+
+        // ── 역할별 중증 디버프 (기획 §04) — 첫 패닉 시 부착, 전투 종료까지 유지 ──
+        if (!ally.hasSevereDebuff)
+        {
+            ally.hasSevereDebuff = true;
+            string dbuff = ally.role switch
+            {
+                CompanionRole.Dealer => "받는 피해 +30%",
+                CompanionRole.Tanker => "부여 실드 -50%",
+                CompanionRole.Support => "광역 회복 → 단일 회복",
+                _ => "없음"
+            };
+            GameLog.Event($"{ally.displayName ?? ally.positionStack.ToString()} 중증 디버프 — {dbuff} (전투 종료까지).", LogCategory.Status);
+            Debug.Log($"[중증디버프] {ally.positionStack} ({ally.role}) — {dbuff}");
+        }
 
         if (Random.value > 0.5f)
         {
@@ -380,8 +469,8 @@ public partial class BattleManager
     // 스킬 실행
     // ===========================================================
 
-    /// <summary>동료가 스킬을 사용한다. SkillExecutor가 skill.id로 구현체를 찾아 실행한다.</summary>
-    private void UseSkill(FellowData user, SkillData skill)
+    /// <summary>동료가 스킬을 사용한다. OnSkillCast 모션 발동 후 impactDelay 대기 → 데미지/힐/실드 적용.</summary>
+    private IEnumerator UseSkill(FellowData user, SkillData skill)
     {
         // 기획 백로그 §5 성급 — 데미지 배율 1.25^(star-1) 적용 (배율은 FellowData 가 보유)
         int scaledPower = Mathf.RoundToInt(skill.power * user.skillPowerMultiplier);
@@ -408,28 +497,102 @@ public partial class BattleManager
             Debug.Log($"│  상태이상: {skill.statusEffect}  (수치: {skill.statusValue})");
         Debug.Log($"└─────────────────────────────────────────");
 
-        // 모션 트리거 — View 가 effectType + jobClass 보고 Ranged/Melee/Stationary 결정
-        user.OnSkillCast?.Invoke(skill.effectType);
+        // 모션 트리거 — View 가 effectType + jobClass 보고 Ranged/Melee/Stationary 결정.
+        // skillIndex 는 skillIds 배열 내 위치 (0=1번 스킬, 1=2번 스킬). View 가 Attack/Attack2 분기에 사용.
+        int skillIndex = user.skillIds != null ? System.Array.IndexOf(user.skillIds, skill.id) : 0;
+        if (skillIndex < 0) skillIndex = 0;
+        // 동료 스킬은 isRanged=false (jobClass="캐스터" 면 Resolver 가 자동으로 Ranged 처리)
+        user.OnSkillCast?.Invoke(skill.effectType, skillIndex, skill.isRanged);
+
+        // 모션 (forward dash + 공격 hold) 이 끝나는 시점까지 대기 — 그 후 데미지/힐/실드 적용.
+        // back dash 는 적용 후 진행 (스킬 결과 즉시 보임).
+        yield return new WaitForSeconds(impactDelay);
 
         switch (skill.effectType)
         {
-            case "Damage": ApplySkillDamage(skill, scaledPower);        break;
+            case "Damage": ApplySkillDamage(user, skill, scaledPower);  break;
             case "Heal":   ApplySkillHeal(user, skill, scaledPower);    break;
             case "Shield": ApplySkillShield(user, skill, scaledPower);  break;
             case "Buff":   Debug.Log($"[UseSkill] Buff — 추후 구현 예정 (상태이상: {skill.statusEffect})");   break;
             case "Debuff": Debug.Log($"[UseSkill] Debuff — 추후 구현 예정 (상태이상: {skill.statusEffect})"); break;
+
+            // 혼합 스킬 — Damage + 보조 효과 동시 적용 (2026-05-29 추가)
+            case "MixedDamageShield":
+                // 전장의 방패 — AllEnemies 분산 데미지 + AllAllies 실드 부여
+                ApplySkillDamage(user, skill, scaledPower);
+                ApplyMixedShield(user, skill);
+                break;
+            case "MixedDamageTaunt":
+                // 워크라이 — AllEnemies 분산 데미지 + 시전자에게 도발
+                ApplySkillDamage(user, skill, scaledPower);
+                ApplyTaunt(user, skill);
+                break;
+
             default:       Debug.LogWarning($"[UseSkill] 알 수 없는 effectType: '{skill.effectType}'");       break;
         }
+    }
+
+    /// <summary>
+    /// MixedDamageShield 의 보조 실드 — AllAllies 에 skill.shieldPower 실드 부여.
+    /// 기획 §10 §디펜더 전장의 방패: "AllEnemies Damage + AllAllies Shield".
+    /// </summary>
+    private void ApplyMixedShield(FellowData user, SkillData skill)
+    {
+        if (skill.shieldPower <= 0) return;
+
+        int shieldAmt = skill.shieldPower;
+        // ── 견고한 방벽 (디펜더 패시브, 기획 §16) — 부여 실드 +30% ──
+        if (user.activePassiveId == MetaPassiveManager.DefenderBulwark)
+            shieldAmt = Mathf.RoundToInt(shieldAmt * (1f + MetaPassiveManager.DefenderBulwarkBonus));
+        // ── 탱커 중증 디버프 (기획 §04) — 부여 실드 -50% ──
+        if (user.role == CompanionRole.Tanker && user.hasSevereDebuff)
+        {
+            int reduced = Mathf.RoundToInt(shieldAmt * 0.5f);
+            Debug.Log($"[중증디버프·탱커] {user.positionStack} 전장의 방패 실드 {shieldAmt} → {reduced} (-50%)");
+            shieldAmt = reduced;
+        }
+
+        var live = allies.Where(a => !a.isDead).ToList();
+        foreach (var ally in live)
+        {
+            ally.AddShield(shieldAmt);
+            GameLog.Event($"{ally.displayName ?? ally.positionStack.ToString()}에게 {shieldAmt} 실드.", LogCategory.Shield);
+            Debug.Log($"[ApplyMixedShield] {ally.displayName} +{shieldAmt} 실드 (현재: {ally.shield})");
+        }
+    }
+
+    /// <summary>
+    /// MixedDamageTaunt 의 보조 도발 — 살아있는 적 전체에 시전자 우선 타격 N턴 적용.
+    /// 적의 SingleEnemy/FrontFirst/BackLast 류 타겟팅 시 우선 시전자에게 향함.
+    /// AllAllies 류는 영향 없음 (도발 불가). 기획 §10 §어택커 워크라이.
+    /// </summary>
+    private void ApplyTaunt(FellowData user, SkillData skill)
+    {
+        int turns = skill.tauntTurns > 0 ? skill.tauntTurns : 1;
+        var live = enemies.Where(e => e != null && !e.isDead).ToList();
+        int applied = 0;
+        foreach (var e in live)
+        {
+            e.tauntTurnsLeft = turns;
+            e.taunter = user;
+            applied++;
+        }
+        GameLog.Event($"{user.displayName}이(가) {applied}마리 적을 {turns}턴 도발!", LogCategory.Status);
+        Debug.Log($"[ApplyTaunt] {user.displayName} → 적 {applied}마리 도발 {turns}턴");
     }
 
     /// <summary>
     /// 스킬 데미지 적용. 기획 §02 §자동 타겟팅 §아군 공격 — "전열(앞)에 배치된 적 우선".
     /// 예외 타겟팅(LowestHpEnemy / HighestHpEnemy) 은 스킬 description 에 명시된 경우에만 사용.
     /// </summary>
-    private void ApplySkillDamage(SkillData skill, int power)
+    private void ApplySkillDamage(FellowData user, SkillData skill, int power)
     {
         var liveEnemies = enemies.Where(e => !e.isDead).ToList();
         if (liveEnemies.Count == 0) { Debug.Log("[ApplySkillDamage] 살아있는 적 없음."); return; }
+        int liveBefore = liveEnemies.Count;
+
+        // 딜러 계열 데미지 배율 패시브 (배수의진/주문증폭/일기당천, 기획 §16)
+        power = ApplyDamagePassives(user, power, liveBefore);
 
         switch (skill.targeting)
         {
@@ -442,7 +605,11 @@ public partial class BattleManager
                         .OrderBy(e => e.tier == EnemyTier.Boss ? 1 : 0)
                         .ThenBy(e => enemies.IndexOf(e))
                         .First();
-                    DealDamageToEnemy(front, power);
+                    // 거합집중/처형인 (오펜더, 기획 §16) — 단일 타격 직전 배율
+                    int hitPower = ApplySingleHitPassives(user, front, power);
+                    DealDamageToEnemy(front, hitPower);
+                    // 비전 연쇄 (캐스터) — 매직미사일 처치 시 1연쇄
+                    TryArcaneChain(user, skill, front, power);
                 }
                 break;
 
@@ -470,6 +637,8 @@ public partial class BattleManager
                     Debug.Log($"[ApplySkillDamage] AllEnemies 분산 — 총 {power} ÷ {targetCount}명 = {splitPower}/적");
                     foreach (var e in liveEnemies)
                         DealDamageToEnemy(e, splitPower);
+                    // 멸절 (캐스터) — HP 최저 적에게 추가 단일타
+                    TryAnnihilate(user, splitPower);
                 }
                 break;
 
@@ -477,6 +646,114 @@ public partial class BattleManager
                 Debug.LogWarning($"[ApplySkillDamage] 미지원 targeting: '{skill.targeting}'");
                 break;
         }
+
+        // 피의 갈망 (어택커) — 이번 캐스트로 적이 1명이라도 죽었으면 회복 (캐스트당 1회)
+        int liveAfter = enemies.Count(e => !e.isDead);
+        if (liveAfter < liveBefore) TryLifesteal(user);
+    }
+
+    // ── 동료 시그니처 패시브 (전투 관여형, 기획 §16) — user.activePassiveId 로 판정 ──
+
+    /// <summary>딜러 계열 데미지 배율 패시브 일괄 적용 (배수의진/주문증폭/일기당천 — 인스턴스당 1개만 활성).</summary>
+    private int ApplyDamagePassives(FellowData user, int power, int liveEnemyCount)
+    {
+        if (user == null) return power;
+        string p = user.activePassiveId;
+
+        // 배수의 진 (어택커) — HP 낮을수록 +최대50%
+        if (p == MetaPassiveManager.AttackerFrenzy)
+        {
+            int maxHp = user.maxHp > 0 ? user.maxHp : 1;
+            float hpRatio = Mathf.Clamp01((float)user.CurrentHp / maxHp);
+            float bonus = Mathf.Clamp01((0.5f - hpRatio) / 0.5f) * MetaPassiveManager.AttackerFrenzyMax;
+            if (bonus > 0f) { int b = Mathf.RoundToInt(power * (1f + bonus)); Debug.Log($"[배수의진] {user.positionStack} {power}→{b}"); return b; }
+        }
+        // 주문 증폭 (캐스터) — +15%
+        else if (p == MetaPassiveManager.CasterAmp)
+        {
+            int b = Mathf.RoundToInt(power * (1f + MetaPassiveManager.CasterAmpBonus));
+            Debug.Log($"[주문증폭] {user.positionStack} {power}→{b}");
+            return b;
+        }
+        // 일기당천 (오펜더) — 적 2마리 이하 +30%
+        else if (p == MetaPassiveManager.OffenderDuel && liveEnemyCount <= MetaPassiveManager.OffenderDuelMaxEnemies)
+        {
+            int b = Mathf.RoundToInt(power * (1f + MetaPassiveManager.OffenderDuelBonus));
+            Debug.Log($"[일기당천] {user.positionStack} 적{liveEnemyCount} {power}→{b}");
+            return b;
+        }
+        return power;
+    }
+
+    /// <summary>단일 타격 직전 패시브 (거합집중/처형인 — 인스턴스당 1개만 활성).</summary>
+    private int ApplySingleHitPassives(FellowData user, EnemyData target, int power)
+    {
+        if (user == null) return power;
+        string p = user.activePassiveId;
+
+        // 거합 집중 (오펜더) — 동일 대상 연속타 +20%/스택(최대 +60%)
+        if (p == MetaPassiveManager.OffenderCombo)
+        {
+            int iid = target.GetInstanceID();
+            if (user.comboTargetIid == iid)
+                user.comboStacks = Mathf.Min(user.comboStacks + 1, MetaPassiveManager.OffenderComboMaxStack);
+            else { user.comboTargetIid = iid; user.comboStacks = 0; }
+            float bonus = user.comboStacks * MetaPassiveManager.OffenderComboPerStack;
+            if (bonus > 0f) { int b = Mathf.RoundToInt(power * (1f + bonus)); Debug.Log($"[거합집중] {user.positionStack} {user.comboStacks}스택 {power}→{b}"); return b; }
+        }
+        // 처형인 (오펜더) — HP 30% 이하 적 +50%
+        else if (p == MetaPassiveManager.OffenderExecute)
+        {
+            if (EnemyHpRatio(target) <= MetaPassiveManager.OffenderExecThreshold)
+            {
+                int b = Mathf.RoundToInt(power * (1f + MetaPassiveManager.OffenderExecBonus));
+                Debug.Log($"[처형인] {user.positionStack} 저HP적 {power}→{b}");
+                return b;
+            }
+        }
+        return power;
+    }
+
+    /// <summary>비전 연쇄 (캐스터) — 매직미사일로 적 처치 시 다른 적 1명에게 1회 추가 발동(연쇄 없음).</summary>
+    private void TryArcaneChain(FellowData user, SkillData skill, EnemyData firstTarget, int power)
+    {
+        if (user == null || user.activePassiveId != MetaPassiveManager.CasterChain) return;
+        if (skill == null || skill.id != "skill_magic_missile") return;
+        if (!firstTarget.isDead) return; // 처치했을 때만 연쇄
+        var others = enemies.Where(e => e != firstTarget && !e.isDead).ToList();
+        if (others.Count == 0) return;
+        var next = others
+            .OrderBy(e => e.tier == EnemyTier.Boss ? 1 : 0)
+            .ThenBy(e => enemies.IndexOf(e))
+            .First();
+        GameLog.Event($"비전 연쇄! {next.displayName}에게 추가 타격 (+{power})", LogCategory.Damage);
+        Debug.Log($"[비전연쇄] {user.positionStack} 처치 연쇄 → {next.displayName} +{power}");
+        DealDamageToEnemy(next, power);
+    }
+
+    /// <summary>멸절 (캐스터) — 광역 데미지 시 HP 최저 적에게 추가 단일타.</summary>
+    private void TryAnnihilate(FellowData user, int basePower)
+    {
+        if (user == null || user.activePassiveId != MetaPassiveManager.CasterExec) return;
+        var live = enemies.Where(e => !e.isDead).ToList();
+        if (live.Count == 0) return;
+        var lowest = live.OrderBy(e => EnemyHpRatio(e)).First();
+        int extra = Mathf.RoundToInt(basePower * MetaPassiveManager.CasterExecBonus);
+        if (extra <= 0) return;
+        Debug.Log($"[멸절] {user.positionStack} → {lowest.displayName} 추가타 +{extra}");
+        DealDamageToEnemy(lowest, extra);
+    }
+
+    /// <summary>피의 갈망 (어택커) — 적 처치 시 자기 HP 15%(maxHp) 회복. 캐스트당 1회.</summary>
+    private void TryLifesteal(FellowData user)
+    {
+        if (user == null || user.isDead || user.activePassiveId != MetaPassiveManager.AttackerLifesteal) return;
+        int heal = Mathf.RoundToInt((user.maxHp > 0 ? user.maxHp : 100) * MetaPassiveManager.AttackerLifestealRatio);
+        if (heal <= 0) return;
+        user.CurrentHp = Mathf.Min(user.maxHp > 0 ? user.maxHp : user.CurrentHp + heal, user.CurrentHp + heal);
+        UpdateAllyHpUI(user);
+        GameLog.Event($"피의 갈망 — {user.displayName ?? user.positionStack.ToString()} HP +{heal}.", LogCategory.Heal);
+        Debug.Log($"[피의갈망] {user.positionStack} 처치 회복 +{heal}");
     }
 
     /// <summary>
@@ -532,13 +809,30 @@ public partial class BattleManager
         AudioManager.Instance?.PlaySfxById(SfxId.Heal);
         var liveAllies = allies.Where(a => !a.isDead).ToList();
 
-        switch (skill.targeting)
+        // ── 축복받은 손길 (프리스트 패시브, 기획 §16) — 힐량 +25% ──
+        if (user.activePassiveId == MetaPassiveManager.PriestBlessing)
+        {
+            int b = Mathf.RoundToInt(power * (1f + MetaPassiveManager.PriestBlessingBonus));
+            Debug.Log($"[축복받은손길] {user.positionStack} 힐 {power}→{b}");
+            power = b;
+        }
+
+        // ── 서포터 중증 디버프 (기획 §04) — 광역 회복 → 단일 회복(최저 HP) 강제 ──
+        string targeting = skill.targeting;
+        if (user.role == CompanionRole.Support && user.hasSevereDebuff && targeting == "AllAllies")
+        {
+            Debug.Log($"[중증디버프·서포터] {user.positionStack} 광역 회복 → 단일 회복으로 약화");
+            targeting = "SingleAlly";
+        }
+
+        switch (targeting)
         {
             case "Self":
                 user.CurrentHp += power;
                 UpdateAllyHpUI(user);
                 GameLog.Event($"{user.displayName ?? user.positionStack.ToString()}의 HP +{power} 회복.", LogCategory.Heal);
                 Debug.Log($"[ApplySkillHeal] {user.displayName ?? user.positionStack.ToString()} 자신 +{power} HP (현재: {user.CurrentHp})");
+                ApplyPriestHealBonus(user, user, power);
                 break;
             // 기획 §02 §자동 타겟팅 §아군 지원 — "HP 비율 최저 아군 우선" (혼자 생존 시 자기 자신)
             case "SingleAlly":
@@ -548,6 +842,7 @@ public partial class BattleManager
                 UpdateAllyHpUI(healTarget);
                 GameLog.Event($"{healTarget.displayName ?? healTarget.positionStack.ToString()}의 HP +{power} 회복.", LogCategory.Heal);
                 Debug.Log($"[ApplySkillHeal] {healTarget.displayName ?? healTarget.positionStack.ToString()} +{power} HP (현재: {healTarget.CurrentHp})");
+                ApplyPriestHealBonus(user, healTarget, power);
                 break;
             case "AllAllies":
                 foreach (var ally in liveAllies)
@@ -556,6 +851,7 @@ public partial class BattleManager
                     UpdateAllyHpUI(ally);
                     GameLog.Event($"{ally.displayName ?? ally.positionStack.ToString()}의 HP +{power} 회복.", LogCategory.Heal);
                     Debug.Log($"[ApplySkillHeal] {ally.displayName ?? ally.positionStack.ToString()} +{power} HP (현재: {ally.CurrentHp})");
+                    ApplyPriestHealBonus(user, ally, power);
                 }
                 break;
             default:
@@ -564,9 +860,53 @@ public partial class BattleManager
         }
     }
 
+    /// <summary>프리스트 힐 부가 패시브 (기획 §16) — 정화의 빛(스트레스 감소) / 수호 기도(실드 부여). 인스턴스당 1개만 활성.</summary>
+    private void ApplyPriestHealBonus(FellowData user, FellowData ally, int healAmount)
+    {
+        if (user == null || ally == null) return;
+        // 정화의 빛 — 힐량의 50%만큼 스트레스 감소
+        if (user.activePassiveId == MetaPassiveManager.PriestCleanse)
+        {
+            int reduce = Mathf.RoundToInt(healAmount * MetaPassiveManager.PriestCleanseRatio);
+            if (reduce > 0)
+            {
+                ally.currentStress = Mathf.Max(0, ally.currentStress - reduce);
+                GameLog.Event($"정화의 빛 — {ally.displayName ?? ally.positionStack.ToString()} 스트레스 -{reduce}.", LogCategory.Status);
+                Debug.Log($"[정화의빛] {ally.positionStack} 스트레스 -{reduce}");
+            }
+        }
+        // 수호 기도 — 힐량의 30%만큼 실드 부여
+        else if (user.activePassiveId == MetaPassiveManager.PriestGuard)
+        {
+            int sh = Mathf.RoundToInt(healAmount * MetaPassiveManager.PriestGuardRatio);
+            if (sh > 0)
+            {
+                ally.AddShield(sh);
+                GameLog.Event($"수호 기도 — {ally.displayName ?? ally.positionStack.ToString()} 실드 +{sh}.", LogCategory.Shield);
+                Debug.Log($"[수호기도] {ally.positionStack} 실드 +{sh}");
+            }
+        }
+    }
+
     /// <summary>실드 스킬 적용. targeting 에 따라 Self / SingleAlly / AllAllies 분기.</summary>
     private void ApplySkillShield(FellowData user, SkillData skill, int power)
     {
+        // ── 견고한 방벽 (디펜더 패시브, 기획 §16) — 부여 실드 +30% ──
+        if (user.activePassiveId == MetaPassiveManager.DefenderBulwark)
+        {
+            int b = Mathf.RoundToInt(power * (1f + MetaPassiveManager.DefenderBulwarkBonus));
+            Debug.Log($"[견고한방벽] {user.positionStack} 부여 실드 {power}→{b}");
+            power = b;
+        }
+
+        // ── 탱커 중증 디버프 (기획 §04) — 부여 실드 -50% ──
+        if (user.role == CompanionRole.Tanker && user.hasSevereDebuff)
+        {
+            int reduced = Mathf.RoundToInt(power * 0.5f);
+            Debug.Log($"[중증디버프·탱커] {user.positionStack} 부여 실드 {power} → {reduced} (-50%)");
+            power = reduced;
+        }
+
         var liveAllies = allies.Where(a => !a.isDead).ToList();
 
         switch (skill.targeting)

@@ -36,8 +36,16 @@ public partial class EnemyData : ScriptableObject
     public Sprite portrait;
     public string spritePath;
 
+    [Tooltip("카드 시각 크기 배율. 0 또는 미설정이면 1.0 폴백.")]
+    public float visualScale = 1.0f;
+
     [Tooltip("RuntimeAnimatorController 의 Resources 기준 경로. 비면 Animator 비활성.")]
     public string animatorPath;
+
+    [Tooltip("모션 트리거 이름. 비면 기본값 Idle/Attack/Attack2 사용.")]
+    public string idleAnim;
+    public string attack1Anim;
+    public string attack2Anim;
 
     [Header("메모")]
     [TextArea(2, 4)]
@@ -76,6 +84,12 @@ public partial class EnemyData : ScriptableObject
 
     /// <summary>보스 상태머신용 — 까마귀 만료 후 다음 턴에 순간이동 강제 발동.</summary>
     [System.NonSerialized] public bool pendingTeleport = false;
+
+    /// <summary>도발 — 남은 턴. 0 보다 크면 SingleEnemy/FrontFirst/BackLast 타겟팅 시 taunter 우선.</summary>
+    [System.NonSerialized] public int tauntTurnsLeft = 0;
+
+    /// <summary>도발 시전자 — 이 적의 우선 타격 대상. taunter가 사망/null 이면 도발 무효.</summary>
+    [System.NonSerialized] public FellowData taunter = null;
 
     /// <summary>적 스킬별 남은 쿨다운 (턴). 0 또는 키 없음 = 사용 가능.</summary>
     [System.NonSerialized] private Dictionary<string, int> _skillCooldowns = new Dictionary<string, int>();
