@@ -130,6 +130,16 @@ public abstract class BaseCurrency<T> : MonoBehaviour where T : BaseCurrency<T>
     }
 
     /// <summary>
+    /// 재화 값을 직접 지정한다 (튜토리얼 지급/원복 등 특수 케이스).
+    /// PlayerPrefs 에도 즉시 반영. 음수는 0 으로 보정.
+    /// </summary>
+    public void SetAmount(int value)
+    {
+        Amount = Mathf.Max(0, value);
+        SaveCurrency();
+    }
+
+    /// <summary>
     /// 재화를 value 만큼 소비한다.
     /// 재화가 충분하면 true, 부족하면 false 를 반환한다.
     /// </summary>

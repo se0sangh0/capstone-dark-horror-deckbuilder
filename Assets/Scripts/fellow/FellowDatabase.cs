@@ -272,18 +272,11 @@ public class FellowDatabase : Singleton<FellowDatabase>
         // LeftPanel 같은 전투 외 UI 에 스킬이 표시되지 않았다.
         // 동료 생성 시점에 배정해 어디서든 즉시 조회 가능하게 한다.
         //
-        // 배정 우선순위 (기획 §08 직업군_스킬_테이블):
-        //   1순위 — fellow.json 의 skillIds (직업별 고정 매핑)
-        //   2순위 — SkillDatabase.AssignRandomSkills (역할군 랜덤 fallback)
-        // BattleManager.InitBattle 의 동일 분기와 통일.
-        if (!f.HasSkills)
+        // 풀(직업당 4개) 에서 해금된 것 중 2개만 랜덤 배정 (기획 §10/§16).
+        // BattleManager.InitBattle 과 동일한 SkillDatabase.PickSkillsFromPool 헬퍼로 통일.
+        if (!f.HasSkills && SkillDatabase.Instance != null)
         {
-            string[] ids = (f.skillIds != null && f.skillIds.Length > 0)
-                ? f.skillIds
-                : (SkillDatabase.Instance != null
-                    ? SkillDatabase.Instance.AssignRandomSkills(f.positionStack, 2)
-                    : null);
-
+            string[] ids = SkillDatabase.Instance.PickSkillsFromPool(f.skillIds, f.positionStack, 2);
             if (ids != null && ids.Length > 0)
                 f.AssignSkills(ids);
         }

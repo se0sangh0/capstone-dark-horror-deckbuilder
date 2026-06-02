@@ -43,6 +43,13 @@ public static class MetaPassiveManager
     public const string UnlockWarCry    = "unlock_skill_war_cry";
     public const string UnlockPrayer    = "unlock_skill_prayer";
 
+    // 2026-06-02 — 직업당 해금 스킬 +1 (기본 2 / 해금 2 구성)
+    public const string UnlockFireball     = "unlock_skill_fireball";
+    public const string UnlockMoonlight    = "unlock_skill_moonlight_slash";
+    public const string UnlockBattleStance = "unlock_skill_battle_stance";
+    public const string UnlockIndomitable  = "unlock_skill_indomitable";
+    public const string UnlockStarlight    = "unlock_skill_starlight";
+
     // ── 효과 상수 (기획 §16 §3) ─────────────────────────────────
     public const float CasterAmpBonus      = 0.15f; // 주문 증폭
     public const float CasterExecBonus     = 0.50f; // 멸절 추가타 비율(최저HP 적)
@@ -104,6 +111,12 @@ public static class MetaPassiveManager
         new Info{ id=UnlockWarShield, kind=Kind.Skill, job="디펜더",  name="전장의 방패 해금", desc="6코 데미지+전체실드 — 스킬 풀에 추가", cost=60, skillId="skill_war_shield" },
         new Info{ id=UnlockWarCry,    kind=Kind.Skill, job="어택커",  name="워크라이 해금",   desc="5코 데미지+도발 — 스킬 풀에 추가",   cost=60, skillId="skill_war_cry" },
         new Info{ id=UnlockPrayer,    kind=Kind.Skill, job="프리스트", name="기원 해금",       desc="5코 전체힐 40 — 스킬 풀에 추가",     cost=60, skillId="skill_prayer" },
+        // 직업당 해금 스킬 +1 (2026-06-02 — 기본 2 / 해금 2)
+        new Info{ id=UnlockFireball,     kind=Kind.Skill, job="캐스터",  name="파이어볼 해금",   desc="3코 광역 35 — 스킬 풀에 추가",    cost=60, skillId="skill_fireball" },
+        new Info{ id=UnlockMoonlight,    kind=Kind.Skill, job="오펜더",  name="월광베기 해금",   desc="7코 단일 60 — 스킬 풀에 추가",    cost=60, skillId="skill_moonlight_slash" },
+        new Info{ id=UnlockBattleStance, kind=Kind.Skill, job="디펜더",  name="전투 태세 해금",  desc="5코 전체실드 40 — 스킬 풀에 추가", cost=60, skillId="skill_battle_stance" },
+        new Info{ id=UnlockIndomitable,  kind=Kind.Skill, job="어택커",  name="불굴 해금",       desc="4코 전체힐 34 — 스킬 풀에 추가",   cost=60, skillId="skill_indomitable" },
+        new Info{ id=UnlockStarlight,    kind=Kind.Skill, job="프리스트", name="별부름 해금",     desc="3코 단일힐 35 — 스킬 풀에 추가",   cost=60, skillId="skill_starlight" },
     };
 
     private static readonly System.Collections.Generic.Dictionary<string,string> _skillUnlockKey =
@@ -114,6 +127,11 @@ public static class MetaPassiveManager
         { "skill_war_shield", UnlockWarShield },
         { "skill_war_cry",    UnlockWarCry    },
         { "skill_prayer",     UnlockPrayer    },
+        { "skill_fireball",        UnlockFireball     },
+        { "skill_moonlight_slash", UnlockMoonlight    },
+        { "skill_battle_stance",   UnlockBattleStance },
+        { "skill_indomitable",     UnlockIndomitable  },
+        { "skill_starlight",       UnlockStarlight    },
     };
 
     // ── 런 루프 — 새 런 첫 노드 전 상점 자동 표시 (런타임, 비영속) ──
