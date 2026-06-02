@@ -285,37 +285,9 @@ public partial class BattleManager : Singleton<BattleManager>
             {
                 if (!fellow.HasSkills)
                 {
-                    // 최초 배정 — fellow.skillIds 풀에서 2개 랜덤 선택 (2026-05-29 갱신).
-                    //   기획 §10 갱신: 직업당 4개 스킬 풀 보유 → 동료 인스턴스마다 그중 2개만 랜덤 사용.
-                    //   skillIds 비어있으면(모집 등 동적 생성) role 기반 랜덤 폴백.
-                    string[] ids;
-                    // 기획 §16 — 미해금 시그니처 스킬은 풀에서 제외 (마석 해금 시 포함)
-                    var unlockedIds = new System.Collections.Generic.List<string>();
-                    if (fellow.skillIds != null)
-                        foreach (var sid in fellow.skillIds)
-                            if (MetaPassiveManager.IsSkillUnlocked(sid)) unlockedIds.Add(sid);
-
-                    if (unlockedIds.Count >= 2)
-                    {
-                        // 풀에서 2개 랜덤 추출 (중복 없음)
-                        var skillPool = new System.Collections.Generic.List<string>(unlockedIds);
-                        int target = 2;
-                        ids = new string[System.Math.Min(target, skillPool.Count)];
-                        for (int s = 0; s < ids.Length; s++)
-                        {
-                            int idx = UnityEngine.Random.Range(0, skillPool.Count);
-                            ids[s] = skillPool[idx];
-                            skillPool.RemoveAt(idx);
-                        }
-                    }
-                    else if (unlockedIds.Count > 0)
-                    {
-                        ids = unlockedIds.ToArray(); // 해금 스킬이 1개뿐이면 그대로
-                    }
-                    else
-                    {
-                        ids = SkillDatabase.Instance.AssignRandomSkills(fellow.positionStack, 2);
-                    }
+                    // 최초 배정 — 풀(직업 4개)에서 해금된 것 중 2개 랜덤 (기획 §10/§16).
+                    //   FellowDatabase.CreateRuntimeFellow 와 동일 헬퍼로 통일 — 로직 분기 방지.
+                    string[] ids = SkillDatabase.Instance.PickSkillsFromPool(fellow.skillIds, fellow.positionStack, 2);
                     fellow.AssignSkills(ids);
                 }
                 else

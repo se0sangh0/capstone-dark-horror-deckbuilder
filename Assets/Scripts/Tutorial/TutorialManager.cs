@@ -26,6 +26,14 @@ public class TutorialManager : MonoBehaviour
 
     public const string PrefsKey = "tutorial_completed";
 
+    // ── 튜토리얼 한정 영혼석 지급 (사용자 결정 2026-06-02) ──
+    //   용병소에서 1★×9 → 2★×3 → 3★×1 합성을 직접 체험할 수 있도록 넉넉히 지급한다.
+    //   진입 시 기존 영혼석을 백업하고 TutorialSoulstoneGrant 로 덮어쓰며,
+    //   종료(완료/스킵/일반 진입 정리) 시 원래 값으로 원복한다 → 본 게임 경제에 영향 없음 (기획 §15 §5-3).
+    public const int TutorialSoulstoneGrant = 400;
+    private const string PreTutorialSoulKey = "SoulStone_preTutorial";
+    private const string SoulSaveKey         = "SoulStone"; // SoulstoneManager.SaveKey 와 동일
+
     /// <summary>현재 튜토리얼 모드 진행 중인지. PartyManager/EnemySpawner 등이 분기에 사용.</summary>
     public bool IsTutorial { get; private set; }
 
@@ -67,7 +75,38 @@ public class TutorialManager : MonoBehaviour
     {
         IsTutorial  = true;
         CurrentStep = 0;
+        GrantTutorialSoulstone();
         Debug.Log("[TutorialManager] 튜토리얼 시작");
+    }
+
+    /// <summary>튜토리얼 진입 시 기존 영혼석을 백업하고 체험용으로 넉넉히 지급한다.</summary>
+    private static void GrantTutorialSoulstone()
+    {
+        // 이미 백업이 있으면(중복 진입 등) 덮어쓰지 않는다 — 원본 보존.
+        if (!PlayerPrefs.HasKey(PreTutorialSoulKey))
+        {
+            // 키가 없는 신규 플레이어는 영혼석 시작값(SoulstoneManager.StartingAmount=20)으로 본다 → 종료 시 20 으로 원복.
+            int current = PlayerPrefs.GetInt(SoulSaveKey, 20);
+            PlayerPrefs.SetInt(PreTutorialSoulKey, current);
+        }
+        PlayerPrefs.SetInt(SoulSaveKey, TutorialSoulstoneGrant);
+        PlayerPrefs.Save();
+
+        // 현재 씬에 라이브 인스턴스가 있으면 즉시 반영 (없으면 다음 씬 로드시 PlayerPrefs 에서 읽음).
+        SoulstoneManager.Instance?.SetAmount(TutorialSoulstoneGrant);
+        Debug.Log($"[TutorialManager] 튜토리얼 영혼석 지급 → {TutorialSoulstoneGrant} (원본 백업)");
+    }
+
+    /// <summary>튜토리얼 종료 시 지급 전 영혼석으로 원복한다. 백업이 없으면 무시.</summary>
+    private static void RestoreSoulstone()
+    {
+        if (!PlayerPrefs.HasKey(PreTutorialSoulKey)) return;
+        int restored = PlayerPrefs.GetInt(PreTutorialSoulKey, 20);
+        PlayerPrefs.SetInt(SoulSaveKey, restored);
+        PlayerPrefs.DeleteKey(PreTutorialSoulKey);
+        PlayerPrefs.Save();
+        SoulstoneManager.Instance?.SetAmount(restored);
+        Debug.Log($"[TutorialManager] 튜토리얼 종료 — 영혼석 원복 → {restored}");
     }
 
     /// <summary>다음 단계로 진행. CurrentStep++.</summary>
@@ -180,6 +219,7 @@ public class TutorialManager : MonoBehaviour
     {
         IsTutorial  = false;
         CurrentStep = 0;
+        RestoreSoulstone();
         if (markComplete) MarkCompleted();
         Debug.Log($"[TutorialManager] 튜토리얼 종료 (markComplete={markComplete})");
     }

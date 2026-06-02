@@ -193,6 +193,28 @@ public class SkillDatabase : Singleton<SkillDatabase>
         return result;
     }
 
+    /// <summary>
+    /// 동료의 스킬 풀(직업당 4개 등)에서 해금된 스킬만 추려 count 개를 무작위로 배정한다.
+    /// (기획 §10 — 직업당 4개 풀 보유 → 인스턴스마다 그중 2개만 사용 / §16 — 미해금 시그니처 제외)
+    ///   - 해금 스킬이 count 개 초과 : 풀에서 count 개 랜덤 추출 (중복 없음)
+    ///   - 1개 이상 count 이하       : 있는 것 모두 반환
+    ///   - 0개(풀 비었거나 전부 미해금): 역할 기반 AssignRandomSkills 폴백
+    /// BattleManager.InitBattle 과 FellowDatabase.CreateRuntimeFellow 가 공통 호출 — 로직 분기 방지.
+    /// </summary>
+    public string[] PickSkillsFromPool(string[] pool, StackType role, int count = 2)
+    {
+        var unlocked = new List<string>();
+        if (pool != null)
+            foreach (var sid in pool)
+                if (MetaPassiveManager.IsSkillUnlocked(sid)) unlocked.Add(sid);
+
+        if (unlocked.Count == 0) return AssignRandomSkills(role, count);
+        if (unlocked.Count <= count) return unlocked.ToArray();
+
+        ShuffleList(unlocked);
+        return unlocked.Take(count).ToArray();
+    }
+
     // ----------------------------------------------------------
     // 내부 유틸리티
     // ----------------------------------------------------------
