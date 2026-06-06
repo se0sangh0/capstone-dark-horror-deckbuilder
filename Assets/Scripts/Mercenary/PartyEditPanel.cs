@@ -291,7 +291,18 @@ public class PartyEditPanel : PanelBase
             return;
         }
 
-        // 파티 선택 없음 → 예비대 선택 토글 (이후 파티 슬롯을 클릭하면 합류/교체된다 — 양방향 지원)
+        // 파티에 빈 자리가 있으면 → 예비대 클릭 = 즉시 합류 (자동 채우기).
+        //   빈 파티 슬롯은 버튼이 비활성이라 "선택 후 빈 슬롯 클릭"이 불가능하므로 바로 채운다.
+        if (PartyManager.Instance != null && PartyManager.Instance.CompanionCount < PartySize)
+        {
+            bool joined = MercenaryService.Instance.TryAssignReserveToParty(reserveIndex);
+            ClearSelection();
+            if (joined) { RebuildAll(); ShowGuide(); }
+            else        ShowToast(UnsupportedMessage);
+            return;
+        }
+
+        // 파티 만석 → 예비대 선택 토글 (이후 파티 슬롯을 클릭하면 교체된다 — 양방향 스왑)
         _selectedReserveIndex = (_selectedReserveIndex == reserveIndex) ? -1 : reserveIndex;
         _selectedPartyIndex   = -1;
         RefreshReserveSelectionVisual();
