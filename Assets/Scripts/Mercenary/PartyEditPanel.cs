@@ -49,7 +49,7 @@ public class PartyEditPanel : PanelBase
     [SerializeField] private float toastDuration = 2f;
 
     private const int    PartySize          = 4;
-    private const string DefaultGuide       = "파티 슬롯을 선택해 교체하거나, 예비대 카드를 클릭해 빈 슬롯에 합류시키세요.";
+    private const string DefaultGuide       = "파티 슬롯이나 예비대 카드를 먼저 선택한 뒤, 옮길 대상을 클릭하면 교체·합류됩니다. (순서 무관)";
     private const string UnsupportedMessage = "지원하지 않는 기능입니다";
 
     // 카드 인스턴스 풀 — 예비대는 가변, 파티는 고정 슬롯이라 풀 불필요
@@ -57,6 +57,9 @@ public class PartyEditPanel : PanelBase
 
     // 현재 선택된 파티 슬롯 인덱스 (없으면 -1).
     private int _selectedPartyIndex = -1;
+
+    // 현재 선택된 예비대 인덱스 (없으면 -1). 파티 슬롯과 동시에 선택되지 않는다(둘 중 하나).
+    private int _selectedReserveIndex = -1;
 
     private Coroutine _toastRoutine;
 
@@ -96,7 +99,8 @@ public class PartyEditPanel : PanelBase
 
     protected override void OnOpened()
     {
-        _selectedPartyIndex = -1;
+        _selectedPartyIndex   = -1;
+        _selectedReserveIndex = -1;
         RebuildAll();
         ShowGuide();
     }
@@ -147,6 +151,22 @@ public class PartyEditPanel : PanelBase
         }
     }
 
+    private void RefreshReserveSelectionVisual()
+    {
+        for (int i = 0; i < _reserveCards.Count; i++)
+            if (_reserveCards[i] != null)
+                _reserveCards[i].SetSelected(i == _selectedReserveIndex);
+    }
+
+    /// <summary>파티/예비대 선택 모두 해제 + 하이라이트 갱신.</summary>
+    private void ClearSelection()
+    {
+        _selectedPartyIndex   = -1;
+        _selectedReserveIndex = -1;
+        RefreshPartySelectionVisual();
+        RefreshReserveSelectionVisual();
+    }
+
     // ----------------------------------------------------------
     // 예비대 빌드 — 풀 카드 (FellowCardView, Reserve 모드)
     // ----------------------------------------------------------
@@ -167,13 +187,14 @@ public class PartyEditPanel : PanelBase
             card.OnRemoveClicked += _ => HandleReserveDismiss(capturedFellow);
             _reserveCards.Add(card);
         }
+        RefreshReserveSelectionVisual();
     }
 
     private void HandleReserveDismiss(FellowData fellow)
     {
         if (MercenaryService.Instance == null) return;
         if (!MercenaryService.Instance.DismissReserve(fellow)) return;
-        _selectedPartyIndex = -1;
+        ClearSelection();
         RebuildAll();
         ShowGuide();
     }
@@ -185,6 +206,19 @@ public class PartyEditPanel : PanelBase
     /// <summary>파티 슬롯 클릭 — 선택 토글, 다른 슬롯 두 번째 클릭 시 두 슬롯 간 순서 교환.</summary>
     private void HandlePartySlotClicked(int slotIndex)
     {
+        // 예비대가 먼저 선택된 상태 → 그 예비대원을 이 슬롯으로 (빈 슬롯=합류 / 채워진 슬롯=교체)
+        if (_selectedReserveIndex >= 0 && MercenaryService.Instance != null)
+        {
+            var target = GetPartyFellowAt(slotIndex);
+            bool ok = (target == null)
+                ? MercenaryService.Instance.TryAssignReserveToParty(_selectedReserveIndex)
+                : MercenaryService.Instance.TrySwapPartyAndReserve(target, _selectedReserveIndex);
+            ClearSelection();
+            if (ok) { RebuildAll(); ShowGuide(); }
+            else    ShowToast(UnsupportedMessage);
+            return;
+        }
+
         var fellow = GetPartyFellowAt(slotIndex);
         if (fellow == null)
         {
@@ -197,16 +231,18 @@ public class PartyEditPanel : PanelBase
         {
             if (PartyManager.Instance != null && PartyManager.Instance.SwapFellows(_selectedPartyIndex, slotIndex))
             {
-                _selectedPartyIndex = -1;
+                ClearSelection();
                 RebuildAll();
                 ShowGuide();
                 return;
             }
         }
 
-        // 같은 슬롯 재클릭 → 선택 해제, 처음 선택이면 → 선택 설정
-        _selectedPartyIndex = (_selectedPartyIndex == slotIndex) ? -1 : slotIndex;
+        // 같은 슬롯 재클릭 → 선택 해제, 처음 선택이면 → 선택 설정 (예비대 선택은 해제)
+        _selectedPartyIndex   = (_selectedPartyIndex == slotIndex) ? -1 : slotIndex;
+        _selectedReserveIndex = -1;
         RefreshPartySelectionVisual();
+        RefreshReserveSelectionVisual();
     }
 
     /// <summary>파티 슬롯의 [제거] 클릭 — 예비대로 빼낸다.</summary>
@@ -242,32 +278,24 @@ public class PartyEditPanel : PanelBase
     {
         if (MercenaryService.Instance == null) return;
 
-        // 파티 슬롯 선택 상태 → 교체
+        // 파티 슬롯이 먼저 선택된 상태 → 교체/합류
         if (_selectedPartyIndex >= 0)
         {
             var fellows = PartyManager.Instance.GetActiveFellows();
-            if (_selectedPartyIndex >= fellows.Count)
-                MercenaryService.Instance.TryAssignReserveToParty(reserveIndex);
-            else
-                MercenaryService.Instance.TrySwapPartyAndReserve(fellows[_selectedPartyIndex], reserveIndex);
-
-            _selectedPartyIndex = -1;
-            RebuildAll();
-            ShowGuide();
+            bool ok = (_selectedPartyIndex >= fellows.Count)
+                ? MercenaryService.Instance.TryAssignReserveToParty(reserveIndex)
+                : MercenaryService.Instance.TrySwapPartyAndReserve(fellows[_selectedPartyIndex], reserveIndex);
+            ClearSelection();
+            if (ok) { RebuildAll(); ShowGuide(); }
+            else    ShowToast(UnsupportedMessage);
             return;
         }
 
-        // 파티 슬롯 선택 없음 → 빈 슬롯 합류 시도. 만석이면 지원 안 함.
-        if (PartyManager.Instance.CompanionCount < PartySize)
-        {
-            MercenaryService.Instance.TryAssignReserveToParty(reserveIndex);
-            RebuildAll();
-            ShowGuide();
-        }
-        else
-        {
-            ShowToast(UnsupportedMessage);
-        }
+        // 파티 선택 없음 → 예비대 선택 토글 (이후 파티 슬롯을 클릭하면 합류/교체된다 — 양방향 지원)
+        _selectedReserveIndex = (_selectedReserveIndex == reserveIndex) ? -1 : reserveIndex;
+        _selectedPartyIndex   = -1;
+        RefreshReserveSelectionVisual();
+        RefreshPartySelectionVisual();
     }
 
     // ----------------------------------------------------------

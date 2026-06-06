@@ -80,8 +80,16 @@ public class DefaultSetting : MonoBehaviour
     // ----------------------------------------------------------
     // OnEnable — 화면이 다시 켜질 때마다 카드 오브젝트 재생성
     // ----------------------------------------------------------
+    /// <summary>아군 카드 레이아웃 인스턴스 — BattleManager 가 미행동 재정렬 후 RelayoutNow 호출용.</summary>
+    public static DefaultSetting AllyLayout { get; private set; }
+
+    /// <summary>외부(BattleManager)에서 진형 재정렬 후 즉시 카드 재배치 트리거.</summary>
+    public void RelayoutNow(bool instant = false) => RelayoutCards(instant);
+
     void OnEnable()
     {
+        if (factionType == FactionType.Ally) AllyLayout = this;
+
         if (BattleManager.Instance == null)
         {
             // 로그 주석 처리 (사용자 요청)
@@ -101,6 +109,8 @@ public class DefaultSetting : MonoBehaviour
     {
         if (factionType == FactionType.Enemy && BattleManager.Instance != null)
             BattleManager.Instance.OnEnemySpawned -= HandleEnemySpawned;
+
+        if (factionType == FactionType.Ally && AllyLayout == this) AllyLayout = null;
 
         foreach (var unsub in _diedUnsubscribers) unsub?.Invoke();
         _diedUnsubscribers.Clear();
@@ -229,7 +239,9 @@ public class DefaultSetting : MonoBehaviour
         if (sprites != null)
         {
             bool isEnemy = factionType == FactionType.Enemy;
-            sprites.SetFacing(faceLeft: isEnemy);
+            // 적 데이터 flipSprite=true 면 기본 페이싱과 반대로 — 반대 방향으로 그려진 아트 보정(예: 고블린 애니메이션).
+            bool spriteFlip = isEnemy && i < enemies.Count && enemies[i].flipSprite;
+            sprites.SetFacing(faceLeft: isEnemy ^ spriteFlip);
             sprites.ConfigureFaction(isEnemy);
         }
 
@@ -294,7 +306,7 @@ public class DefaultSetting : MonoBehaviour
         _diedUnsubscribers.Add(() => { if (enemy != null) enemy.OnDied -= handler; });
     }
 
-    private const float RelayoutDuration = 0.25f;
+    public const float RelayoutDuration = 0.25f;
 
     /// <summary>
     /// 생존 카드만 새 위치로 이동.

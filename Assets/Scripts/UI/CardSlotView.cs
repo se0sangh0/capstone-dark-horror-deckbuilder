@@ -36,6 +36,12 @@ public class CardSlotView : MonoBehaviour
     [SerializeField] private Slider      hpSlider;          // 배틀과 동일한 Slider 방식
     [SerializeField] private TMP_Text    hpScoreText;       // HP_score
 
+    [Header("스트레스 (HP 아래)")]
+    [Tooltip("스트레스 게이지 (0~100). HP 바 아래에 배치. 기획자 피드백 #3.")]
+    [SerializeField] private Slider      stressSlider;
+    [Tooltip("스트레스 점수 텍스트 (현재 스트레스 0~100).")]
+    [SerializeField] private TMP_Text    stressScoreText;
+
     [Header("태그")]
     [SerializeField] private TMP_Text    jobTagText;        // Job 노드 (TMP_Text)
     [SerializeField] private TMP_Text    affinityTagText;   // affinityTagBg > affinityTagText
@@ -50,7 +56,8 @@ public class CardSlotView : MonoBehaviour
 
     private FellowData  _fellow;
     private ShieldBarUI _shieldUI;
-    private Image       _hpFillImage; // hpSlider.fillRect 의 Image (색상 동적 변경용)
+    private Image       _hpFillImage;     // hpSlider.fillRect 의 Image (색상 동적 변경용)
+    private Image       _stressFillImage; // stressSlider.fillRect 의 Image (상태별 색상)
 
     public void Bind(FellowData fellow)
     {
@@ -103,9 +110,21 @@ public class CardSlotView : MonoBehaviour
             }
         }
 
+        // 스트레스 Slider 초기화 (HP 아래, #3)
+        if (stressSlider != null)
+        {
+            stressSlider.minValue = 0;
+            stressSlider.maxValue = 100;
+            stressSlider.value    = _fellow.currentStress;
+            if (_stressFillImage == null && stressSlider.fillRect != null)
+                _stressFillImage = stressSlider.fillRect.GetComponent<Image>();
+            UpdateStress(_fellow.currentStress);
+        }
+
         // 이벤트 구독
         _fellow.OnHpChanged     += OnHpChanged;
         _fellow.OnShieldChanged += OnShieldChanged;
+        _fellow.OnStressChanged += OnStressChanged;
 
         RefreshHp();
     }
@@ -115,6 +134,7 @@ public class CardSlotView : MonoBehaviour
         if (_fellow == null) return;
         _fellow.OnHpChanged     -= OnHpChanged;
         _fellow.OnShieldChanged -= OnShieldChanged;
+        _fellow.OnStressChanged -= OnStressChanged;
         _fellow = null;
     }
 
@@ -131,6 +151,19 @@ public class CardSlotView : MonoBehaviour
     {
         if (_fellow == null || hpScoreText == null) return;
         hpScoreText.text = FormatHpScore(_fellow.CurrentHp, _fellow.shield);
+    }
+
+    // 스트레스 변경 → 게이지 갱신 (#3)
+    private void OnStressChanged(int stress) => UpdateStress(stress);
+
+    // 스트레스 바 고정 노란색 — HP 바(녹/노/빨 단계색)와 시각 구분 (사용자 요청).
+    private static readonly Color StressBarColor = new Color(0.95f, 0.80f, 0.15f);
+
+    private void UpdateStress(int stress)
+    {
+        if (stressSlider != null) stressSlider.value = stress;
+        if (_stressFillImage != null) _stressFillImage.color = StressBarColor;
+        if (stressScoreText != null) stressScoreText.text = $"{stress}/100";
     }
 
     private void RefreshHp()
@@ -162,11 +195,19 @@ public class CardSlotView : MonoBehaviour
     {
         if (skill == null)
         {
-            if (nameLabel != null) nameLabel.text = "-";
+            if (nameLabel != null)
+            {
+                nameLabel.text = "-";
+                SkillTooltipTrigger.Ensure(nameLabel.gameObject).SetSkills(); // 빈 → 호버 표시 안 함 (#2)
+            }
             if (costLabel != null) costLabel.text = "";
             return;
         }
-        if (nameLabel != null) nameLabel.text = skill.displayName;
+        if (nameLabel != null)
+        {
+            nameLabel.text = skill.displayName;
+            SkillTooltipTrigger.Ensure(nameLabel.gameObject).SetSkills(skill); // 호버 툴팁 (#2)
+        }
         if (costLabel != null) costLabel.text = skill.costAmount.ToString();
     }
 }

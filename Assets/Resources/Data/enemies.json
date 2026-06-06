@@ -14,7 +14,8 @@
       ],
       "spritePath": "Characters/test_enemy_goblin",
       "visualScale": 0.85,
-      "animatorPath": "",
+      "flipSprite": true,
+      "animatorPath": "Animators/Enemies/Goblin/Goblin",
       "soulstoneDrop": 0
     },
     {

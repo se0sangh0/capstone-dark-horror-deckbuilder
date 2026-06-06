@@ -372,6 +372,14 @@ public class NodeSystem : MonoBehaviour
     {
         if (row != currentRowIndex) return;
 
+        // 팝업/패널(설정·로그·파티편집 등)이 열린 상태면 노드 클릭 무시 (기획자 피드백 #10).
+        // 열린 패널 위로 클릭이 새어 노드가 실행되던 문제 차단.
+        if (IsAnyBlockingPanelOpen())
+        {
+            Debug.Log("[NodeSystem] 패널이 열려 있어 노드 클릭을 무시한다.");
+            return;
+        }
+
         // 1) 선택된 버튼 기록
         nodeRows[row].selectedButtonIndex = col;
 
@@ -387,6 +395,20 @@ public class NodeSystem : MonoBehaviour
             DispatchByRoomType(type);
             UpdateNodeStates();
         }
+    }
+
+    /// <summary>
+    /// 모달 패널(PanelBase + CanvasGroup)이 하나라도 열려 있으면 true (기획자 피드백 #10).
+    /// PanelBase 는 닫힘 상태에서 alpha=0 으로만 숨으므로 alpha 로 열림 여부를 판정한다.
+    /// </summary>
+    private bool IsAnyBlockingPanelOpen()
+    {
+        foreach (var p in FindObjectsByType<PanelBase>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            var cg = p.GetComponent<CanvasGroup>();
+            if (cg != null && cg.alpha > 0.5f) return true;
+        }
+        return false;
     }
 
     /// <summary>RoomType 에 따라 적절한 화면을 켜거나 임시 진행 처리한다.</summary>

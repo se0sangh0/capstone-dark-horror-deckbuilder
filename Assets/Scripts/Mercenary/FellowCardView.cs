@@ -138,9 +138,24 @@ public class FellowCardView : MonoBehaviour
             return;
         }
 
-        // ── 역할 색상 ──
+        // ── 초상화/스프라이트 (기획자 피드백 #6) ──
+        // roleBadgeImage 를 역할 색배지 대신 동료 초상화/스프라이트로 표시.
+        // 초상화 없으면(둘 다 null) 기존 역할 색 배지로 폴백.
         if (roleBadgeImage != null)
-            roleBadgeImage.color = ColorForRole(fellow.role);
+        {
+            Sprite face = fellow.portrait != null ? fellow.portrait : fellow.fellowSprite;
+            if (face != null)
+            {
+                roleBadgeImage.sprite        = face;
+                roleBadgeImage.color         = Color.white;   // 스프라이트 원색
+                roleBadgeImage.preserveAspect = true;
+            }
+            else
+            {
+                roleBadgeImage.sprite = null;
+                roleBadgeImage.color  = ColorForRole(fellow.role);
+            }
+        }
         if (roleLabel != null)
             roleLabel.text = ShortRoleLabel(fellow.role);
 
@@ -149,7 +164,12 @@ public class FellowCardView : MonoBehaviour
         if (affinityLabel != null) affinityLabel.text = fellow.AffinityLabel;
         if (starLabel != null)     starLabel.text     = new string('★', Mathf.Clamp(fellow.starLevel, 1, 3));
         if (hpLabel != null)       hpLabel.text       = $"HP {fellow.maxHp}";
-        if (skillsLabel != null)   skillsLabel.text   = BuildSkillsText(fellow);
+        if (skillsLabel != null)
+        {
+            skillsLabel.text = BuildSkillsText(fellow);
+            // 스킬 호버 툴팁 (#7) — 보유 스킬 전체 정보 표시
+            SkillTooltipTrigger.Ensure(skillsLabel.gameObject).SetSkills(fellow.GetSkills());
+        }
 
         // ── 모드별 버튼/비용 표시 ──
         int costShown = costOverride ?? fellow.recruitCost;
@@ -230,8 +250,16 @@ public class FellowCardView : MonoBehaviour
         if (costLabel != null)     costLabel.text     = string.Empty;
         if (hpLabel != null)       hpLabel.text       = string.Empty;
         if (roleLabel != null)     roleLabel.text     = string.Empty;
-        if (skillsLabel != null)   skillsLabel.text   = string.Empty;
-        if (roleBadgeImage != null) roleBadgeImage.color = new Color(1, 1, 1, 0.15f);
+        if (skillsLabel != null)
+        {
+            skillsLabel.text = string.Empty;
+            SkillTooltipTrigger.Ensure(skillsLabel.gameObject).SetSkills(); // 빈 → 호버 표시 안 함
+        }
+        if (roleBadgeImage != null)
+        {
+            roleBadgeImage.sprite = null;                       // 초상화 해제 → 빈 슬롯 회색
+            roleBadgeImage.color  = new Color(1, 1, 1, 0.15f);
+        }
 
         // 합성 슬롯(SynthesizeSlot)의 빈 카드는 클릭으로 동료 선택 팝업을 열어야 하므로 ActionButton 유지.
         // 그 외 모드(PartySlot/Reserve/RecruitCandidate)는 빈 슬롯에서 액션 불필요 → 비활성.

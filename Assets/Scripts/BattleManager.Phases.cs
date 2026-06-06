@@ -97,7 +97,10 @@ public partial class BattleManager
         // 튜토리얼 모달 — 적 행동 페이즈 첫 진입 시
         if (!isAllyTurn) TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.EnemyTurnIntro);
         yield return StartCoroutine(ExecuteAction(isAllyTurn));
-        currentPhase = nextPhase;
+
+        // 한 팀 행동 직후 전투 종료 조건(적/아군 전멸) 충족 시 상대 팀 행동을 건너뛰고
+        // 즉시 결과 처리(→ 전투 종료)로 진입한다 (사용자 요청 — 적 전멸 시 바로 종료).
+        currentPhase = CheckBattleEndCondition() ? BattlePhase.ResultProcessing : nextPhase;
     }
 
     // ----------------------------------------------------------
@@ -122,15 +125,8 @@ public partial class BattleManager
     		Debug.Log("[결과 처리] 미행동 보너스 반영 (스택 누적 유지)");
 		}
 
-        // 미행동자 다음 턴 행동 우선 — 기획 §코어루프 §동료 행동 (2026-05-29 갱신)
-        //   "미행동 보상: 해당 스택 +1, 다음 턴 순서 우선"
-        //   ★ 행동 순서만 우선, 진형(allies 리스트) 은 변경하지 않는다 — 적 FrontFirst 타겟 고정 유지.
-        //   _carryoverOrderList 는 Clear 하지 않고 다음 턴 ExecuteAction(true) 가 priority 큐로 사용.
-        if (_carryoverOrderList.Count > 0)
-        {
-            int aliveCount = _carryoverOrderList.Count(a => a != null && !a.isDead);
-            Debug.Log($"[결과 처리] 미행동자 {aliveCount}명 → 다음 턴 행동 순서 우선 (진형 유지)");
-        }
+        // 미행동자 진형 재정렬은 ExecuteAction(아군 턴) 종료 시 즉시 처리됨
+        //   (allies 맨 앞으로 이동 + battleSlotIndex 갱신 + RelayoutNow). 2026-06-05 복원.
 
         // 손패 한도 초과 — 사망 후 손패에 사망 동료 카드가 없던 경우 누적된 pending count 만큼 랜덤 파괴.
         // 기획 §02 §동료 사망 처리: "사용자가 해당 턴에 사용하지 않으면 결과 처리 단계에서 N개를 랜덤 파괴한다."
@@ -261,7 +257,7 @@ public partial class BattleManager
             {
                 GameLog.Event("보스를 쓰러트렸다!", LogCategory.Reward);
                 Debug.Log("[BattleManager] 🎉 보스 클리어 — 엔딩 진입");
-                ShowEndingPanel();
+                ShowEndingPanel("보스 처치\n\n엔딩");
 
                 // 엔딩 표시 후 → 로그라이크 루프(기획 §16): 메인 메뉴로 가지 않고
                 //   예비대/파티/영혼석 초기화 + 마석 유지 + 패시브 해금 화면 → 새 런 첫 노드.
@@ -283,7 +279,7 @@ public partial class BattleManager
             AudioManager.Instance?.PlaySfxById(SfxId.Defeat);
             DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
             // 기획 §16 — 패배도 보스 클리어와 동일하게 엔딩 팝업(글) 표시 후 로그라이크 루프 (마석 유지).
-            ShowEndingPanel();
+            ShowEndingPanel("전원 전멸…\n\n패배");
             yield return new WaitForSeconds(endingDisplayDuration);
             Debug.Log("[BattleManager] 전멸 — 로그라이크 루프: 리셋 후 새 런 시작 (마석 유지)");
             StartNextRunLoop();
@@ -293,9 +289,9 @@ public partial class BattleManager
 
     /// <summary>
     /// 엔딩/결과 팝업 표시 (보스 클리어·전멸 공통). 부모 트리가 비활성이어도 보이도록 상위까지 활성화.
-    /// 글/연출은 endingPanel 에 붙여 사용 (기획 §16).
+    /// message 로 승리/패배 문구를 분기한다 (기획자 피드백 #13 — 패배 시 "보스 처치 엔딩" 오표시 수정).
     /// </summary>
-    private void ShowEndingPanel()
+    private void ShowEndingPanel(string message)
     {
         if (endingPanel == null)
         {
@@ -309,6 +305,13 @@ public partial class BattleManager
             t = t.parent;
         }
         endingPanel.SetActive(true);
+
+        // EndingText(단일 TMP) 에 승리/패배 문구 반영
+        if (!string.IsNullOrEmpty(message))
+        {
+            var label = endingPanel.GetComponentInChildren<TMPro.TMP_Text>(true);
+            if (label != null) label.text = message;
+        }
     }
 
     /// <summary>

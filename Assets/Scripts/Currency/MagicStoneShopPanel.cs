@@ -76,6 +76,9 @@ public class MagicStoneShopPanel : MonoBehaviour
         if (_root != null) _root.SetActive(v);
     }
 
+    /// <summary>마석 상점이 현재 열려 있는지 (좌측 패널 접기 차단 판정용).</summary>
+    public bool IsOpen => _root != null && _root.activeInHierarchy;
+
     // ── 해금 처리 ───────────────────────────────────────────────
     private void OnBuyClicked(string id)
     {

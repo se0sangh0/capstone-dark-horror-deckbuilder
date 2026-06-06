@@ -39,6 +39,9 @@ public partial class EnemyData : ScriptableObject
     [Tooltip("카드 시각 크기 배율. 0 또는 미설정이면 1.0 폴백.")]
     public float visualScale = 1.0f;
 
+    [Tooltip("스프라이트 좌우 반전 — 적 기본 페이싱(좌향)과 반대로 그려진 아트용 (예: 고블린 애니메이션).")]
+    public bool flipSprite = false;
+
     [Tooltip("RuntimeAnimatorController 의 Resources 기준 경로. 비면 Animator 비활성.")]
     public string animatorPath;
 

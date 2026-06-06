@@ -87,6 +87,11 @@ public class StackCardController : MonoBehaviour
     public bool IsPendingDiscard { get; private set; }
     private static readonly Color PendingDiscardColor = new Color(1f, 0.84f, 0.2f, 1f); // 황금색
 
+    // 손패 카드 기본 배경 — 서사 톤(어둡고 차가운 슬레이트). 텍스트는 밝게 대비.
+    private static readonly Color NormalCardColor = new Color(0.13f, 0.16f, 0.20f, 1f);
+    private static readonly Color CardRoleLabelColor = new Color(0.85f, 0.88f, 0.92f, 1f);
+    private static readonly Color CardDescColor      = new Color(0.62f, 0.66f, 0.72f, 1f);
+
     // ----------------------------------------------------------
     // 초기화
     // ----------------------------------------------------------
@@ -142,17 +147,21 @@ public class StackCardController : MonoBehaviour
                 StackType.Support => "힐",
                 _ => "?"
             };
+            roleText.color = CardRoleLabelColor; // 다크 카드 위 가독성
         }
 
         // 설명 텍스트 업데이트
         if (descText != null)
-            descText.text = number > 0 ? "스택 증가" : "스택 감소";
+        {
+            descText.text  = number > 0 ? "스택 증가" : "스택 감소";
+            descText.color = CardDescColor;
+        }
 
         // 카드 상태 초기화
         isUsed                = false;
         myButton.interactable = true;
         IsPendingDiscard      = false;
-        myImage.color         = Color.gray1;
+        myImage.color         = NormalCardColor;
         myImage.sprite        = null;
     }
 
@@ -162,7 +171,7 @@ public class StackCardController : MonoBehaviour
         IsPendingDiscard = pending;
         if (myImage != null && !isUsed)
         {
-            myImage.color = pending ? PendingDiscardColor : Color.gray1;
+            myImage.color = pending ? PendingDiscardColor : NormalCardColor;
         }
     }
 
