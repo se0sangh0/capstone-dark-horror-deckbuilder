@@ -27,9 +27,8 @@ public class LeftPanelView : MonoBehaviour
     [Tooltip("성향별 줄을 출력할 TMP_Text. 줄바꿈 join.")]
     [SerializeField] private TMP_Text deckSummaryText;
 
-    [Header("스트레스 행")]
-    [Tooltip("StressEntry 프리팹/노드. 멤버 수만큼 활성화하여 사용.")]
-    [SerializeField] private StressEntry[] stressEntries = new StressEntry[4];
+    // 스트레스 행은 각 파티 카드(CardSlotView)의 HP 아래 스트레스 바로 이전됨 (기획자 피드백 #3).
+    // 좌패널의 별도 스트레스 섹션은 제거 — 관련 필드/로직 삭제.
 
     [Header("재화 텍스트 (LeftPanel 내부)")]
     [Tooltip("영혼석 ValueText (Item_SoulStone > ValueText). SoulstoneManager 이벤트로 자동 갱신.")]
@@ -55,16 +54,6 @@ public class LeftPanelView : MonoBehaviour
     [SerializeField] private PartyEditPanel partyEditPanel;
 
     private readonly List<FellowData> _bound = new();
-
-    [System.Serializable]
-    public class StressEntry
-    {
-        public GameObject root;          // 행 전체 (활성/비활성)
-        public TMP_Text   nameText;
-        public TMP_Text   scoreText;     // "38/100"
-        public TMP_Text   conditionText; // "안정/압박/패닉" — 검은색 고정
-        public Image      conditionBg;   // 상태 박스 배경(Tag_BG) — 상태색 적용
-    }
 
     // ──────────────────────────────────────────────────────────────
     private void OnEnable()
@@ -179,9 +168,11 @@ public class LeftPanelView : MonoBehaviour
     {
         UnbindAll();
 
-        var party = PartyManager.Instance != null
+        // 사망자는 즉시 제외 — 아군 사망 시 빈칸 없이 곧바로 압축 정렬 (기획자 피드백 #12)
+        var party = (PartyManager.Instance != null
             ? PartyManager.Instance.GetActiveFellows()
-            : new List<FellowData>();
+            : new List<FellowData>())
+            .Where(f => f != null && !f.isDead).ToList();
 
         // 카드 슬롯
         for (int i = 0; i < cardSlots.Length; i++)
@@ -203,10 +194,9 @@ public class LeftPanelView : MonoBehaviour
         // 스트레스 이벤트 구독 + 행 표시
         foreach (var f in party)
         {
-            f.OnStressChanged += OnStressChanged;
+            f.OnDied += OnFellowDied;   // 사망 즉시 재빌드 (#12)
             _bound.Add(f);
         }
-        RefreshStressRows(party);
 
         // 덱 요약
         RefreshDeckSummary(party);
@@ -215,53 +205,12 @@ public class LeftPanelView : MonoBehaviour
     private void UnbindAll()
     {
         foreach (var f in _bound)
-            if (f != null) f.OnStressChanged -= OnStressChanged;
+            if (f != null) f.OnDied -= OnFellowDied;
         _bound.Clear();
     }
 
-    private void OnStressChanged(int _) => RefreshStressRows(_bound);
-
-    private void RefreshStressRows(IList<FellowData> party)
-    {
-        for (int i = 0; i < stressEntries.Length; i++)
-        {
-            var entry = stressEntries[i];
-            if (entry == null || entry.root == null) continue;
-
-            if (i < party.Count)
-            {
-                var f = party[i];
-                entry.root.SetActive(true);
-                if (entry.nameText      != null) entry.nameText.text      = !string.IsNullOrEmpty(f.displayName) ? f.displayName : f.id;
-                if (entry.scoreText     != null) entry.scoreText.text     = $"{f.currentStress}/100";
-                if (entry.conditionText != null)
-                {
-                    entry.conditionText.text  = GetStressLabel(f.currentStress);
-                    entry.conditionText.color = Color.black; // 텍스트는 검은색 고정
-                }
-                if (entry.conditionBg != null)
-                    entry.conditionBg.color = GetStressColor(f.currentStress);
-            }
-            else
-            {
-                entry.root.SetActive(false);
-            }
-        }
-    }
-
-    private static Color GetStressColor(int stress)
-    {
-        if (stress >= 100) return new Color(0.85f, 0.25f, 0.25f);    // 패닉 — 빨강
-        if (stress >= 51)  return new Color(0.95f, 0.65f, 0.25f);    // 압박 — 주황
-        return new Color(0.45f, 0.75f, 0.45f);                       // 안정 — 녹색
-    }
-
-    private static string GetStressLabel(int stress)
-    {
-        if (stress >= 100) return "패닉";
-        if (stress >= 51)  return "압박";
-        return "안정";
-    }
+    // 파티 멤버 사망 시 즉시 재빌드 — 빈칸 없이 곧바로 압축 정렬 (#12)
+    private void OnFellowDied() => Refresh();
 
     private void RefreshDeckSummary(IList<FellowData> party)
     {

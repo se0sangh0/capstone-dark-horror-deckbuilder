@@ -54,6 +54,7 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.skillIds    = def.skillIds;     // 신규: JSON 의 다중 스킬 ID 배열 복사
         e.spritePath  = def.spritePath;
         e.visualScale = def.visualScale > 0 ? def.visualScale : 1.0f; // JSON 미설정/0 이면 1.0 폴백
+        e.flipSprite  = def.flipSprite;
         e.animatorPath = def.animatorPath;
         e.idleAnim     = def.idleAnim;
         e.attack1Anim  = def.attack1Anim;

@@ -56,23 +56,23 @@ public partial class BattleManager
     {
     	if (isAllyTurn)
         {
-            // 행동 순서 결정 — 미행동자(전 턴 _carryoverOrderList) 우선 + 나머지 allies 진형 순서.
-            // ★ allies 리스트 자체는 절대 변경 안 함 (적 FrontFirst 타겟 = 진형 첫 슬롯 유지).
-            var actionOrder = new List<FellowData>();
-            foreach (var p in _carryoverOrderList)
-            {
-                if (p != null && !p.isDead && allies.Contains(p) && !actionOrder.Contains(p))
-                    actionOrder.Add(p);
-            }
-            foreach (var a in allies)
-            {
-                if (a != null && !a.isDead && !actionOrder.Contains(a))
-                    actionOrder.Add(a);
-            }
-            _carryoverOrderList.Clear(); // 새 턴 미행동자 받을 준비 — 아래 미행동 처리에서 다시 채움
+            // 진형(allies) 순서대로 행동. 미행동자는 이번 턴 종료 후 allies 맨 앞으로 이동
+            //  → 진형(위치) 변경 + 다음 턴 우선 행동 + 적 FrontFirst 타겟도 새 앞열을 향함.
+            //  (2026-06-05 사용자 요청 — 2026-05-29 의 actionOrder 분리 방식을 원래 동작으로 복원)
+            var snapshot = new List<FellowData>(allies);
+            var noAction = new List<FellowData>();
 
-            foreach (var ally in actionOrder)
+            foreach (var ally in snapshot)
             {
+                // 적이 전부 사망했으면 즉시 아군 행동 중단 — 남은 아군이 빈 적에게 스킬 쓰는 것 방지 (사용자 요청).
+                if (enemies.Count > 0 && enemies.All(e => e.isDead))
+                {
+                    Debug.Log("[아군 행동] 적 전멸 감지 → 남은 아군 행동 중단");
+                    break;
+                }
+
+                if (ally == null || ally.isDead) continue;
+
                 // 공포 경직: 이번 턴 행동 불가
                 if (ally.isFrozen)
                 {
@@ -103,11 +103,12 @@ public partial class BattleManager
                 // 또한 §MVP 고정: "동료/적 모두 기본 턴당 1회 행동"
                 // → foreach 모든 스킬 시도 ❌ → 단일 best skill 만 발동 ✅
                 int currentStack = PlayerRoleCost.Instance.GetAmount(allyRole);
-	
-                SkillData bestSkill = skills
+
+                // 발동 가능한 후보 → 역할별 우선순위 선택 (기획자 피드백 #11).
+                List<SkillData> affordable = skills
                     .Where(s => currentStack >= s.costAmount + panicCostBonus)
-                    .OrderByDescending(s => s.costAmount)
-                    .FirstOrDefault();
+                    .ToList();
+                SkillData bestSkill = SelectSkillByRole(allyRole, affordable);
 
                 if (bestSkill != null)
                 {
@@ -129,14 +130,31 @@ public partial class BattleManager
 
                 // 어떤 스킬도 발동 못 한 경우에만 미행동 보너스 (기획 §코어루프 §동료 행동)
                 //  ─ 역할 스택 +1 (이월)
-                //  ─ 다음 턴 순서 우선 (allies 리스트 앞으로 재정렬, HandleResultProcessing 에서 처리)
+                //  ─ 미행동자 목록에 추가 → 턴 종료 후 allies 맨 앞으로 이동
                 if (!usedAny)
                 {
                     _carryoverBonus.TryGetValue(allyRole, out int prev);
                     _carryoverBonus[allyRole] = prev + 1;
-                    _carryoverOrderList.Add(ally);
-                    Debug.Log($"[아군 미행동] {allyRole} — 모든 스킬 발동 불가 → 다음 턴 이월 +1, 순서 우선");
+                    noAction.Add(ally);
+                    Debug.Log($"[아군 미행동] {allyRole} — 모든 스킬 발동 불가 → 다음 턴 이월 +1, 진형 앞으로");
                 }
+            }
+
+            // 미행동자를 allies 맨 앞으로 이동 — 진형/위치 변경 + 다음 턴 우선 행동.
+            //  기획 코어루프 §동료 행동: "배치 순서 → 미행동자 우선 재정렬".
+            //  감지된(배치) 순서대로 각자 맨 앞에 삽입 → 나중에 미행동한 동료가 더 앞.
+            //  예: 1-2-3-4 → 3 미행동 → 3-1-2-4 / 3,4 미행동 → 4-3-1-2.
+            //  시각 배치도 새 진형을 따르도록 battleSlotIndex 재할당 후 즉시 재배치.
+            if (noAction.Count > 0)
+            {
+                foreach (var f in noAction)
+                    if (allies.Remove(f)) allies.Insert(0, f);
+                for (int i = 0; i < allies.Count; i++)
+                    if (allies[i] != null) allies[i].battleSlotIndex = i;
+                DefaultSetting.AllyLayout?.RelayoutNow();
+                Debug.Log($"[아군 미행동] {noAction.Count}명 → allies 맨 앞으로 재정렬 (진형/위치 변경)");
+                // 진형 재배치(카드 이동) 애니메이션이 끝날 때까지 대기 — 적이 배치 변경 도중 공격하지 않도록 (사용자 요청).
+                yield return new WaitForSeconds(DefaultSetting.RelayoutDuration);
             }
         }
         else
@@ -381,6 +399,54 @@ public partial class BattleManager
     // 사망 처리 + 스트레스 전파
     // 기획서: 동료 사망 시 생존 동료 전원 스트레스 +20
     // ===========================================================
+
+    // ===========================================================
+    // 역할별 스킬 우선순위 선택 (기획자 피드백 #11)
+    // ===========================================================
+    /// <summary>
+    /// 발동 가능한 스킬 후보 중 역할 성향에 맞는 스킬을 우선 선택한다.
+    ///   서포터: 아군 HP 위급(60% 미만) 시 힐 우선 / 탱커: 실드 우선 / 딜러: 데미지 우선.
+    /// 선호 효과가 후보에 없으면 기존 규칙(코스트 최고)으로 폴백한다.
+    /// </summary>
+    private SkillData SelectSkillByRole(StackType role, List<SkillData> affordable)
+    {
+        if (affordable == null || affordable.Count == 0) return null;
+
+        System.Func<SkillData, bool> prefer = null;
+        switch (role)
+        {
+            case StackType.Support:
+                bool anyHurt = allies.Any(a => a != null && !a.isDead &&
+                    (float)a.CurrentHp / (a.maxHp > 0 ? a.maxHp : 100) < 0.6f);
+                if (anyHurt) prefer = IsHealSkill;
+                break;
+            case StackType.Tank:
+                prefer = IsShieldSkill;
+                break;
+            case StackType.Dealer:
+                prefer = IsDamageSkill;
+                break;
+        }
+
+        if (prefer != null)
+        {
+            var preferred = affordable.Where(prefer)
+                .OrderByDescending(s => s.costAmount)
+                .FirstOrDefault();
+            if (preferred != null) return preferred;
+        }
+
+        // 폴백 — 기존 규칙(발동 가능한 것 중 코스트 최고)
+        return affordable.OrderByDescending(s => s.costAmount).FirstOrDefault();
+    }
+
+    // effectType: "Damage"/"Heal"/"Shield"/"Buff"/"Debuff"/"MixedDamageShield"/"MixedDamageTaunt"
+    private static bool IsHealSkill(SkillData s)
+        => s != null && !string.IsNullOrEmpty(s.effectType) && s.effectType.Contains("Heal");
+    private static bool IsShieldSkill(SkillData s)
+        => s != null && !string.IsNullOrEmpty(s.effectType) && s.effectType.Contains("Shield");
+    private static bool IsDamageSkill(SkillData s)
+        => s != null && !string.IsNullOrEmpty(s.effectType) && s.effectType.Contains("Damage");
 
     /// <summary>
     /// 이번 턴에 HP 가 0 이하가 된 아군/적군을 처리한다.

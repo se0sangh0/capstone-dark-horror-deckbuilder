@@ -43,7 +43,7 @@ public static class MetaPassiveManager
     public const string UnlockWarCry    = "unlock_skill_war_cry";
     public const string UnlockPrayer    = "unlock_skill_prayer";
 
-    // 2026-06-02 — 직업당 해금 스킬 +1 (기본 2 / 해금 2 구성)
+    // 직업당 해금 스킬 2개 구성 (기본 2 / 해금 2) — 마석 해금. 2026-06-05 사용자 요청으로 복원.
     public const string UnlockFireball     = "unlock_skill_fireball";
     public const string UnlockMoonlight    = "unlock_skill_moonlight_slash";
     public const string UnlockBattleStance = "unlock_skill_battle_stance";
@@ -111,7 +111,7 @@ public static class MetaPassiveManager
         new Info{ id=UnlockWarShield, kind=Kind.Skill, job="디펜더",  name="전장의 방패 해금", desc="6코 데미지+전체실드 — 스킬 풀에 추가", cost=60, skillId="skill_war_shield" },
         new Info{ id=UnlockWarCry,    kind=Kind.Skill, job="어택커",  name="워크라이 해금",   desc="5코 데미지+도발 — 스킬 풀에 추가",   cost=60, skillId="skill_war_cry" },
         new Info{ id=UnlockPrayer,    kind=Kind.Skill, job="프리스트", name="기원 해금",       desc="5코 전체힐 40 — 스킬 풀에 추가",     cost=60, skillId="skill_prayer" },
-        // 직업당 해금 스킬 +1 (2026-06-02 — 기본 2 / 해금 2)
+        // 직업당 해금 스킬 2개째 (기본 2 / 해금 2) — 2026-06-05 복원
         new Info{ id=UnlockFireball,     kind=Kind.Skill, job="캐스터",  name="파이어볼 해금",   desc="3코 광역 35 — 스킬 풀에 추가",    cost=60, skillId="skill_fireball" },
         new Info{ id=UnlockMoonlight,    kind=Kind.Skill, job="오펜더",  name="월광베기 해금",   desc="7코 단일 60 — 스킬 풀에 추가",    cost=60, skillId="skill_moonlight_slash" },
         new Info{ id=UnlockBattleStance, kind=Kind.Skill, job="디펜더",  name="전투 태세 해금",  desc="5코 전체실드 40 — 스킬 풀에 추가", cost=60, skillId="skill_battle_stance" },

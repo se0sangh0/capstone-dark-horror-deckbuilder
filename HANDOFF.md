@@ -1,9 +1,101 @@
 # HANDOFF — 다음 세션 인수인계
 
-> 마지막 갱신: 2026-06-01 (3차 세션)
-> 직전 큰 작업: **튜토리얼 시스템 풀 플로우 + 모달 다이얼로그 + DoT 시스템 + 노드/적 시스템 다수 보강**
-> 2026-06-01 변경: ① 모달 박스 1100×560 적용했다가 **사용자 판단으로 원본(900×400)으로 롤백** — 최종 원본 유지
-> ② **튜토리얼 적 스폰 RoomType별 분기** — Boss→까마귀보스 / Elite→약탈자 / 그 외→고블린 (전 노드 고블린 고정 버그 해소, EnemySpawner.cs)
+> 마지막 갱신: **2026-06-05** (6차 세션 — 기획자 피드백 15항목 **전부 완료**)
+> 6차 세션 요약: 버그 4건(#4 로그스크롤·#10 노드클릭가드·#12 사망재빌드·#13 패배엔딩) + 밸런스 2건(#11 역할별 스킬우선순위·#14 해금 직업당1) + UI 7건(#1 한글·#3 카드 스트레스바·#5 dim·#6 초상화·#2·7 스킬툴팁·#8 한기 팔레트·#9 모집비용 30 통일). 상세는 아래 §6차 세션 완료.
+> 직전 큰 작업(2026-06-02~06-05): UI 전반 다크 서사톤 통일, 좌측 패널 접기 기능, 파티편집 양방향 스왑, 용병소/교회 통일 등 — 상세는 아래 §직전 세션 완료(2026-06-02~05)
+> (이전) 2026-06-01: 튜토리얼 풀 플로우 + 모달 다이얼로그 + DoT + 노드/적 보강. 모달 박스 원본(900×400) 유지 롤백.
+
+---
+
+## ✅ 6차 세션 완료 — 기획자 피드백 15항목 (2026-06-05)
+
+> 백업: `~/Documents/backup/2026-06-05_planner_feedback_15/` (Scripts 전체 + 두 씬 + 프리팹 + Data).
+> 컴파일 0에러, Play 런타임 0에러 검증. 좌측패널 한글·팔레트 스크린샷 육안 확인.
+
+| # | 결과 |
+|---|---|
+| 4 | ✅ 로그 스크롤 — `Canvas/LogPopup/.../Content` VerticalLayoutGroup `childControlHeight=false`가 원인. `true`+`childForceExpandHeight=false`로 수정(텍스트만큼 Content 성장). 씬 인스턴스 오버라이드. |
+| 10 | ✅ 노드 클릭 가드 — `NodeSystem.OnNodeClicked` 진입에 `IsAnyBlockingPanelOpen()`(PanelBase alpha>0.5) 가드. 열린 팝업 위 클릭 무시. |
+| 12 | ✅ 사망 즉시 파티 재빌드 — `LeftPanelView`가 멤버별 `OnDied` 구독→`Refresh()`, 그리고 Refresh가 `!isDead` 필터로 즉시 압축. |
+| 13 | ✅ 패배 엔딩 텍스트 — `BattleManager.Phases.ShowEndingPanel(string)`로 변경. 승리="보스 처치\n\n엔딩" / 패배="전원 전멸…\n\n패배"(`EndingPanel/EndingText`). |
+| 11 | ✅ 역할별 스킬 우선순위 — `BattleManager.Combat.SelectSkillByRole()`. 서포터=아군 HP<60% 시 Heal / 탱커=Shield / 딜러=Damage 우선, 없으면 코스트 최고 폴백. effectType.Contains 판정. |
+| 14 | ✅ 해금 직업당 1개 — `MetaPassiveManager`에서 fireball/moonlight_slash/battle_stance/indomitable/starlight 5종 게이트 제거(상수·All·_skillUnlockKey). 기본3/해금1. 랜덤 다양성 복원. |
+| 1 | ✅ 좌측 메뉴 한글 — `LeftPanel.prefab`: 재화/파티/덱/스트레스(헤더), 설정/로그(버튼). 파티편집은 기존 한글. |
+| 3 | ✅ 카드 스트레스 바 — `CardSlotView.stressSlider` 추가(OnStressChanged 구독, 안정/압박/패닉 색). 4개 카드 `Right_Area`의 HP `Bar_Line` 복제→`Stress_Line`(HP 아래)·점수 제거·maxValue 100·각 CardSlotView 연결. ※좌패널 별도 Stress 섹션(stressEntries)은 잔존(중복) — 추후 제거 검토. |
+| 5 | ✅ 파티편집 dim — `PartyEditPanel.prefab`에 이미 `BackgroundDim`(풀스크린 활성) 존재. α 0.51→0.6. (옛 `Background`(비활성)는 잔재.) |
+| 6 | ✅ 카드 초상화 — `FellowCardView`가 roleBadgeImage에 `fellow.portrait??fellowSprite` 표시(white+preserveAspect), 없으면 역할색 폴백. |
+| 2·7 | ✅ 스킬 호버 툴팁(공용) — 신규 `UI/SkillTooltip.cs`(`SkillTooltipController`+`SkillTooltipTrigger`). 씬 `Canvas/SkillTooltip`(Canvas overrideSorting 100, TooltipBox+Body). `CardSlotView`(스킬1·2 라벨, #2)·`FellowCardView`(skillsLabel 전체, #7)가 런타임 `Ensure().SetSkills()`로 부착. 명/코스트/효과/설명 표시. |
+| 8 | ✅ 한기 강화 팔레트(사용자 선택) — 두 씬 배경 0.05·0.067·0.075→0.04·0.06·0.085 / GameStartScene 버튼 0.16·0.19·0.22→0.15·0.19·0.26 / `LeftPanel.prefab` 슬레이트 0.0588·0.0706·0.0941→0.043·0.062·0.105(17곳). ※메르세나리/교회 등 패널은 미적용 — 추가 통일은 백로그. |
+| 9 | ✅ 모집비용 통일 30 — 기획 §14 "1성 모집비용 30" 확정값. `fellow.json` 전원 30(디펜더·어택커 40→30, 프리스트 35→30). ※README/09 표는 옛 30/40/35 잔존 — 문서 동기화 백로그. |
+| 15 | ✅ 확인 완료(이전 세션) — 튜토리얼 `tutorial_completed`==0 시 자동. |
+
+**남은 백로그(이번 세션 발견)**: ③ README/09_캐릭터시트 모집비용 표를 30으로 문서 동기화.
+
+### 6차 세션 후속(2026-06-05, 동일 세션 추가 처리)
+- ✅ **좌패널 별도 Stress 섹션 제거** — `LeftPanel.prefab`의 `Stress_Accordion` 비활성(m_IsActive 0). `LeftPanelView.cs`에서 stressEntries 필드·StressEntry 클래스·RefreshStressRows/GetStressColor/GetStressLabel·OnStressChanged 구독 전부 제거(데드코드). 스트레스는 카드 바(#3)로 일원화. 검증: Play 시 좌패널에 재화/파티/덱만 표시(스트레스 섹션 없음).
+- ✅ **팔레트 메르세나리/교회 확장** — 두 패널 배경은 프리팹이 아닌 **씬 인스턴스 오버라이드**로 다크 슬레이트(0.05·0.06·0.07, α0.96)였음(grep이 α0.96을 놓쳐 초기엔 흰색으로 오판). 4개 `Background`(MercenaryOffice/Recruit/Growth + Church)를 한기 슬레이트 0.04·0.06·0.085(α0.96)로 통일(GamePlayScene 저장). ※패널 내 버튼은 슬레이트 색이 검출 안 됨(스프라이트 기반 추정) — 미적용.
+- ✅ **고블린 애니메이션 연결** — 자산(`Resources/Animators/Enemies/Goblin/`: Goblin.controller + Idle/Attack/Attack2.anim, 각 0.52s, 키프레임 채워짐)은 있었으나 `enemies.json` 고블린 `animatorPath`가 **빈 문자열**이라 미연결이었음. `"Animators/Enemies/Goblin/Goblin"`로 설정. `DefaultSetting.cs`가 컨트롤러 로드→EnemyObject(Animator 보유) 주입. **런타임 검증**: Combat 진입 시 스폰 고블린 2마리 모두 `runtimeAnimatorController=Goblin` + Idle 재생(playing=True), 로드 실패 경고 0. ※raider/boss/crow는 컨트롤러 없어 animatorPath 빈 채 유지.
+- 백업: `~/Documents/backup/2026-06-05_stress_palette_goblin/`.
+
+### 6차 세션 후속 2 (2026-06-05, 사용자 추가 요청)
+- ✅ **고블린 좌우 반전** — 고블린 애니메이션 아트가 기본 적 페이싱(좌향, `SetFacing` localScale.x −)과 반대로 그려져 있어 보정. 데이터 필드 `flipSprite`(EnemyDef/EnemyData/EnemyDatabase) 신설, `enemies.json` 고블린 `"flipSprite": true`. `DefaultSetting`이 `SetFacing(faceLeft: isEnemy ^ flipSprite)`. 검증: 스폰 고블린 렌더러 localScale.x=+0.85(일반 적은 −). raider/boss/crow는 flipSprite 미설정.
+- ✅ **스킬 해금 2디폴트+2잠금 복원(#14 되돌림)** — 직전 #14에서 제거했던 fireball/moonlight_slash/battle_stance/indomitable/starlight 5종 해금을 `MetaPassiveManager`(상수·All·_skillUnlockKey)에 재추가. 검증: All 내 스킬해금 10개, 캐스터 풀 잠금=[fireball, ice_storm] → 직업당 기본2/해금2(마석 해금). ⚠️ 이전 #14 표 기록은 무효(사용자가 2잠금 유지를 원함).
+- ✅ **공격 로직 복원(미행동→진형 변경)** — 2026-05-29의 actionOrder 분리(allies 불변) 방식을 사용자 요청으로 원복. `BattleManager.Combat.ExecuteAction`: allies 진형 순서대로 행동, 미행동자는 턴 종료 시 `allies` 맨 앞으로 이동(상대순서 유지) + `battleSlotIndex` 재할당 + `DefaultSetting.AllyLayout.RelayoutNow()`로 즉시 시각 재배치. `_carryoverOrderList`(Phases·BattleManager.cs) 제거. `DefaultSetting`에 `static AllyLayout` + `RelayoutNow()` 신설. 검증: [Support,Tank,Tank,Dealer]에서 Dealer 미행동→[Dealer,Support,Tank,Tank], slot 재할당, RelayoutNow 정상.
+  - ※부수효과: 미행동자가 allies 맨 앞 → 적 FrontFirst 타겟도 그 앞열을 향함(원래 동작, 의도됨).
+  - 🔧 정렬 순서 사양 보정(2026-06-05): 코어루프 명세 §동료 행동 — 복수 미행동 시 **감지(배치) 순서대로 각자 맨 앞 삽입** → 나중 미행동자가 더 앞. 예 `1-2-3-4`에서 3,4 미행동 → **`4-3-1-2`**(역순 삽입 버그를 spec대로 수정). 단일 3 미행동 → `3-1-2-4`. 검증 완료.
+
+### 6차 세션 후속 3 (2026-06-05) — 프리스트 스케일 / 모션 검토 / 파티편집 UI
+- ✅ **프리스트 스케일** — 6/5 추가 Idle 시트 `Priest_Idle_2~5.png`가 기본 PPU 100이라 renderH 2.66~2.74로 큼(원본 `Priest_Idle` PPU 129.5=2.0). 새 4시트 PPU를 2→133/3→135/4→137/5→137로 보정 → 전 프레임 renderH=2.0(다른 동료와 동일, 프레임별 편차 해소). 백업 `~/Documents/backup/2026-06-05_priest_scale/`.
+- ✅ **스킬 모션 검토** — `MotionCategoryResolver`(effectType+isRanged): 검 근접→Melee(대시), 마법/신성 원거리→Ranged(제자리), 힐/실드/혼합→Stationary. 20개 스킬 전수 검토 결과 **전부 적합** — 데이터 변경 없음. (한계: 힐/실드도 Attack 애니 재생 — 전용 캐스트 에셋 필요, AoE 멜리(역류)는 단일 타겟 대시 — 백로그.)
+- ✅ **파티편집 UI 개선** — ⚠️핵심: 패널이 LeftPanel·노드맵 뒤에 렌더돼 모달이 화면을 못 덮고 좌패널/노드가 비쳐 겹쳤음. 수정: `Canvas/PartyEditPanel`에 **Canvas(overrideSorting, order 80) + GraphicRaycaster** 추가 → LeftPanel(0)·노드 위로. `BackgroundDim`을 불투명 쿨 슬레이트(0.04·0.055·0.08, α0.98)로 → 배경 완전 차단. 잔재 `Background`(비활성) 삭제. `ReserveScrollView` 밝은 회색→다크 슬레이트(0.075·0.09·0.12). 풀해상도 캡처로 클린 확인(타이틀/인원/4카드/예비대/나가기/안내 정렬, 비침 0). ※저해상도 MCP 오버레이 캡처는 비침 아티팩트 있음(실제 렌더는 정상). 백업 `~/Documents/backup/2026-06-05_partyedit_ui/`.
+- 백업: `~/Documents/backup/2026-06-05_flip_unlock_actionorder/`.
+
+---
+
+## 🗂️ (이전) 기획자 피드백 15항목 원본 표 — 참고용
+
+> 작업 전 위치·원인 메모. 위 §6차 완료 표가 최신.
+> **권장 순서**: 버그(4,10,12,13) → 밸런스(11,14) → UI(1,3,5,6,2·7,8) → 대기(9). 15는 확인 완료.
+
+| # | 분류 | 요구 / 원인·위치 / 수정 방향 |
+|---|---|---|
+| 1 | UI | 좌측 메뉴 한/영 혼용 → **한글 통일**(재화/파티/덱/스트레스, 파티편집/설정/로그). 위치: `LeftPanel/.../{Money,Party,Deck,Stress}_Accordion/Button_Header/Text (TMP)`, `LeftPanel/Image/{PartyEdit,Setting,Log}/Text (TMP)`. 정적 TMP. ※일부 런타임 세팅 여부(LeftPanelView) 확인 |
+| 2·7 | UI신규 | **스킬 호버 툴팁 공용 시스템**(명/코스트/효과/설명). `CardSlotView`(2) + `FellowCardView`(7) 공용. 데이터 `SkillData.description` + `SkillDatabase.GetSkill(id)`. IPointerEnter/Exit + 툴팁 패널 |
+| 3 | UI | **스트레스 바를 파티 카드 HP 아래로**. `CardSlotView.cs`에 스트레스 Slider 추가 + `FellowData.OnStressChanged` 구독. 별도 `Stress_Accordion` 제거 검토 |
+| 4 | 버그 | **로그 스크롤 안 됨**. `Log/LogPopup.cs`(scrollRect line 21,107). ScrollView Viewport/Content·ContentSizeFitter(Vertical)·ScrollRect.content 연결·Vertical 점검. 위치: `Canvas/LogPopup` |
+| 5 | UI | **파티편집 배경 dim**. `Canvas/PartyEditPanel/Background`(현재 비활성) 활성화 + 반투명 검정 `(0,0,0,0.6)` 풀스크린 |
+| 6 | UI | **파티편집 카드 아이콘 → 초상화/스프라이트**. `FellowCardView.cs`(roleBadgeImage 색상배지) → `fellow.portrait`/`fellowSprite`. (정면 초상화 에셋 없으면 스프라이트 우선) |
+| 8 | UI협의 | **전체 색상톤 추가 변경 희망**(주관적). 다음 세션에 팔레트 2~3안 제시 후 협의. 현재: 배경 0.05,0.067,0.075 / 버튼 0.17,0.20,0.24 / 텍스트 0.86~0.9 |
+| 9 | 기획대기 | **모집비용 통일**(현 fellow.json 30~40). **기획자 기획서 수정 예정** → 확정값 후 fellow.json+§14 반영 |
+| 10 | 버그 | **팝업 열린 채 노드 클릭 시 노드 실행+팝업 잔존**. `Node/NodeSystem.cs OnNodeClicked`(line 371) 가드 없음 → 패널 열림(PanelBase alpha>0.5) 중 클릭 무시 또는 열린 패널 강제 Close. (LeftPanelToggle 게이트 로직 재사용 가능) |
+| 11 | 로직 | **스킬 우선순위**. `BattleManager.Combat.cs:107~110` 무조건 `OrderByDescending(costAmount)`. → Support는 아군 HP낮으면 Heal, Tank는 Shield 우선, 딜러는 딜. `SkillData.effectType` + 아군 HP비율 활용 |
+| 12 | 버그 | **파티 아코디언 열린 채 아군 사망 → 빈칸, 재오픈해야 정렬**. `LeftPanelView.cs`/`CardSlotView.cs` — `FellowData.OnDied` 구독해 사망 즉시 파티 리스트 재빌드 |
+| 13 | 버그 | **패배 시 "보스 처치 엔딩" 팝업**. `BattleManager.Phases.cs:286` 패배도 `ShowEndingPanel()`(정적 "보스 처치\n\n엔딩" 텍스트, GamePlayScene). → 승리/패배 텍스트 분기(ShowEndingPanel(text)) 또는 패배 전용 패널 |
+| 14 | 밸런스 | **해금 2개→축소**. 직전 세션 직업당 2개 잠금(fireball/moonlight/battle_stance/indomitable/starlight, `MetaPassiveManager`). 사용자 의도(랜덤 다양성)와 충돌 → **직업당 1개만 잠금(기본3/해금1)** 또는 잠금 제거. `_skillUnlockKey`·`All` 조정 |
+| 15 | 확인✅ | **튜토리얼 조건**: PlayerPrefs `tutorial_completed`==0(미완료/키없음)일 때 [게임시작] 시 **최초 1회 자동**. `MoveScene.cs:53` `if(!IsCompleted())`. 안 뜬 건 이전 완료/스킵으로 1 저장됨 → `ResetCompletedFlag()` 또는 PlayerPrefs 삭제, 또는 [처음이신가요?] 버튼(`MoveScene.cs:40`, 완료시 노출) |
+
+**다음 세션 시작용 복사 글**
+```
+[이어서 작업 — 기획자 피드백 15항목]
+HANDOFF.md 의 §NEXT(기획자 피드백 15항목) 대로 작업한다.
+작업 전 MEMORY.md·기획 폴더·백업 규칙 확인, 대상 파일/씬은 ~/Documents/backup/ 에 백업.
+순서: 버그(4,10,12,13) → 밸런스(11,14) → UI(1,3,5,6,2·7,8) → 대기(9). 15는 확인완료.
+각 항목 '위치/원인/수정' 기준으로 UnityMCP 직접 수정·검증(플레이→스크린샷). 8·9는 진행 전 사용자에게 방향/확정값 확인.
+```
+
+---
+
+## 🟢 직전 세션 완료 (2026-06-02 ~ 06-05, 4·5차)
+
+> 전반 **UI 서사톤(어둡고 차가움) 통일** + 좌측 패널 접기 기능군. 모두 저장·검증됨.
+
+- **테마 통일(다크)**: 메인 메뉴(GameStartScene — 한글 라벨·임시 타이틀 "괴이탐사대"·Exit 버튼 수정), 노드맵(엘리트 호박색 구분·동선 대비), 전투 프레임(배경/좌패널/턴버튼/덱), HP 바 트랙, 스택 3컬럼(역할색 외곽선+다크박스), 손패 카드(`StackCardController` 다크), 좌측 패널(아코디언/버튼 슬레이트+밝은텍스트), 용병소 3패널(버튼16·텍스트47 일괄), 교회.
+- **좌측 패널 접기**: `Assets/Scripts/UI/LeftPanelToggle.cs`(신규) + `Canvas/LeftPanel/CollapseTab`(▶ 탭, override Canvas sortingOrder 50, CanvasGroup). 접으면 ① 패널 슬라이드 숨김 ② 오른쪽 콘텐츠 offsetMin 600→0 화면채움(rightContents=NodeDisplay/RightMainArea/MercenaryRoot/RestPanel) ③ 전투 월드(InGameObjects) 좌측 이동(battleWorldShiftX). **게이트**: 용병소(Office/Recruit/Growth)·노드맵·전투에서만 가능, 그 외 PanelBase 패널 열리면 탭 숨김. `MagicStoneShopPanel.IsOpen` 추가.
+- **파티편집 양방향 스왑**: `PartyEditPanel.cs` — `_selectedReserveIndex` 추가, 예비대/파티 어느쪽 먼저 선택해도 교체(`ClearSelection`/하이라이트). 동작변화: 예비대 클릭=즉시합류 → 선택후 대상클릭.
+- **스킬 배정**: `SkillDatabase.PickSkillsFromPool`(풀에서 해금된 것 중 2개) + 직업당 2개 해금(`MetaPassiveManager`) ← **#14에서 축소 요청**.
+- **튜토리얼 영혼석**: 진입 시 400 지급/종료 시 원복(`TutorialManager` + `BaseCurrency.SetAmount`). 백업·검증 워크플로우 확립: 플레이 진입→`NodeSystem.OnNodeClicked(0,0)`로 전투 강제→**메인카메라 직접 렌더**(월드 스프라이트)·**Scene뷰**(오버레이)·**Canvas를 임시 ScreenSpaceCamera로 바꿔 합성** 캡처.
+- ⚠️ **MCP 주의**: 플레이 모드에서 프레임이 스크린샷 시점에만 진행됨 → 매프레임 Update 검증은 스크린샷으로 강제 틱 필요. / execute_code의 raw 색변경은 프리팹 인스턴스 오버라이드 직렬화 안 됨 → `EditorUtility.SetDirty`+`PrefabUtility.RecordPrefabInstancePropertyModifications` 필요.
+- **백업**: `~/Documents/backup/20260602_startscene_ui/`, `~/Documents/backup/20260602_tutorial_currency_exitfix/`.
 
 ---
 

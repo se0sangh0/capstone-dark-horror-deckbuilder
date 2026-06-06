@@ -174,12 +174,8 @@ public partial class BattleManager : Singleton<BattleManager>
     /// <summary>스택 부족으로 스킵한 역할의 이월 보너스 (턴 종료 시 다음 턴으로 전달)</summary>
     private readonly Dictionary<StackType, int> _carryoverBonus = new();
 
-    /// <summary>
-    /// 이번 턴 미행동한 동료들 — 다음 턴 결과 처리 시 allies 리스트의 앞으로 재정렬.
-    /// 기획 §코어루프 §동료 행동 — "예시: 1-2-3-4 → 3 미행동 → 다음 턴 3-1-2-4"
-    /// 복수 미행동 시 미행동 발생 순서대로 앞에 stable 정렬 (기획 미명시 → 자연 확장).
-    /// </summary>
-    private readonly List<FellowData> _carryoverOrderList = new();
+    // 미행동 진형 재정렬은 ExecuteAction 종료 시 allies 를 직접 수정한다 (2026-06-05 복원).
+    // 기획 §코어루프 §동료 행동 — "예시: 1-2-3-4 → 3 미행동 → 다음 턴 3-1-2-4"
 
     /// <summary>InitBattle 정보 로그를 첫 전투에서만 출력하기 위한 플래그</summary>
     private static bool _firstInitLogged = false;

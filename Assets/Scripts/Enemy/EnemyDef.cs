@@ -13,6 +13,7 @@ public class EnemyDef
     public string[] skillIds;  // (신규) 다중 적 스킬 ID — enemy_skills.json 의 id 와 매칭
     public string spritePath;  // Resources 기준, 확장자 X
     public float  visualScale; // 카드 시각 크기 배율. 0 또는 미설정이면 1.0 으로 폴백 (DefaultSetting 에서 적용)
+    public bool   flipSprite;  // 스프라이트 좌우 반전 — 적 기본 페이싱(좌향)과 반대로 그려진 아트용 (예: 고블린 애니메이션)
 
     // ── 소환체 메커니즘 (기획 §11 §3 까마귀) — 일반 적은 0 또는 false ──
     public int    hitCountToDie;       // 0 = HP 기반, >0 = N hit 으로 처치
