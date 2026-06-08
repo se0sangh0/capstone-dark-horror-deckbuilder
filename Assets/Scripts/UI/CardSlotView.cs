@@ -68,7 +68,7 @@ public class CardSlotView : MonoBehaviour
         gameObject.SetActive(true);
 
         // 정적 정보
-        if (nameText != null)      nameText.text      = !string.IsNullOrEmpty(_fellow.displayName) ? _fellow.displayName : _fellow.id;
+        if (nameText != null)      { nameText.text = !string.IsNullOrEmpty(_fellow.displayName) ? _fellow.displayName : _fellow.id; ApplyAutoFit(nameText, 20f, 12f); }
         if (iconImage != null)     iconImage.sprite   = _fellow.portrait != null ? _fellow.portrait : _fellow.fellowSprite;
         // Job 자리에 활성 메타 패시브 표시 (기획 §16). 미배정/미해금이면 "패시브 잠금".
         // 긴 패시브명이 칸을 넘치지 않도록 폰트 자동 축소 (max=기본 20, min=11).
@@ -82,7 +82,7 @@ public class CardSlotView : MonoBehaviour
             jobTagText.enableWordWrapping = false;
             jobTagText.overflowMode = TMPro.TextOverflowModes.Ellipsis;
         }
-        if (affinityTagText != null) affinityTagText.text = _fellow.AffinityLabel;
+        if (affinityTagText != null) { affinityTagText.text = _fellow.AffinityLabel; ApplyAutoFit(affinityTagText, 18f, 10f); }
         if (affinityTagBg != null) affinityTagBg.color   = _fellow.AffinityColor;
 
         // 스킬
@@ -191,23 +191,36 @@ public class CardSlotView : MonoBehaviour
             :                 new Color(0.85f, 0.25f, 0.25f);  // 빨강
     }
 
+    /// <summary>칸보다 큰 폰트로 텍스트 밑이 잘리지 않도록 오토사이즈(축소) 적용 (#12).</summary>
+    private static void ApplyAutoFit(TMP_Text label, float max, float min)
+    {
+        if (label == null) return;
+        label.enableAutoSizing  = true;
+        label.fontSizeMax       = max;
+        label.fontSizeMin       = min;
+        label.enableWordWrapping = false;
+        label.overflowMode      = TMPro.TextOverflowModes.Ellipsis;
+    }
+
     private static void SetSkill(TMP_Text nameLabel, TMP_Text costLabel, SkillData skill)
     {
+        // 호버 영역 = 스킬 항목 컨테이너(Skill1/Skill2). 이름 텍스트 한 점이 아니라 칸 전체에서 툴팁 (#2).
+        GameObject hoverArea = (nameLabel != null && nameLabel.transform.parent != null)
+            ? nameLabel.transform.parent.gameObject
+            : (nameLabel != null ? nameLabel.gameObject : null);
+
+        // 스킬 이름 폰트가 칸보다 커서 밑이 잘리던 문제 — 칸에 맞게 오토사이즈 (#12).
+        if (nameLabel != null) ApplyAutoFit(nameLabel, 16f, 10f);
+
         if (skill == null)
         {
-            if (nameLabel != null)
-            {
-                nameLabel.text = "-";
-                SkillTooltipTrigger.Ensure(nameLabel.gameObject).SetSkills(); // 빈 → 호버 표시 안 함 (#2)
-            }
+            if (nameLabel != null) nameLabel.text = "-";
             if (costLabel != null) costLabel.text = "";
+            if (hoverArea != null) SkillTooltipTrigger.Ensure(hoverArea).SetSkills(); // 빈 → 호버 표시 안 함
             return;
         }
-        if (nameLabel != null)
-        {
-            nameLabel.text = skill.displayName;
-            SkillTooltipTrigger.Ensure(nameLabel.gameObject).SetSkills(skill); // 호버 툴팁 (#2)
-        }
+        if (nameLabel != null) nameLabel.text = skill.displayName;
         if (costLabel != null) costLabel.text = skill.costAmount.ToString();
+        if (hoverArea != null) SkillTooltipTrigger.Ensure(hoverArea).SetSkills(skill); // 칸 전체 호버 툴팁
     }
 }

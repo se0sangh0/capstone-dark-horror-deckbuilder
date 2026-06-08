@@ -95,6 +95,7 @@ public partial class FellowData : ScriptableObject
     public int       stressResist    = 0;    // 모집 시 FellowDef 에서 복사
     public int       shield          = 0;    // 데미지 흡수량; HP 감소 전에 먼저 소모됨
     public bool      isDead          = false;
+    [System.NonSerialized] public bool deathHandled = false; // 사망 1회 처리 플래그(스트레스/손패 중복 방지). InitBattle 에서 리셋.
     public bool      isFrozen        = false;    // 공포 경직: 이번 턴 행동 불가
     public bool      isOverBreathing = false;    // 과호흡: 스킬 코스트 +1
     // 역할별 중증 디버프 (기획 §04) — 첫 패닉 시 부착, 전투 종료까지 유지 (InitBattle 에서 리셋).

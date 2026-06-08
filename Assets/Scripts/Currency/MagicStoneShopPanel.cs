@@ -36,11 +36,7 @@ public class MagicStoneShopPanel : MonoBehaviour
         SetVisible(false);
     }
 
-    private void Start()
-    {
-        // 로그라이크 루프 — 새 런 첫 노드 진입 전 패시브 해금 화면 자동 표시 (기획 §16)
-        if (MetaPassiveManager.ConsumeShowShopOnLoad()) Open();
-    }
+    // 2026-06-07: 자동 오픈 제거. 마석 상점은 노드 화면 우측 상단 [마석 상점] 버튼(MetaShopButton)으로만 연다.
 
     private void OnEnable()
     {

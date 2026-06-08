@@ -161,12 +161,19 @@ public class SkillTooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointer
         SkillTooltipController.Instance?.Hide();
     }
 
-    /// <summary>대상 GameObject 에 트리거가 없으면 추가하고, 스킬을 설정해 반환.</summary>
+    /// <summary>대상 GameObject 에 트리거가 없으면 추가하고 반환. 영역 호버를 위해 raycast 대상도 보장.</summary>
     public static SkillTooltipTrigger Ensure(GameObject target)
     {
         if (target == null) return null;
         var t = target.GetComponent<SkillTooltipTrigger>();
         if (t == null) t = target.AddComponent<SkillTooltipTrigger>();
+        // 컨테이너(그래픽 없음)에 붙는 경우, 영역 전체가 호버되도록 투명 raycast Image 추가 (#2).
+        if (target.GetComponent<UnityEngine.UI.Graphic>() == null)
+        {
+            var img = target.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(0f, 0f, 0f, 0f); // 완전 투명
+            img.raycastTarget = true;
+        }
         return t;
     }
 }
