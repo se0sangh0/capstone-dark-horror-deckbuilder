@@ -74,6 +74,10 @@ public class DefaultSetting : MonoBehaviour
     [Tooltip("Y 축 오프셋 — 이름/HP 텍스트와 캐릭터 겹침 방지용 (음수면 카드 아래로)")]
     public float spawnOffsetY = 0f;
 
+    [Tooltip("적 스프라이트 밝기 배수(>1 이면 밝아짐). 어두운 적(고블린 등)이 배경에 묻히는 문제 보정. 1=원본. (2026-06-08)")]
+    [Range(1f, 2.5f)]
+    public float enemyBrightness = 1.6f;
+
     // 사망 → 재정렬 이벤트 구독 추적 — 카드 정리 시 안전하게 해제
     private readonly List<System.Action> _diedUnsubscribers = new();
 
@@ -165,6 +169,13 @@ public class DefaultSetting : MonoBehaviour
             SpawnOneCard(i);
         }
 
+        // #4: 스폰 직후 아군 battleSlotIndex 를 allies 순서(연속)로 확정한다.
+        //   GetActiveFellows 스탬프 타이밍/빈 슬롯으로 인덱스가 비어 있으면 초기 RelayoutCards 가
+        //   카드를 건너뛰어(슬롯<0) 스폰 위치 그대로 남고, 턴 종료 시에야 재정렬되던 문제를 막는다.
+        if (factionType == FactionType.Ally)
+            for (int k = 0; k < allies.Count; k++)
+                if (allies[k] != null) allies[k].battleSlotIndex = k;
+
         // 시작 시점부터 센터 압축(아군 좌측·적 우측) + 보스 후열 보장 적용 — 즉시 스냅
         RelayoutCards(instant: true);
     }
@@ -188,6 +199,13 @@ public class DefaultSetting : MonoBehaviour
         // Animator + .anim 가 있으면 즉시 덮어쓰지만 (아군), 적은 Animator controller 없이 정적 표시 유지.
         var rootSr = newObj.GetComponent<SpriteRenderer>();
         if (rootSr != null) ApplyObjectSprite(i, rootSr, newObj.name);
+
+        // 적 스프라이트가 어두워 배경에 묻히는 문제 — 밝기 배수(>1)로 보정. 텍스처×색이 셰이더에서 밝아짐.
+        if (rootSr != null && factionType == FactionType.Enemy && enemyBrightness > 1f)
+        {
+            float b = enemyBrightness;
+            rootSr.color = new Color(b, b, b, rootSr.color.a);
+        }
 
         if (factionType == FactionType.Ally && i < allies.Count)
         {

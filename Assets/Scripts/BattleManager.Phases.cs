@@ -316,12 +316,11 @@ public partial class BattleManager
 
     /// <summary>
     /// 로그라이크 메타 루프 (기획 §16) — 보스 클리어/전멸 공통.
-    /// 예비대·파티·영혼석 초기화(마석은 유지) → 새 런 첫 노드 전 패시브 해금 화면 표시 플래그 →
-    /// GamePlayScene 재로드(노드맵 재생성).
+    /// 예비대·파티·영혼석 초기화(마석은 유지) → GamePlayScene 재로드(노드맵 재생성).
+    /// 마석 해금은 노드 화면 우측 상단 [마석 상점] 버튼으로 언제든 연다 (자동 표시 폐지, 2026-06-07).
     /// </summary>
     private void StartNextRunLoop()
     {
-        MetaPassiveManager.ShowShopOnNextLoad = true;     // 새 런 첫 노드 전 마석 상점 자동 표시
         MercenaryService.Instance?.ResetForNewRun();      // 예비대/후보/리롤 초기화
         PartyManager.Instance?.ResetGame();               // 파티(+사망보관소) 초기화
         SoulstoneManager.Instance?.ResetCurrency();       // 영혼석 기본값 (마석은 PlayerPrefs 유지)

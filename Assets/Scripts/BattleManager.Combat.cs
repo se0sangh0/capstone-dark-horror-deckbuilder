@@ -83,13 +83,8 @@ public partial class BattleManager
                 }
 
                 StackType allyRole = ally.positionStack;
+                string    allyName = !string.IsNullOrEmpty(ally.displayName) ? ally.displayName : allyRole.ToString();
                 var skills         = ally.GetSkills();
-
-                if (skills.Count == 0)
-                {
-                    Debug.LogWarning($"[BattleManager] {allyRole} — 사용 가능한 스킬 없음.");
-                    continue;
-                }
 
                 // 과호흡 페널티: 이번 턴 첫 스킬 시도에만 +1, 이후 해소
                 int panicCostBonus = ally.isOverBreathing ? 1 : 0;
@@ -98,45 +93,48 @@ public partial class BattleManager
                 // 이번 턴에 이 동료가 스킬을 하나라도 발동했는지 추적
                 bool usedAny = false;
 
-                // ── ✨ 스킬 선택 — 발동 가능한 것 중 코스트가 가장 높은 1개 ──
-                // 기획 §스택 소비 & 스킬 발동 규칙: "보유 스킬 중 공용 스택으로 발동 가능한 것 중 가장 높은 스킬 코스트 우선"
-                // 또한 §MVP 고정: "동료/적 모두 기본 턴당 1회 행동"
-                // → foreach 모든 스킬 시도 ❌ → 단일 best skill 만 발동 ✅
-                int currentStack = PlayerRoleCost.Instance.GetAmount(allyRole);
-
-                // 발동 가능한 후보 → 역할별 우선순위 선택 (기획자 피드백 #11).
-                List<SkillData> affordable = skills
-                    .Where(s => currentStack >= s.costAmount + panicCostBonus)
-                    .ToList();
-                SkillData bestSkill = SelectSkillByRole(allyRole, affordable);
-
-                if (bestSkill != null)
+                if (skills.Count > 0)
                 {
-                    int effectiveCost = bestSkill.costAmount + panicCostBonus;
-                    PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
-                    string allyName = !string.IsNullOrEmpty(ally.displayName) ? ally.displayName : allyRole.ToString();
-                    int afterStack  = currentStack - effectiveCost;
-                    GameLog.Event($"{allyName}이(가) [{bestSkill.displayName}]을(를) 사용했다!", LogCategory.Skill);
-                    Debug.Log($"[아군 행동] {allyName} ({allyRole}) → {bestSkill.displayName}  (스택 {effectiveCost} 사용 / {currentStack}→{afterStack}{(panicCostBonus > 0 ? $", 과호흡 +{panicCostBonus}" : "")})");
-                    yield return StartCoroutine(UseSkill(ally, bestSkill));
-                    usedAny = true;
-                    yield return new WaitForSeconds(actionDelayTime);
+                    // ── ✨ 스킬 선택 — 발동 가능한 것 중 역할별 우선순위 1개 (기획자 피드백 #11) ──
+                    int currentStack = PlayerRoleCost.Instance.GetAmount(allyRole);
+                    List<SkillData> affordable = skills
+                        .Where(s => currentStack >= s.costAmount + panicCostBonus)
+                        .ToList();
+                    SkillData bestSkill = SelectSkillByRole(allyRole, affordable);
+
+                    if (bestSkill != null)
+                    {
+                        int effectiveCost = bestSkill.costAmount + panicCostBonus;
+                        PlayerRoleCost.Instance.Use(allyRole, effectiveCost);
+                        int afterStack = currentStack - effectiveCost;
+                        GameLog.Event($"{allyName}이(가) [{bestSkill.displayName}]을(를) 사용했다!", LogCategory.Skill);
+                        Debug.Log($"[아군 행동] {allyName} ({allyRole}) → {bestSkill.displayName}  (스택 {effectiveCost} 사용 / {currentStack}→{afterStack}{(panicCostBonus > 0 ? $", 과호흡 +{panicCostBonus}" : "")})");
+                        yield return StartCoroutine(UseSkill(ally, bestSkill));
+                        usedAny = true;
+                        yield return new WaitForSeconds(actionDelayTime);
+                    }
+                    else
+                    {
+                        foreach (var s in skills)
+                            Debug.Log($"[아군 스킵-개별스킬] {allyRole} {s.displayName} — 스택 부족 ({currentStack}/{s.costAmount + panicCostBonus})");
+                    }
                 }
                 else
                 {
-                    foreach (var s in skills)
-                        Debug.Log($"[아군 스킵-개별스킬] {allyRole} {s.displayName} — 스택 부족 ({currentStack}/{s.costAmount + panicCostBonus})");
+                    // 보유 스킬 0 — 이전엔 carryover 없이 조용히 건너뛰어 "미행동인데 스택 안 들어옴"의 원인이었음.
+                    // 이제 아래 미행동 보상으로 통일 처리한다 (#7 수정).
+                    Debug.LogWarning($"[BattleManager] {allyName}({allyRole}) — 보유 스킬 없음 → 미행동 처리");
                 }
 
-                // 어떤 스킬도 발동 못 한 경우에만 미행동 보너스 (기획 §코어루프 §동료 행동)
-                //  ─ 역할 스택 +1 (이월)
-                //  ─ 미행동자 목록에 추가 → 턴 종료 후 allies 맨 앞으로 이동
+                // 스킬을 하나도 발동 못 한 경우(스택 부족 OR 스킬 없음) → 미행동 보상 (기획 §코어루프 §동료 행동)
+                //  ─ 역할 스택 +1 (다음 턴 이월) / 진형 맨 앞으로 / 인게임 로그 표시
                 if (!usedAny)
                 {
                     _carryoverBonus.TryGetValue(allyRole, out int prev);
                     _carryoverBonus[allyRole] = prev + 1;
                     noAction.Add(ally);
-                    Debug.Log($"[아군 미행동] {allyRole} — 모든 스킬 발동 불가 → 다음 턴 이월 +1, 진형 앞으로");
+                    GameLog.Event($"{allyName}이(가) 행동하지 않아 다음 턴 스택 +1 (행동 우선)", LogCategory.Status);
+                    Debug.Log($"[아군 미행동] {allyName}({allyRole}) → 다음 턴 이월 +1, 진형 앞으로");
                 }
             }
 
@@ -453,11 +451,13 @@ public partial class BattleManager
     /// </summary>
     private void ProcessDeathAndStress()
     {
-        var dyingAllies = allies.Where(a => a.isDead && a.CurrentHp <= 0).ToList();
+        // 이번 턴 "새로" 죽은 동료만 처리 — deathHandled 로 1회만 (매 턴 재처리 방지, #9/#6).
+        var dyingAllies = allies.Where(a => a.isDead && a.CurrentHp <= 0 && !a.deathHandled).ToList();
 
         foreach (var ally in dyingAllies)
         {
             ally.isDead = true;
+            ally.deathHandled = true; // 중복 처리(스트레스 반복·손패 재파괴) 방지
             GameLog.Event($"{ally.displayName ?? ally.positionStack.ToString()}이(가) 쓰러졌다.", LogCategory.Death);
             Debug.Log($"[사망] {ally.positionStack} 사망 처리됨.");
 

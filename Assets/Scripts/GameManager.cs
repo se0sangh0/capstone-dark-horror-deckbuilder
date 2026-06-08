@@ -327,6 +327,7 @@ public class GameManager : Singleton<GameManager>
             var card = marked[idx];
             marked.RemoveAt(idx);
             card.gameObject.SetActive(false);
+            GameLog.Event("동료 사망으로 손패 카드 1장이 파괴되었다.", LogCategory.Death);
             Debug.Log($"[GameManager] 손패 한도 초과 — 랜덤 파괴: {(card.owner != null ? card.owner.displayName : "owner?")}");
         }
 

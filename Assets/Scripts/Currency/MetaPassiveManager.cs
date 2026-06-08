@@ -106,17 +106,17 @@ public static class MetaPassiveManager
         new Info{ id=PriestBlessing, kind=Kind.Passive, job="프리스트", name="축복받은 손길", desc="프리스트 힐량 +25%",                cost=80 },
         new Info{ id=PriestGuard,    kind=Kind.Passive, job="프리스트", name="수호 기도",   desc="힐 대상에게 힐량의 30%만큼 실드 부여",  cost=80 },
         // 스킬 해금
-        new Info{ id=UnlockIceStorm,  kind=Kind.Skill, job="캐스터",  name="아이스스톰 해금", desc="6코 광역 55 — 스킬 풀에 추가",      cost=60, skillId="skill_ice_storm" },
-        new Info{ id=UnlockSkySlash,  kind=Kind.Skill, job="오펜더",  name="하늘가르기 해금", desc="10코 단일 75 — 스킬 풀에 추가",     cost=60, skillId="skill_sky_slash" },
-        new Info{ id=UnlockWarShield, kind=Kind.Skill, job="디펜더",  name="전장의 방패 해금", desc="6코 데미지+전체실드 — 스킬 풀에 추가", cost=60, skillId="skill_war_shield" },
-        new Info{ id=UnlockWarCry,    kind=Kind.Skill, job="어택커",  name="워크라이 해금",   desc="5코 데미지+도발 — 스킬 풀에 추가",   cost=60, skillId="skill_war_cry" },
-        new Info{ id=UnlockPrayer,    kind=Kind.Skill, job="프리스트", name="기원 해금",       desc="5코 전체힐 40 — 스킬 풀에 추가",     cost=60, skillId="skill_prayer" },
+        new Info{ id=UnlockIceStorm,  kind=Kind.Skill, job="캐스터",  name="아이스스톰 해금", desc="6코 광역 55 (스킬 풀에 추가)",      cost=60, skillId="skill_ice_storm" },
+        new Info{ id=UnlockSkySlash,  kind=Kind.Skill, job="오펜더",  name="하늘가르기 해금", desc="10코 단일 75 (스킬 풀에 추가)",     cost=60, skillId="skill_sky_slash" },
+        new Info{ id=UnlockWarShield, kind=Kind.Skill, job="디펜더",  name="전장의 방패 해금", desc="6코 데미지+전체실드 (스킬 풀에 추가)", cost=60, skillId="skill_war_shield" },
+        new Info{ id=UnlockWarCry,    kind=Kind.Skill, job="어택커",  name="워크라이 해금",   desc="5코 데미지+도발 (스킬 풀에 추가)",   cost=60, skillId="skill_war_cry" },
+        new Info{ id=UnlockPrayer,    kind=Kind.Skill, job="프리스트", name="기원 해금",       desc="5코 전체힐 40 (스킬 풀에 추가)",     cost=60, skillId="skill_prayer" },
         // 직업당 해금 스킬 2개째 (기본 2 / 해금 2) — 2026-06-05 복원
-        new Info{ id=UnlockFireball,     kind=Kind.Skill, job="캐스터",  name="파이어볼 해금",   desc="3코 광역 35 — 스킬 풀에 추가",    cost=60, skillId="skill_fireball" },
-        new Info{ id=UnlockMoonlight,    kind=Kind.Skill, job="오펜더",  name="월광베기 해금",   desc="7코 단일 60 — 스킬 풀에 추가",    cost=60, skillId="skill_moonlight_slash" },
-        new Info{ id=UnlockBattleStance, kind=Kind.Skill, job="디펜더",  name="전투 태세 해금",  desc="5코 전체실드 40 — 스킬 풀에 추가", cost=60, skillId="skill_battle_stance" },
-        new Info{ id=UnlockIndomitable,  kind=Kind.Skill, job="어택커",  name="불굴 해금",       desc="4코 전체힐 34 — 스킬 풀에 추가",   cost=60, skillId="skill_indomitable" },
-        new Info{ id=UnlockStarlight,    kind=Kind.Skill, job="프리스트", name="별부름 해금",     desc="3코 단일힐 35 — 스킬 풀에 추가",   cost=60, skillId="skill_starlight" },
+        new Info{ id=UnlockFireball,     kind=Kind.Skill, job="캐스터",  name="파이어볼 해금",   desc="3코 광역 35 (스킬 풀에 추가)",    cost=60, skillId="skill_fireball" },
+        new Info{ id=UnlockMoonlight,    kind=Kind.Skill, job="오펜더",  name="월광베기 해금",   desc="7코 단일 60 (스킬 풀에 추가)",    cost=60, skillId="skill_moonlight_slash" },
+        new Info{ id=UnlockBattleStance, kind=Kind.Skill, job="디펜더",  name="전투 태세 해금",  desc="5코 전체실드 40 (스킬 풀에 추가)", cost=60, skillId="skill_battle_stance" },
+        new Info{ id=UnlockIndomitable,  kind=Kind.Skill, job="어택커",  name="불굴 해금",       desc="4코 전체힐 34 (스킬 풀에 추가)",   cost=60, skillId="skill_indomitable" },
+        new Info{ id=UnlockStarlight,    kind=Kind.Skill, job="프리스트", name="별부름 해금",     desc="3코 단일힐 35 (스킬 풀에 추가)",   cost=60, skillId="skill_starlight" },
     };
 
     private static readonly System.Collections.Generic.Dictionary<string,string> _skillUnlockKey =
@@ -133,15 +133,6 @@ public static class MetaPassiveManager
         { "skill_indomitable",     UnlockIndomitable  },
         { "skill_starlight",       UnlockStarlight    },
     };
-
-    // ── 런 루프 — 새 런 첫 노드 전 상점 자동 표시 (런타임, 비영속) ──
-    public static bool ShowShopOnNextLoad = false;
-    public static bool ConsumeShowShopOnLoad()
-    {
-        bool v = ShowShopOnNextLoad;
-        ShowShopOnNextLoad = false;
-        return v;
-    }
 
     // ── 해금 상태 ───────────────────────────────────────────────
     public static bool IsUnlocked(string id) => PlayerPrefs.GetInt(id, 0) == 1;
@@ -161,10 +152,11 @@ public static class MetaPassiveManager
 
     public static bool TryUnlock(string id)
     {
+        // 해금 비용은 영혼석(SoulStone) 기반 (사용자 요청 — 마석상점 아님). 2026-06-05.
         if (IsUnlocked(id)) return false;
         int cost = CostOf(id);
-        if (ManastoneManager.Instance == null || ManastoneManager.Instance.Amount < cost) return false;
-        ManastoneManager.Instance.Use(cost);
+        if (SoulstoneManager.Instance == null || SoulstoneManager.Instance.Amount < cost) return false;
+        SoulstoneManager.Instance.Use(cost);
         Unlock(id);
         return true;
     }

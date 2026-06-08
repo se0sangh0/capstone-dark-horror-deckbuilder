@@ -27,9 +27,11 @@
 //   - passedState / currentState / lockedState : 버튼 시각 상태
 // ============================================================
 
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// 노드 맵 UI 시스템. 자동 생성된 RoomType 을 버튼에 매핑하고 클릭 시 타입별 분기.
@@ -176,7 +178,14 @@ public class NodeSystem : MonoBehaviour
 
     void Start()
     {
+        // 시작(초록) 노드는 '현재 위치' 마커 — 클릭 대상이 아니다. (2026-06-07)
+        // 첫 클릭 가능 층을 layer 1(전투)로 두고, 노드 화면 진입 시 위치 안내 토스트를 1회 표시.
+        // (튜토리얼 맵은 layer 0 이 실제 전투이므로 제외.)
+        bool isTutorial = TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial;
+        if (!isTutorial && currentRowIndex == 0) currentRowIndex = 1;
+
         UpdateNodeStates();
+        if (!isTutorial) ShowLocationToast("현재 위치는 여기입니다");
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
         // 튜토리얼 첫 노드맵 진입 시 인트로 모달 (1회만)
         TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.NodeMapIntro);
@@ -239,6 +248,13 @@ public class NodeSystem : MonoBehaviour
                 row.roomTypes.Add(type);
             }
 
+            // 단일 노드 층(시작/화톳불/보스)인데 씬 버튼이 더 많으면 잉여 버튼 숨김 → 선택지 1개 (2026-06-08).
+            if (layerCount > 0 && btns.Length > layerCount)
+            {
+                for (int b = layerCount; b < btns.Length; b++)
+                    if (btns[b] != null) btns[b].gameObject.SetActive(false);
+            }
+
             // 버튼 수 < 자동 생성 노드 수 면 데이터가 잘리고, 반대면 폴백 — 경고
             if (btns.Length != layerCount)
             {
@@ -246,7 +262,14 @@ public class NodeSystem : MonoBehaviour
             }
         }
 
-        Debug.Log($"[NodeSystem] 자동 맵 매핑 완료 — {generatedMap.nodes.Count} 노드 / {nodeRows.Count} 층");
+        // 생성된 층 수(7층)를 권위로 — 초과 행(7~9)은 통째로 숨겨 시퀀스가 보스에서 끝나게 (2026-06-08).
+        for (int r = generatedMap.totalLayers; r < nodeRows.Count; r++)
+        {
+            if (nodeRows[r] != null && nodeRows[r].rowParent != null)
+                nodeRows[r].rowParent.SetActive(false);
+        }
+
+        Debug.Log($"[NodeSystem] 자동 맵 매핑 완료 — {generatedMap.nodes.Count} 노드 / {generatedMap.totalLayers} 층 (씬 {nodeRows.Count}행 중 초과분 숨김)");
     }
 
     /// <summary>MapGenerator 실패 시 모든 버튼 RoomType=Combat 으로 폴백.</summary>
@@ -287,44 +310,224 @@ public class NodeSystem : MonoBehaviour
     // ----------------------------------------------------------
     // 버튼 시각 상태 업데이트
     // ----------------------------------------------------------
+    // 노드 상태를 '테두리 색'으로 강조 (2026-06-08). 향후 노드별 이미지가 들어오면 타입은 이미지로 구분.
+    private static readonly Color BorderPassed  = new Color(0.30f, 0.85f, 0.35f, 1f); // 지나온(현재 위치 포함) = 초록
+    private static readonly Color BorderCurrent = new Color(1.00f, 0.85f, 0.25f, 1f); // 현재 클릭 가능 = 금색
+    private static readonly Color BorderNone    = new Color(0f, 0f, 0f, 0f);          // 잠김/미선택 = 없음
+
     public void UpdateNodeStates()
     {
+        bool startIsMarker = !(TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial);
+
         for (int r = 0; r < nodeRows.Count; r++)
         {
             for (int b = 0; b < nodeRows[r].buttons.Count; b++)
             {
-                Button btn = nodeRows[r].buttons[b];
-                Image  img = btn.GetComponent<Image>();
+                Button  btn = nodeRows[r].buttons[b];
+                Image   img = btn.GetComponent<Image>();
+                Outline ol  = EnsureNodeOutline(btn);
 
                 RoomType type      = GetRoomTypeAt(r, b);
                 Color    baseColor = GetRoomColor(type);
 
                 float alpha;
                 bool  interactable;
+                Color border;
 
-                if (r < currentRowIndex)
+                bool isStart = (r == 0 && startIsMarker);
+                if (isStart)
                 {
-                    // 지나간 층 — 선택된 노드만 유지, 나머지는 어둡게
+                    // 시작 노드 = '현재 위치' 마커 — 초록 테두리, 클릭 불가.
+                    alpha        = currentAlpha;
+                    interactable = false;
+                    border       = BorderPassed;
+                }
+                else if (r < currentRowIndex)
+                {
+                    // 지나온 층 — 실제 선택해 지나온 노드만 초록 테두리, 나머지는 흐리고 테두리 없음.
                     bool isSelected = (b == nodeRows[r].selectedButtonIndex);
                     alpha        = isSelected ? passedAlpha : lockedAlpha;
                     interactable = false;
+                    border       = isSelected ? BorderPassed : BorderNone;
                 }
                 else if (r == currentRowIndex)
                 {
+                    // 현재 클릭 가능 — 금색 테두리.
                     alpha        = currentAlpha;
                     interactable = true;
+                    border       = BorderCurrent;
                 }
                 else
                 {
+                    // 아직 못 간 층 — 흐림, 테두리 없음.
                     alpha        = lockedAlpha;
                     interactable = false;
+                    border       = BorderNone;
                 }
 
                 btn.interactable = interactable;
                 if (img != null)
                     img.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+                if (ol != null)
+                    ol.effectColor = border;
             }
         }
+
+        FocusCurrentRow(); // 현재 층을 노드맵 화면 중앙으로 자동 스크롤 (#3)
+    }
+
+    /// <summary>노드 버튼에 상태 표시용 Outline(테두리)을 보장. 없으면 추가. (2026-06-08)</summary>
+    private static Outline EnsureNodeOutline(Button btn)
+    {
+        if (btn == null) return null;
+        var ol = btn.GetComponent<Outline>();
+        if (ol == null)
+        {
+            ol = btn.gameObject.AddComponent<Outline>();
+            ol.effectDistance  = new Vector2(4f, 4f); // 테두리 두께
+            ol.useGraphicAlpha = false;               // fill 이 흐려도 테두리는 또렷하게
+        }
+        return ol;
+    }
+
+    // ----------------------------------------------------------
+    // #3 현재 층 자동 포커싱 — NodeDisplay(ScrollRect)를 현재 노드 행으로 스크롤
+    // ----------------------------------------------------------
+    private ScrollRect _nodeScroll;
+
+    private void FocusCurrentRow()
+    {
+        if (nodeRows == null || nodeRows.Count == 0) return;
+        int idx = Mathf.Clamp(currentRowIndex, 0, nodeRows.Count - 1);
+        var rowGo = nodeRows[idx].rowParent;
+        if (rowGo == null) return;
+
+        if (_nodeScroll == null) _nodeScroll = rowGo.GetComponentInParent<ScrollRect>();
+        if (_nodeScroll == null) return; // 스크롤뷰 아니면 포커싱 불필요
+
+        var target = rowGo.transform as RectTransform;
+        if (target == null) return;
+        if (isActiveAndEnabled) StartCoroutine(ScrollToTarget(_nodeScroll, target));
+    }
+
+    // 레이아웃 안정화 후 target 행을 viewport 중앙에 맞추도록 content 이동(끝단은 클램프).
+    private IEnumerator ScrollToTarget(ScrollRect sr, RectTransform target)
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        var content  = sr.content;
+        var viewport = sr.viewport != null ? sr.viewport : sr.transform as RectTransform;
+        if (content == null || viewport == null) yield break;
+
+        Vector3 targetCenterW   = target.TransformPoint(target.rect.center);
+        Vector3 viewportCenterW = viewport.TransformPoint(viewport.rect.center);
+        Vector3 worldDelta      = viewportCenterW - targetCenterW;
+        Vector2 localDelta      = (Vector2)content.parent.InverseTransformVector(worldDelta);
+
+        var pos = content.anchoredPosition;
+        if (sr.vertical)   pos.y += localDelta.y;
+        if (sr.horizontal) pos.x += localDelta.x;
+        content.anchoredPosition = pos;
+
+        // 끝단 과스크롤 방지
+        sr.verticalNormalizedPosition   = Mathf.Clamp01(sr.verticalNormalizedPosition);
+        sr.horizontalNormalizedPosition = Mathf.Clamp01(sr.horizontalNormalizedPosition);
+    }
+
+    // ----------------------------------------------------------
+    // 위치 안내 토스트 — 시작 노드 클릭 시 "현재 위치는 여기입니다" (2026-06-07)
+    //   기존 전역 토스트 컴포넌트가 없어 노드 화면에 런타임 자체 생성. 몇 초 뒤 페이드아웃.
+    // ----------------------------------------------------------
+    private GameObject  _toastRoot;
+    private TMP_Text    _toastText;
+    private CanvasGroup _toastGroup;
+    private Coroutine   _toastRoutine;
+
+    [Tooltip("위치 안내 토스트가 떠 있는 시간(초). 이후 0.4초간 페이드아웃.")]
+    [SerializeField] private float locationToastSeconds = 2.5f;
+
+    private void ShowLocationToast(string message)
+    {
+        if (_toastRoot == null) BuildLocationToast();
+        if (_toastRoot == null || _toastText == null) return;
+
+        _toastText.text = message;
+        _toastRoot.SetActive(true);
+        _toastRoot.transform.SetAsLastSibling();
+        if (_toastGroup != null) _toastGroup.alpha = 1f;
+
+        if (_toastRoutine != null) StopCoroutine(_toastRoutine);
+        if (isActiveAndEnabled) _toastRoutine = StartCoroutine(HideLocationToastAfter(locationToastSeconds));
+    }
+
+    private IEnumerator HideLocationToastAfter(float visibleSeconds)
+    {
+        yield return new WaitForSeconds(visibleSeconds);
+        const float dur = 0.4f;
+        float t = 0f;
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            if (_toastGroup != null) _toastGroup.alpha = Mathf.Lerp(1f, 0f, t / dur);
+            yield return null;
+        }
+        if (_toastRoot != null) _toastRoot.SetActive(false);
+        if (_toastGroup != null) _toastGroup.alpha = 1f; // 다음 표시를 위해 복구
+        _toastRoutine = null;
+    }
+
+    /// <summary>노드 화면(ScrollRect) 상단 중앙에 토스트 UI 를 런타임 생성.</summary>
+    private void BuildLocationToast()
+    {
+        // 호스트 = 노드 행들의 부모 ScrollRect(NodeDisplay). 없으면 상위 Canvas.
+        Transform host = null;
+        if (nodeRows != null && nodeRows.Count > 0 && nodeRows[0].rowParent != null)
+        {
+            var sr = nodeRows[0].rowParent.GetComponentInParent<ScrollRect>();
+            host = sr != null ? sr.transform
+                              : nodeRows[0].rowParent.GetComponentInParent<Canvas>()?.transform;
+        }
+        if (host == null) return;
+
+        // 폰트 — 씬의 기존 TMP 에서 확보 (한글)
+        TMP_FontAsset font = null;
+        var anyTmp = FindFirstObjectByType<TMP_Text>(FindObjectsInactive.Include);
+        if (anyTmp != null) font = anyTmp.font;
+
+        _toastRoot = new GameObject("LocationToast", typeof(RectTransform), typeof(CanvasRenderer), typeof(CanvasGroup));
+        _toastRoot.transform.SetParent(host, false);
+        _toastRoot.layer = host.gameObject.layer;
+        _toastGroup = _toastRoot.GetComponent<CanvasGroup>();
+        _toastGroup.interactable = false;
+        _toastGroup.blocksRaycasts = false;
+
+        // 하단 중앙 — 시작(상단) 노드를 가리지 않도록 (2026-06-08).
+        var rt = _toastRoot.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot     = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 40f);
+        rt.sizeDelta = new Vector2(520f, 88f);
+
+        var bg = _toastRoot.AddComponent<Image>();
+        bg.color = new Color(0.08f, 0.10f, 0.16f, 0.92f);
+        bg.raycastTarget = false;
+
+        var tgo = new GameObject("Text", typeof(RectTransform));
+        tgo.transform.SetParent(_toastRoot.transform, false);
+        tgo.layer = _toastRoot.layer;
+        var trt = tgo.GetComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+        trt.offsetMin = new Vector2(16f, 8f); trt.offsetMax = new Vector2(-16f, -8f);
+
+        _toastText = tgo.AddComponent<TextMeshProUGUI>();
+        if (font != null) _toastText.font = font;
+        _toastText.alignment = TextAlignmentOptions.Center;
+        _toastText.color = new Color(0.90f, 0.94f, 1f, 1f);
+        _toastText.raycastTarget = false;
+        _toastText.enableWordWrapping = false;
+        _toastText.enableAutoSizing = true;
+        _toastText.fontSizeMin = 18f; _toastText.fontSizeMax = 34f;
     }
 
     private Color GetRoomColor(RoomType type) => type switch
@@ -431,6 +634,13 @@ public class NodeSystem : MonoBehaviour
             }
         }
 
+        // ============================================================
+        // 2026-06-08 노드 재설계
+        //   • 이벤트 노드(RoomType.Event) = 진입 시 교회/엘리트 1:1 랜덤. eventWeight=0 이라 현재는 생성 안 됨.
+        //   • 용병소(Shop)는 노드에서 제거 — 전투 승리 후 BattleManager 가 자동 오픈(layer1·2·3).
+        //     (Shop case 는 튜토리얼 맵 전용으로만 남김.)
+        // ============================================================
+
         switch (type)
         {
             // ── 전투 계열: 기존 흐름 그대로 (DisplayChanger 가 전투 패널 토글) ──
@@ -458,45 +668,88 @@ public class NodeSystem : MonoBehaviour
                 }
                 break;
 
-            // ── 용병소 (F 작업 완료 — MercenaryOfficePanel 호출) ──
-            //   기획 §14_용병소_시스템_명세: 후보 3 / 리롤 / 고용 / 파티 편집 / 합성(백로그)
-            //   패널 미연결 시(인스펙터 빈 경우) 로그만 남기고 다음 층 진행.
+            // ── 용병소 (튜토리얼 맵 전용 Shop 노드) ──
             case RoomType.Shop:
-                if (mercenaryOfficePanel != null)
-                {
-                    mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
-                    mercenaryOfficePanel.OnExit += HandleMercenaryExit;
-                    mercenaryOfficePanel.OpenFromNode();
-                    AudioManager.Instance?.PlayBgmById(BgmId.Mercenary);
-                }
-                else
-                {
-                    Debug.Log("[NodeSystem] 용병소 노드 — MercenaryOfficePanel 미연결, 다음 층으로 진행.");
-                }
+                OpenMercenaryFromNode();
                 break;
 
-            // ── 교회 (Event 노드 매핑) ──
-            //   기획 §02_MVP_노드_설계 §교회 — HP 회복 + 스트레스 회복 + 사망 동료 부활
-            //   패널 미연결 시(인스펙터 빈 경우) 로그만 남기고 다음 층 진행.
+            // ── 이벤트 노드 (진입 시 용병소/교회/엘리트 가중 랜덤) ──
+            //   기획 §12 노드 비율(전투 70 / 이벤트 30). EventOutcomeWeights = 용병소/교회/엘리트.
+            //   현재 가중치 100/0/0 → 용병소만. (교회·엘리트는 백로그 — 가중치만 올리면 재활성)
             case RoomType.Event:
-                if (churchPanel != null)
+            {
+                int outcome = RollEventOutcome();
+                if (outcome == 1)        // 교회
                 {
-                    churchPanel.OnExit -= HandleChurchExit;
-                    churchPanel.OnExit += HandleChurchExit;
-                    churchPanel.OpenFromNode();
-                    AudioManager.Instance?.PlayBgmById(BgmId.Rest);
+                    Debug.Log("[NodeSystem] 이벤트 노드 → 교회 (랜덤)");
+                    OpenChurchFromNode();
                 }
-                else
+                else if (outcome == 2)   // 엘리트 전투
                 {
-                    Debug.Log("[NodeSystem] 교회 노드 — ChurchPanel 미연결, 다음 층으로 진행.");
+                    CurrentRoomType = RoomType.Elite; // EnemySpawner 가 엘리트로 스폰
+                    Debug.Log("[NodeSystem] 이벤트 노드 → 엘리트 전투 (랜덤)");
+                    DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
+                    AudioManager.Instance?.PlayBgmById(BgmId.Battle);
+                }
+                else                     // 용병소 (기본)
+                {
+                    Debug.Log("[NodeSystem] 이벤트 노드 → 용병소 (랜덤)");
+                    OpenMercenaryFromNode();
                 }
                 break;
+            }
 
             default:
                 Debug.LogWarning($"[NodeSystem] 미지원 RoomType={type} — 폴백으로 전투 화면 호출.");
                 DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
                 break;
         }
+    }
+
+    // 이벤트(랜덤) 노드 진입 결과 가중치 [용병소, 교회, 엘리트]. 기획 §12.
+    // 현재 용병소만(100/0/0). 교회·엘리트는 백로그 — 값만 올리면 재활성.
+    private static readonly int[] EventOutcomeWeights = { 100, 0, 0 };
+
+    /// <summary>이벤트 노드 결과를 가중 랜덤으로 결정. 0=용병소 / 1=교회 / 2=엘리트.</summary>
+    private int RollEventOutcome()
+    {
+        int total = 0;
+        foreach (var w in EventOutcomeWeights) total += w;
+        if (total <= 0) return 0;
+        int roll = UnityEngine.Random.Range(0, total);
+        int cum = 0;
+        for (int i = 0; i < EventOutcomeWeights.Length; i++)
+        {
+            cum += EventOutcomeWeights[i];
+            if (roll < cum) return i;
+        }
+        return 0;
+    }
+
+    /// <summary>용병소(MercenaryOfficePanel) 진입 — Shop 노드 / 이벤트→용병소 공용.</summary>
+    private void OpenMercenaryFromNode()
+    {
+        if (mercenaryOfficePanel != null)
+        {
+            mercenaryOfficePanel.OnExit -= HandleMercenaryExit;
+            mercenaryOfficePanel.OnExit += HandleMercenaryExit;
+            mercenaryOfficePanel.OpenFromNode();
+            AudioManager.Instance?.PlayBgmById(BgmId.Mercenary);
+        }
+        else Debug.Log("[NodeSystem] 용병소 — MercenaryOfficePanel 미연결, 다음 층으로 진행.");
+    }
+
+    /// <summary>교회(ChurchPanel) 진입 — 이벤트→교회 공용.</summary>
+    private void OpenChurchFromNode()
+    {
+        if (churchPanel != null)
+        {
+            churchPanel.OnExit -= HandleChurchExit;
+            churchPanel.OnExit += HandleChurchExit;
+            churchPanel.OpenFromNode();
+            AudioManager.Instance?.PlayBgmById(BgmId.Rest);
+        }
+        else Debug.Log("[NodeSystem] 교회 — ChurchPanel 미연결, 다음 층으로 진행.");
     }
 
     /// <summary>용병소 패널의 "나가기" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
