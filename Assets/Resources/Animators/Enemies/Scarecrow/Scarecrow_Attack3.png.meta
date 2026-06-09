@@ -1,0 +1,273 @@
+fileFormatVersion: 2
+guid: 4ec096edb9fa2cf4b8d21db36494a93b
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -6177145457262500302
+    second: Scarecrow_Attack3_0
+  - first:
+      213: -7973432007800733355
+    second: Scarecrow_Attack3_1
+  - first:
+      213: -1484171787171094585
+    second: Scarecrow_Attack3_2
+  - first:
+      213: 5968827180443693957
+    second: Scarecrow_Attack3_3
+  - first:
+      213: -6720760860075903261
+    second: Scarecrow_Attack3_4
+  - first:
+      213: -3535899905507516935
+    second: Scarecrow_Attack3_5
+  - first:
+      213: -621042243266349116
+    second: Scarecrow_Attack3_6
+  - first:
+      213: -8265502529848536013
+    second: Scarecrow_Attack3_7
+  - first:
+      213: 8469312015147174978
+    second: Scarecrow_Attack3_8
+  - first:
+      213: -114916286401750082
+    second: Scarecrow_Attack3_9
+  - first:
+      213: -1967755943805586910
+    second: Scarecrow_Attack3_10
+  - first:
+      213: -6992294496908449710
+    second: Scarecrow_Attack3_11
+  - first:
+      213: -661845274847977379
+    second: Scarecrow_Attack3_12
+  - first:
+      213: -8663788792576034549
+    second: Scarecrow_Attack3_13
+  - first:
+      213: 8937145691567566341
+    second: Scarecrow_Attack3_14
+  - first:
+      213: -4096765928534966982
+    second: Scarecrow_Attack3_15
+  - first:
+      213: 6825864301058499961
+    second: Scarecrow_Attack3_16
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Scarecrow_Attack3_0
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 345
+        width: 186
+        height: 229
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 23663fd3fee564aa0800000000000000
+      internalID: -6177145457262500302
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Scarecrow_Attack3_2
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 345
+        width: 186
+        height: 229
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7cf92008f99276be0800000000000000
+      internalID: -1484171787171094585
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Scarecrow_Attack3_3
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 48
+        width: 186
+        height: 229
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 583fa0842b885d250800000000000000
+      internalID: 5968827180443693957
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Scarecrow_Attack3_10
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 46
+        width: 186
+        height: 229
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 222fdcc056021b4e0800000000000000
+      internalID: -1967755943805586910
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: a1b7a4139f9faaf428bebb5619f94bff
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Scarecrow_Attack3_0: -6177145457262500302
+      Scarecrow_Attack3_1: -7973432007800733355
+      Scarecrow_Attack3_10: -1967755943805586910
+      Scarecrow_Attack3_11: -6992294496908449710
+      Scarecrow_Attack3_12: -661845274847977379
+      Scarecrow_Attack3_13: -8663788792576034549
+      Scarecrow_Attack3_14: 8937145691567566341
+      Scarecrow_Attack3_15: -4096765928534966982
+      Scarecrow_Attack3_16: 6825864301058499961
+      Scarecrow_Attack3_2: -1484171787171094585
+      Scarecrow_Attack3_3: 5968827180443693957
+      Scarecrow_Attack3_4: -6720760860075903261
+      Scarecrow_Attack3_5: -3535899905507516935
+      Scarecrow_Attack3_6: -621042243266349116
+      Scarecrow_Attack3_7: -8265502529848536013
+      Scarecrow_Attack3_8: 8469312015147174978
+      Scarecrow_Attack3_9: -114916286401750082
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
