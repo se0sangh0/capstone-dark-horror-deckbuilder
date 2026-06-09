@@ -8,14 +8,12 @@
 //   Boss/Elite 는 NodeSystem.CurrentRoomType 으로 EnemySpawner 가 직접 처리하고,
 //   이 클래스는 일반 전투(Combat) 노드의 층별 적 구성만 책임진다.
 //
-// [매핑 정책 — 2026-05-29 갱신]
-//   일반 전투(Combat) 노드는 고블린만 등장. 약탈자(엘리트급)는 Elite 노드 전용으로 분리.
-//   마릿수는 층 인덱스 기반 동적 계산 (RollCount):
-//     1~2층: 2 고정
-//     3~4층: 2~3 균등
-//     5~6층: 3~4 균등
-//     7~8층: 3~4 (4 가중치 70%)
-//   최대 4마리 제한 — 모든 층에서 4 초과 불가.
+// [매핑 정책 — 2026-06-08 갱신 (7층)]
+//   일반 전투(Combat) 노드는 고블린만 등장. 약탈자(엘리트급)는 이벤트 노드(엘리트, 현재 비활성) 전용.
+//   전투는 layer 1~4 (CurrentFloor = layer+1 → floor 2~5). 마릿수:
+//     layer 1·2 전투 (floor 2·3): 2마리
+//     layer 3·4 전투 (floor 4·5): 3~4마리
+//   최대 4마리 제한.
 //
 // [tier 폴백 — Combat 노드 한정]
 //   GetEnemyPool 이 비어있을 때 EnemySpawner 가 사용. Boss tier 는 절대 반환 안 함
@@ -47,20 +45,19 @@ public static class FloorTierResolver
     // ============================================================
     public static string[] GetEnemyPool(int floorIndex)
     {
-        if (floorIndex >= 1 && floorIndex <= 8)
+        if (floorIndex >= 1 && floorIndex <= 6)
             return new[] { "enemy_goblin_01" };
         return null;
     }
 
     // ============================================================
-    // 마릿수 결정 — 층 인덱스 기반 (2~4, 후반 가중)
+    // 마릿수 결정 — 2026-06-08 노드 재설계 (7층)
+    //   전투는 layer 1~4 (CurrentFloor = layer+1 → floor 2~5).
+    //   전투 layer1·2 (floor 2·3) = 2마리 / 전투 layer3·4 (floor 4·5) = 3~4마리. 최대 4.
     // ============================================================
     public static int RollCount(int floorIndex)
     {
-        if (floorIndex <= 2) return 2;                                  // 1~2층: 2 고정
-        if (floorIndex <= 4) return UnityEngine.Random.Range(2, 4);     // 3~4층: 2 or 3 (Range max exclusive)
-        if (floorIndex <= 6) return UnityEngine.Random.Range(3, 5);     // 5~6층: 3 or 4
-        // 7~8층: 3~4, 4 가중치 70%
-        return UnityEngine.Random.value < 0.7f ? 4 : 3;
+        if (floorIndex <= 3) return 2;                  // layer 1·2 전투: 2마리
+        return UnityEngine.Random.Range(3, 5);          // layer 3·4 전투: 3 or 4마리
     }
 }

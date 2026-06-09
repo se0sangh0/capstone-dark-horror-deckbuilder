@@ -237,6 +237,7 @@ public partial class BattleManager : Singleton<BattleManager>
             // ── 상태 초기화 — 스킬·HP·스트레스는 유지, 일시 상태(실드/패닉)만 리셋 ──
             // (HP/스트레스는 기획상 화톳불 노드에서만 회복되므로 전투 진입 때 리셋 안 함)
             fellow.isDead          = false;
+            fellow.deathHandled    = false;   // 사망 1회 처리 플래그 리셋 (#9)
             // fellow.currentStress = 0;   ← 매 전투 리셋 안 함 (스트레스 유지)
             fellow.shield          = 0;
             fellow.isFrozen        = false;

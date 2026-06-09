@@ -7,6 +7,34 @@
 
 ---
 
+## 🎯 NEXT — 2차 피드백 12항목 (2026-06-05) ★현재 진행
+
+> 사용자 2차 버그/개선 리스트. **#7만 이번에 수정 완료**, 나머지는 백로그.
+
+| # | 항목 | 상태 / 메모 |
+|---|---|---|
+| 1 | 파티 편집 오타 | ⬜ 오타 위치 찾아 수정 (어느 텍스트인지 확인 필요) |
+| 2 | 좌패널 스킬 팝업이 "지점"이 아니라 "영역"으로 떠야 함 | ✅ **수정 완료** — CardSlotView가 트리거를 스킬 항목 컨테이너(Skill1/Skill2)에 부착, SkillTooltipTrigger.Ensure가 투명 raycast Image를 보장 → 칸 전체에서 호버. |
+| 3 | 노드 화면 포커싱이 현재 노드 단계(라인)로 자동 스크롤돼야 함 | ✅ **수정 완료** — NodeSystem.UpdateNodeStates 끝에 FocusCurrentRow() 추가. NodeDisplay ScrollRect를 현재 행이 viewport 중앙에 오도록 스크롤(끝단 클램프). 스크롤뷰 아니면 무시. |
+| 4 | 파티편집 후 전투 진입 시 초기 정렬 안 됨 → 턴 종료 눌러야 재정렬 | ✅ **수정 완료** — DefaultSetting.SpawnObject가 스폰 직후 아군 battleSlotIndex를 allies 순서로 확정한 뒤 RelayoutCards(instant). GetActiveFellows 스탬프 타이밍/빈슬롯으로 초기 relayout이 스킵되던 문제 해소. |
+| 5 | 이벤트 노드 색상 제거(랜덤이라) + **시퀀스 고정**: 시작>전투>용병소>전투>화톳불>보스 | ⬜ MapGenerator 일반 맵 재구성(고정 시퀀스) + 노드 색상 제거 |
+| 6 | 전투 중 아군 사망했는데 손패 안 줄어듦 | 🟡 **부분 수정** — 사망 1회 처리(deathHandled)로 RemoveCardsOfFellow 중복 호출 정리, ProcessPendingDiscard에 인게임 로그 추가. 체인은 정상이나 "랜덤 파괴 아예 안 됨"은 런타임 repro 필요(드로우 리필/marked 비어있음 가능성). 사양: 사망 동료 카드가 손패에 없으면 다음 턴 랜덤 1장 파괴. |
+| 7 | 미행동 보상 로그/애니메이션 없음 + 스택 인원보다 적게 들어감 | ✅ **수정 완료** (아래 §2차-#7) |
+| 8 | 게임 내부 텍스트 특수문자 금지 | ✅ **수정 완료** — enemy_skills.json 설명 8개 재작성(개발메모 (기획 §…)·TryGetForcedSkill·weight 0 제거 + §/≤/·/→/— 치환), MetaPassive 해금설명 "— 스킬 풀에 추가"→"(스킬 풀에 추가)", 튜토리얼 대사 "[X] — Y"→"[X]: Y"·"직업·성급"→"직업, 성급". 데이터/씬/프리팹 표시텍스트 장식 특수문자 0 확인. (정상 부호 +·-·/·%·()·[]·: 및 CollapseTab ◀▶ 화살표는 유지) |
+| 9 | 아군 사망 시 스트레스 반복 상승 → 사망당 1회만 | ✅ **수정 완료** — FellowData.deathHandled 플래그 추가, ProcessDeathAndStress가 새 사망만 처리(매 턴 재적용 방지), InitBattle 리셋. |
+| 10 | 프리스트 스킬 시 옷 색상 바뀜 | ⬜ BattleCardSprites 색 복원/틴트 점검 — 다만 Priest_Attack 스프라이트 아트가 다른 색일 가능성(아트 이슈). repro 필요. |
+| 11 | 패시브 해금이 마석상점 아니라 **영혼석 기반**이어야 함 | ✅ **수정 완료** — MetaPassiveManager.TryUnlock이 SoulstoneManager.Amount/Use 사용(영혼석). ※스킬 해금도 동일하게 영혼석. 마석은 현재 미사용 — 의도면 OK, 아니면 알려주세요. |
+| 12 | 좌패널 파티창 텍스트 밑 잘림 + 특수문자 제거 | ✅ **수정 완료** — 원인: 스킬 이름 폰트 24 > 스킬 칸 30px(밑 잘림). CardSlotView가 스킬이름/이름/성향 텍스트에 오토사이즈(ApplyAutoFit) 적용해 칸에 맞춰 축소. 특수문자는 #8에서 정리됨(카드 표시 텍스트 깨끗). |
+
+### §2차-#7 미행동 보상 (2026-06-05 수정 완료)
+- **원인 1(로그 없음)**: 미행동 보상이 `Debug.Log`(에디터 콘솔)만 하고 `GameLog.Event`(인게임 로그)가 없었음 → 로그 팝업·연출에 안 뜸.
+- **원인 2(스택 인원보다 적음)**: `skills.Count==0`(보유 스킬 0)인 동료는 carryover 없이 조용히 `continue` → 미행동 3명인데 스택 +2처럼 1명 누락. (스택 상한 cap은 없음 — `RoleCostBase.Add` clamp만.)
+- **수정**(`BattleManager.Combat.cs` ExecuteAction): 스킬 부족/스킬 없음 **모두 미행동 보상(+1)으로 통일** + 미행동 시 `GameLog.Event("…행동하지 않아 다음 턴 스택 +1")` 추가. carryover는 여전히 역할(StackType)별 누적(기획 "해당 스택 +1").
+- ※후속: "보유 스킬 없음" 경고가 실제로 찍히면 스킬 배정(PickSkillsFromPool) 쪽 별도 점검 필요. 미행동 "애니메이션"은 재배치 카드 이동으로 일부 표현되나 전용 연출은 백로그.
+- 백업: `~/Documents/backup/2026-06-05_noaction_log_fix/`.
+
+---
+
 ## ✅ 6차 세션 완료 — 기획자 피드백 15항목 (2026-06-05)
 
 > 백업: `~/Documents/backup/2026-06-05_planner_feedback_15/` (Scripts 전체 + 두 씬 + 프리팹 + Data).
