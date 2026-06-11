@@ -56,15 +56,14 @@ public class MagicStoneShopPanel : MonoBehaviour
     public void Open()
     {
         if (!_built) Build();
+        transform.SetAsLastSibling();   // 노드맵(NodeDisplay) 등이 런타임에 위로 올라와도 팝업이 항상 최상단
         SetVisible(true);
         Refresh();
-        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
     }
 
     public void Close()
     {
         SetVisible(false);
-        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
     }
 
     private void SetVisible(bool v)
@@ -80,7 +79,6 @@ public class MagicStoneShopPanel : MonoBehaviour
     {
         if (MetaPassiveManager.TryUnlock(id))
         {
-            AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
             Debug.Log($"[마석상점] 해금 성공: {id}");
         }
         Refresh();
@@ -135,10 +133,13 @@ public class MagicStoneShopPanel : MonoBehaviour
         panelRT.pivot = new Vector2(0.5f, 0.5f);
         panelRT.sizeDelta = new Vector2(940, 640);
         var panelImg = panel.AddComponent<Image>();
-        panelImg.color = new Color(0.12f, 0.12f, 0.16f, 0.98f);
+        // 다른 팝업과 통일 — Panel_1(9-slice) 프레임 적용. 없으면 단색 폴백.
+        var panelSprite = Resources.Load<Sprite>("UI/panel_1");
+        if (panelSprite != null) { panelImg.sprite = panelSprite; panelImg.type = Image.Type.Sliced; panelImg.color = Color.white; }
+        else panelImg.color = new Color(0.12f, 0.12f, 0.16f, 0.98f);
 
         // 제목
-        var title = NewText("Title", panel.transform, "마석 상점", font, 40, FontStyles.Bold);
+        var title = NewText("Title", panel.transform, "파워업", font, 40, FontStyles.Bold);
         var titleRT = (RectTransform)title.transform;
         titleRT.anchorMin = new Vector2(0f, 1f); titleRT.anchorMax = new Vector2(1f, 1f);
         titleRT.pivot = new Vector2(0.5f, 1f);
@@ -275,7 +276,9 @@ public class MagicStoneShopPanel : MonoBehaviour
     {
         var go = NewUI(name, parent);
         var img = go.AddComponent<Image>();
-        img.color = new Color(0.32f, 0.5f, 0.86f, 1f);
+        var btnSprite = Resources.Load<Sprite>("Button/default_button");
+        if (btnSprite != null) { img.sprite = btnSprite; img.type = Image.Type.Sliced; img.color = Color.white; }
+        else img.color = new Color(0.32f, 0.5f, 0.86f, 1f);
         var btn = go.AddComponent<Button>();
         btn.targetGraphic = img;
         var colors = btn.colors;
@@ -284,6 +287,7 @@ public class MagicStoneShopPanel : MonoBehaviour
 
         labelText = NewText("Label", go.transform, label, font, 26, FontStyles.Bold);
         labelText.alignment = TextAlignmentOptions.Center;
+        labelText.color = new Color(1f, 0.84f, 0.4f, 1f);   // 좌패널과 동일 골드 (팝업 버튼 가독성 통일)
         return go;
     }
 

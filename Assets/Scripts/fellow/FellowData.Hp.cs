@@ -36,7 +36,6 @@ public partial class FellowData
             if (_currentHp <= 0 && !isDead)
             {
                 isDead = true;
-                AudioManager.Instance?.PlaySfxById(SfxId.FellowDeath);
                 OnDied?.Invoke();
             }
         }

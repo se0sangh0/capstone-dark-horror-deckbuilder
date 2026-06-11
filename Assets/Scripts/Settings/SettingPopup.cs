@@ -6,7 +6,7 @@
 //   - SFX 음량 슬라이더 (0~1)
 //   - 화면 모드 드롭다운 (전체화면 / 전체화면 창모드 / 창모드) — 해상도 1920x1080 고정
 //   - "메인화면으로" 버튼 → GameStartScene 로드
-//   - 게임 종료 / 재화 초기화 버튼
+//   - 게임 종료 버튼 (재화 초기화는 2026-06-11 제거 — 디버그 툴 F1 에서 가능)
 //   - 닫기 버튼 → Close() 호출
 //
 // ── 인스펙터 ───────────────────────────────────────────────────
@@ -65,7 +65,6 @@ public class SettingPopup : PanelBase
 
     [Header("버튼")]
     [SerializeField] private Button toMainButton;
-    [SerializeField] private Button resetPrefsButton;
     [SerializeField] private Button closeButton;
 
     // ── 열릴 때마다 현재 값 동기화 + 리스너 등록 ────────────────────
@@ -149,11 +148,6 @@ public class SettingPopup : PanelBase
             toMainButton.onClick.RemoveListener(OnToMain);
             if (subscribe) toMainButton.onClick.AddListener(OnToMain);
         }
-        if (resetPrefsButton != null)
-        {
-            resetPrefsButton.onClick.RemoveListener(OnResetPrefs);
-            if (subscribe) resetPrefsButton.onClick.AddListener(OnResetPrefs);
-        }
         if (closeButton != null)
         {
             closeButton.onClick.RemoveListener(Close);
@@ -212,15 +206,5 @@ public class SettingPopup : PanelBase
         return 0; // 폴백: 첫 번째
     }
 
-    private void OnToMain() => SceneManager.LoadScene(MAIN_SCENE);
-
-    // 영혼석/마석 PlayerPrefs 만 삭제 후 활성 매니저에 즉시 반영.
-    // 풀스크린/볼륨 같은 다른 prefs 는 유지.
-    private void OnResetPrefs()
-    {
-        if (SoulstoneManager.Instance != null) SoulstoneManager.Instance.ResetCurrency();
-        if (ManastoneManager.Instance != null) ManastoneManager.Instance.ResetCurrency();
-        MetaPassiveManager.ResetAll();   // 메타 패시브 해금도 초기화 (기획 §16 §4)
-        Debug.Log("[SettingPopup] 영혼석/마석/메타패시브 PlayerPrefs 리셋 완료");
-    }
+    private void OnToMain() => SceneTransition.Go(MAIN_SCENE);
 }

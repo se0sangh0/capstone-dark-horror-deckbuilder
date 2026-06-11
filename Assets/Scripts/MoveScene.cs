@@ -47,7 +47,6 @@ public class MoveScene : MonoBehaviour
     /// </summary>
     public void InGameSceneLoaded()
     {
-        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
 
         // 튜토리얼 자동 진입 — 완료 플래그가 false 일 때만 (재실행 시는 일반 진입)
         if (!TutorialManager.IsCompleted())
@@ -67,7 +66,7 @@ public class MoveScene : MonoBehaviour
         // 새 모드에 맞게 강제 재초기화 (IsTutorial 보고 튜토리얼/일반 자동 분기).
         PartyManager.Instance?.ForceReinitParty();
 
-        SceneManager.LoadScene("GamePlayScene");
+        SceneTransition.Go("GamePlayScene");
     }
 
     /// <summary>
@@ -76,13 +75,12 @@ public class MoveScene : MonoBehaviour
     /// </summary>
     public void StartTutorialAgain()
     {
-        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
         EnsureTutorialManager();
         TutorialManager.Instance?.StartTutorial();
         // 일반 게임 파티 잔재 → 튜토리얼 3인 파티로 강제 재초기화
         PartyManager.Instance?.ForceReinitParty();
         Debug.Log("[MoveScene] [처음이신가요?] 클릭 — 튜토리얼 재진입");
-        SceneManager.LoadScene("GamePlayScene");
+        SceneTransition.Go("GamePlayScene");
     }
 
     /// <summary>TutorialManager 가 씬에 없으면 생성한다 (DontDestroyOnLoad).</summary>

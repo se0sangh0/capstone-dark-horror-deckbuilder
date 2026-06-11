@@ -59,6 +59,8 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.idleAnim     = def.idleAnim;
         e.attack1Anim  = def.attack1Anim;
         e.attack2Anim  = def.attack2Anim;
+        e.attack3Anim  = def.attack3Anim;
+        e.attack4Anim  = def.attack4Anim;
         e.isDead      = false;
 
         // ── 소환체 메커니즘 필드 복사 (기획 §11 §3 까마귀) ──

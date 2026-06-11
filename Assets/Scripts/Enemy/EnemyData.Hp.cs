@@ -35,7 +35,6 @@ public partial class EnemyData
             if (_currentHp <= 0 && !isDead)
             {
                 isDead = true;
-                AudioManager.Instance?.PlaySfxById(SfxId.EnemyDeath);
                 OnDied?.Invoke();
             }
         }
@@ -86,5 +85,7 @@ public partial class EnemyData
     [System.NonSerialized] public System.Action<string, int, bool> OnSkillCast;
     /// <summary>소환체 남은 수명 턴 변동 시 (currentLifeTurns). 까마귀 카운트다운 UI 가 구독.</summary>
     [System.NonSerialized] public System.Action<int> OnLifeTurnsChanged;
+    /// <summary>도발 상태(tauntTurnsLeft) 변동 시 — 상태 칩 UI 가 구독. (2026-06-08)</summary>
+    [System.NonSerialized] public System.Action OnTauntChanged;
     [System.NonSerialized] public UnityEngine.UI.Slider HpSlider;
 }

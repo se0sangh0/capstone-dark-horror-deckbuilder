@@ -268,18 +268,17 @@ public class DefaultSetting : MonoBehaviour
         //   prefab 의 Animator 컴포넌트에 끼우고 BattleCardSprites 에 전달.
         //   비어 있거나 로드 실패 시 sprite 교체 방식(idleSprite/attackSprite) 으로 fallback.
         string animatorPath = null;
-        string attack1Name = null, attack2Name = null;
+        string[] attackNames = null;
         if (factionType == FactionType.Ally && i < allies.Count)
         {
             animatorPath = allies[i].animatorPath;
-            attack1Name  = allies[i].attack1Anim;
-            attack2Name  = allies[i].attack2Anim;
+            attackNames  = new[] { allies[i].attack1Anim, allies[i].attack2Anim };
         }
         else if (factionType == FactionType.Enemy && i < enemies.Count)
         {
             animatorPath = enemies[i].animatorPath;
-            attack1Name  = enemies[i].attack1Anim;
-            attack2Name  = enemies[i].attack2Anim;
+            // 보스는 스킬 4종 → Attack1~4 트리거 매핑 (attack3/4 비면 기본값 Attack3/Attack4)
+            attackNames  = new[] { enemies[i].attack1Anim, enemies[i].attack2Anim, enemies[i].attack3Anim, enemies[i].attack4Anim };
         }
 
         if (!string.IsNullOrEmpty(animatorPath))
@@ -291,7 +290,7 @@ public class DefaultSetting : MonoBehaviour
                 if (animator != null)
                 {
                     animator.runtimeAnimatorController = ctrl;
-                    if (sprites != null) sprites.AttachAnimator(animator, attack1Name, attack2Name);
+                    if (sprites != null) sprites.AttachAnimator(animator, attackNames);
                 }
                 else Debug.LogWarning($"[DefaultSetting] {newObj.name}: Animator 컴포넌트 없음 — prefab 에 추가 필요");
             }
@@ -325,6 +324,8 @@ public class DefaultSetting : MonoBehaviour
     }
 
     public const float RelayoutDuration = 0.25f;
+    // 재정렬 시 카드별 출발 시차 — 동시 직선 이동의 교차 겹침을 시간적으로 분리 (왼쪽 자리부터 한 장씩).
+    public const float RelayoutStagger  = 0.1f;
 
     /// <summary>
     /// 생존 카드만 새 위치로 이동.
@@ -379,17 +380,17 @@ public class DefaultSetting : MonoBehaviour
         //   EnemySkillExecutor FrontFirst(alive[0]) / BackLast(alive.Last) 일관성 유지.
         int newStart = total - alive.Count;
         for (int k = 0; k < alive.Count; k++)
-            PlaceCardAt(alive[k].card, newStart + k, dir, instant);
+            PlaceCardAt(alive[k].card, newStart + k, dir, instant, instant ? 0f : RelayoutStagger * k);
     }
 
-    private void PlaceCardAt(BattleCardView card, int newIndex, int dir, bool instant)
+    private void PlaceCardAt(BattleCardView card, int newIndex, int dir, bool instant, float delay = 0f)
     {
         float currentX  = startX + dir * (spacingX * newIndex);
         Vector3 targetPos = transform.position + new Vector3(currentX, spawnOffsetY, 0f);
         var go = card.gameObject;
         go.transform.DOKill();
         if (instant) go.transform.position = targetPos;
-        else         go.transform.DOMove(targetPos, RelayoutDuration).SetEase(Ease.OutQuad);
+        else         go.transform.DOMove(targetPos, RelayoutDuration).SetEase(Ease.OutQuad).SetDelay(delay);
     }
 
     // ----------------------------------------------------------

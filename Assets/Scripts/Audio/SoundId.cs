@@ -14,6 +14,7 @@ public enum BgmId
     Battle,        // 전투
     Rest,          // 화톳불
     Mercenary,     // 용병 사무소
+    Boss,          // 보스 전투 (2026-06-09 신규 에셋)
 }
 
 public enum SfxId
@@ -51,4 +52,16 @@ public enum SfxId
 
     // 회복
     Heal,
+
+    // 노드 (2026-06-09 — 노드 전용음. 일반 버튼/확인음과 분리)
+    NodeMove,    // 노드 클릭(이동)
+    NodeEnter,   // 노드 진입(전투 등)
+
+    // 스킬 전용음 (2026-06-09 — 스킬명별 재생. BattleManager.Combat.UseSkill)
+    SkillFireball,   // 파이어볼
+    SkillStrike,     // 무모한 강타 / 매직 미사일 (공용)
+    SkillAxeThrow,   // 도끼 던지기 (약탈자 적 스킬)
+
+    // 씬 전환 (2026-06-09 — 페이드 로딩 연출음)
+    SceneTransition, // 씬 전환 페이드
 }

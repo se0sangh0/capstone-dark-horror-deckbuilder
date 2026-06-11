@@ -44,6 +44,12 @@ public class LeftPanelToggle : MonoBehaviour
 
     [SerializeField] private float slideDuration = 0.25f;
 
+    [Header("hover 표시")]
+    [Tooltip("탭 RectTransform 중심에서 이 픽셀 거리 내에 마우스가 들어오면 탭 노출. 0 이면 hover 트리거 미사용(항상 노출).")]
+    [SerializeField] private float hoverRevealRadius = 180f;
+    [Tooltip("hover alpha fade 시간. 0 이면 즉시.")]
+    [SerializeField] private float hoverFadeDuration = 0.15f;
+
     private float   _shownX;
     private float   _hiddenX;
     private float[] _rightShownLeft;   // 각 오른쪽 콘텐츠의 펼침 상태 좌측 여백
@@ -56,6 +62,9 @@ public class LeftPanelToggle : MonoBehaviour
     private System.Collections.Generic.List<CanvasGroup> _blockCgs;
     private System.Collections.Generic.List<GameObject>  _blockGos;
     private MagicStoneShopPanel _magicShop;
+
+    // hover fade — Update 에서 목표 alpha 를 갱신, 현재 alpha 를 부드럽게 보간.
+    private float _hoverAlphaTarget = 1f;
 
     private void Awake()
     {
@@ -108,9 +117,44 @@ public class LeftPanelToggle : MonoBehaviour
     {
         if (_tabGroup == null) return;
         bool blocked = IsAnyBlockingPanelOpen();
-        _tabGroup.alpha          = blocked ? 0f : 1f;
-        _tabGroup.blocksRaycasts = !blocked;
-        _tabGroup.interactable   = !blocked;
+
+        // 차단 패널 열리면 강제 숨김. 아니면 hover 영역 기반으로 노출.
+        if (blocked)
+        {
+            _hoverAlphaTarget        = 0f;
+            _tabGroup.blocksRaycasts = false;
+            _tabGroup.interactable   = false;
+        }
+        else
+        {
+            bool revealAlways = hoverRevealRadius <= 0f;
+            bool inRange      = revealAlways || IsMouseNearTab();
+            _hoverAlphaTarget         = inRange ? 1f : 0f;
+            _tabGroup.blocksRaycasts = inRange;
+            _tabGroup.interactable    = inRange;
+        }
+
+        // alpha 부드러운 보간
+        if (hoverFadeDuration <= 0f)
+            _tabGroup.alpha = _hoverAlphaTarget;
+        else
+            _tabGroup.alpha = Mathf.MoveTowards(_tabGroup.alpha, _hoverAlphaTarget, Time.unscaledDeltaTime / hoverFadeDuration);
+    }
+
+    /// <summary>마우스가 탭 중심에서 hoverRevealRadius 픽셀 안에 있는지.</summary>
+    private bool IsMouseNearTab()
+    {
+        var rt = transform as RectTransform;
+        if (rt == null) return true; // 안전 폴백 — 항상 노출
+
+        // 탭의 화면 좌표(스크린 픽셀). overlay/screen-space 모두 동작 (RectTransformUtility.WorldToScreenPoint 가 알맞게 처리)
+        var canvas = GetComponentInParent<Canvas>();
+        Camera uiCam = (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas?.worldCamera;
+        Vector2 tabScreen = RectTransformUtility.WorldToScreenPoint(uiCam, rt.position);
+        Vector2 mouse     = (Vector2)Input.mousePosition;
+
+        // Canvas scale 보정 — hoverRevealRadius 가 reference resolution 기준이라 가정하지 않고, 픽셀 단위로 비교.
+        return Vector2.Distance(tabScreen, mouse) <= hoverRevealRadius;
     }
 
     /// <summary>용병소(메인/모집/성장) 외의 모달 패널이 열려 있으면 true → 접기 탭 비활성.</summary>
@@ -139,7 +183,6 @@ public class LeftPanelToggle : MonoBehaviour
             ApplyProgress(1f); // 비활성이면 즉시 목표 적용
 
         UpdateArrow();
-        AudioManager.Instance?.PlaySfxById(SfxId.ButtonClick);
     }
 
     private IEnumerator Slide()

@@ -8,12 +8,12 @@
 //   Boss/Elite 는 NodeSystem.CurrentRoomType 으로 EnemySpawner 가 직접 처리하고,
 //   이 클래스는 일반 전투(Combat) 노드의 층별 적 구성만 책임진다.
 //
-// [매핑 정책 — 2026-06-08 갱신 (7층)]
-//   일반 전투(Combat) 노드는 고블린만 등장. 약탈자(엘리트급)는 이벤트 노드(엘리트, 현재 비활성) 전용.
-//   전투는 layer 1~4 (CurrentFloor = layer+1 → floor 2~5). 마릿수:
-//     layer 1·2 전투 (floor 2·3): 2마리
-//     layer 3·4 전투 (floor 4·5): 3~4마리
-//   최대 4마리 제한.
+// [매핑 정책 — 2026-06-09 갱신 (MVP 6층 고정 일렬)]
+//   MVP 맵 전투(Combat) 노드 = layer 1·3 (CurrentFloor = currentRowIndex = 1, 3) 두 곳.
+//   일반 전투는 고블린만 등장, 각 2마리(RollCount ≤3 → 2).
+//   약탈자(enemy_raider_01)는 일반 전투엔 미등장(의도) — 엘리트로만 등장:
+//     튜토리얼 Elite 노드 + MVP 랜덤노드(Event)의 엘리트 결과(발표용 가중치 0이라 현재 미발생).
+//   ※ RollCount 의 floor>3(3~4마리) 분기는 튜토리얼/향후 맵용으로 보존.
 //
 // [tier 폴백 — Combat 노드 한정]
 //   GetEnemyPool 이 비어있을 때 EnemySpawner 가 사용. Boss tier 는 절대 반환 안 함
@@ -51,13 +51,12 @@ public static class FloorTierResolver
     }
 
     // ============================================================
-    // 마릿수 결정 — 2026-06-08 노드 재설계 (7층)
-    //   전투는 layer 1~4 (CurrentFloor = layer+1 → floor 2~5).
-    //   전투 layer1·2 (floor 2·3) = 2마리 / 전투 layer3·4 (floor 4·5) = 3~4마리. 최대 4.
+    // 마릿수 결정 — 2026-06-09 (MVP 6층 고정 일렬)
+    //   MVP 전투는 floor 1·3 → 둘 다 2마리. floor>3(3~4마리)는 튜토리얼/향후 맵용 보존.
     // ============================================================
     public static int RollCount(int floorIndex)
     {
-        if (floorIndex <= 3) return 2;                  // layer 1·2 전투: 2마리
-        return UnityEngine.Random.Range(3, 5);          // layer 3·4 전투: 3 or 4마리
+        if (floorIndex <= 3) return 2;                  // MVP 전투(floor 1·3): 2마리
+        return UnityEngine.Random.Range(3, 5);          // 향후 후반층: 3 or 4마리
     }
 }

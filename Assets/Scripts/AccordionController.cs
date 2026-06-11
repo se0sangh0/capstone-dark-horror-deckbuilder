@@ -42,34 +42,44 @@ public class AccordionController : MonoBehaviour
     /// <summary>현재 열려있는지 여부</summary>
     private bool isOpened = false;
 
+    /// <summary>현재 펼쳐져 있는지 외부 조회용 (기본 펼침 1회 처리 등).</summary>
+    public bool IsOpened => isOpened;
+
     // ----------------------------------------------------------
     // 아코디언 토글
     // 버튼의 onClick 이벤트에 이 메서드를 연결하세요.
     // ----------------------------------------------------------
 
+    /// <summary>아코디언을 토글한다. 버튼 onClick 에 연결. 0.4초 애니메이션.</summary>
+    public void ToggleAccordion() => SetOpen(!isOpened, instant: false);
+
     /// <summary>
-    /// 아코디언을 열거나 닫는다.
-    /// 열릴 때: 내용물의 실제 높이를 계산하여 0.4초 동안 펼침.
-    /// 닫힐 때: 0.4초 동안 높이를 0으로 줄임.
+    /// 아코디언 열림/닫힘을 명시적으로 설정.
+    /// 열릴 때: 내용물의 실제 높이를 계산. 닫힐 때: 0.
+    /// instant=true 면 애니메이션 없이 즉시 적용(기본 펼침 등 초기화용).
     /// </summary>
-    public void ToggleAccordion()
+    public void SetOpen(bool open, bool instant = false)
     {
-        isOpened = !isOpened;
+        isOpened = open;
+        if (contentPanel == null) return;
 
-        if (isOpened)
+        DOTween.Kill(contentPanel);
+
+        // 펼칠 땐 자식 레이아웃을 먼저 확정해야 GetPreferredHeight 가 정확.
+        if (open) LayoutRebuilder.ForceRebuildLayoutImmediate(contentPanel);
+        float target = open ? LayoutUtility.GetPreferredHeight(contentPanel) : 0f;
+
+        if (instant)
         {
-            // 내용물의 실제 총 높이를 자동으로 계산
-            float targetHeight = LayoutUtility.GetPreferredHeight(contentPanel);
-
-            // 계산된 높이까지 0.4초 동안 부드럽게 늘어남
-            contentPanel.DOSizeDelta(
-                new Vector2(contentPanel.sizeDelta.x, targetHeight), 0.4f);
+            contentPanel.sizeDelta = new Vector2(contentPanel.sizeDelta.x, target);
+            // 즉시 펼침은 단일 프레임에 반영되어야 하므로 스크롤 콘텐츠 전체를 재계산 —
+            // 그래야 형제 아코디언(덱/스트레스)이 새 높이만큼 아래로 재배치된다.
+            // (DOTween 토글 경로는 매 프레임 레이아웃이 자동 갱신되어 불필요)
+            var sr = contentPanel.GetComponentInParent<ScrollRect>();
+            var rebuildRoot = (sr != null && sr.content != null) ? sr.content : contentPanel;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rebuildRoot);
         }
         else
-        {
-            // 높이를 0으로 0.4초 동안 줄어듦 (접힘)
-            contentPanel.DOSizeDelta(
-                new Vector2(contentPanel.sizeDelta.x, 0f), 0.4f);
-        }
+            contentPanel.DOSizeDelta(new Vector2(contentPanel.sizeDelta.x, target), 0.4f);
     }
 }

@@ -67,11 +67,11 @@ public class AudioManager : Singleton<AudioManager>
     }
 
     // ─── 직접 클립 재생 ───────────────────────────────────────────
-    public void PlayBgm(AudioClip clip)
+    public void PlayBgm(AudioClip clip, bool loop = true)
     {
         if (bgmSource == null || clip == null) return;
         bgmSource.clip = clip;
-        bgmSource.loop = true;
+        bgmSource.loop = loop;
         bgmSource.Play();
     }
 
@@ -88,15 +88,15 @@ public class AudioManager : Singleton<AudioManager>
     }
 
     // ─── ID 기반 재생 ────────────────────────────────────────────
-    /// <summary>현재 BGM 이 동일하면 재시작하지 않는다 (씬 전환 시 끊김 방지).</summary>
-    public void PlayBgmById(BgmId id)
+    /// <summary>현재 BGM 이 동일하면 재시작하지 않는다 (씬 전환 시 끊김 방지). loop=false 면 1회만 재생.</summary>
+    public void PlayBgmById(BgmId id, bool loop = true)
     {
         if (id == BgmId.None) { StopBgm(); return; }
         if (_currentBgm == id && bgmSource != null && bgmSource.isPlaying) return;
         if (database == null) return;
         var clip = database.GetBgm(id);
         if (clip == null) return;
-        PlayBgm(clip);
+        PlayBgm(clip, loop);
         _currentBgm = id;
     }
 
@@ -105,5 +105,48 @@ public class AudioManager : Singleton<AudioManager>
         if (id == SfxId.None || database == null) return;
         var clip = database.GetSfx(id);
         if (clip != null) PlaySfx(clip);
+    }
+
+    // ─── 잘라 재생 (긴 클립을 maxSeconds 만큼만, 끝은 짧게 페이드아웃) ──────
+    private AudioSource _clippedSfx;
+    private Coroutine _clippedRoutine;
+
+    /// <summary>긴 SFX 를 maxSeconds 동안만 재생하고 끊는다 (예: 9초짜리 노드 이동음).</summary>
+    public void PlaySfxByIdClipped(SfxId id, float maxSeconds)
+    {
+        if (id == SfxId.None || database == null) return;
+        var clip = database.GetSfx(id);
+        if (clip == null) return;
+
+        if (_clippedSfx == null)
+        {
+            _clippedSfx = gameObject.AddComponent<AudioSource>();
+            _clippedSfx.playOnAwake = false;
+            _clippedSfx.loop = false;
+        }
+        if (_clippedRoutine != null) StopCoroutine(_clippedRoutine);
+        _clippedSfx.Stop();
+        _clippedSfx.clip = clip;
+        _clippedSfx.volume = SfxVolume;
+        _clippedSfx.Play();
+        _clippedRoutine = StartCoroutine(StopClippedAfter(maxSeconds));
+    }
+
+    private System.Collections.IEnumerator StopClippedAfter(float seconds)
+    {
+        const float fade = 0.15f;             // '뚝' 끊김 방지용 빠른 페이드아웃
+        float hold = Mathf.Max(0f, seconds - fade);
+        yield return new WaitForSeconds(hold);
+
+        float t = 0f;
+        float v0 = _clippedSfx != null ? _clippedSfx.volume : 0f;
+        while (t < fade && _clippedSfx != null)
+        {
+            t += Time.unscaledDeltaTime;
+            _clippedSfx.volume = Mathf.Lerp(v0, 0f, t / fade);
+            yield return null;
+        }
+        if (_clippedSfx != null) { _clippedSfx.Stop(); _clippedSfx.volume = SfxVolume; }
+        _clippedRoutine = null;
     }
 }

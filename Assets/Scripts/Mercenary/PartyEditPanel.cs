@@ -11,20 +11,14 @@
 //   - 예비대 카드 클릭(파티 선택 없음) → 파티 빈 슬롯에 즉시 합류.
 //   - 예비대 카드의 [제거] 클릭 → 예비대에서 영구 제거 (방출, DismissReserve)
 //
-// [statusLabel — 안내 + 토스트 겸용]
-//   평소     : 사용법 안내 표시
-//   주의 시  : "지원하지 않는 기능입니다" 2초 표시 후 안내로 자동 복귀
-//
 // [인스펙터 슬롯]
 //   - fellowCardPrefab    : 풀 카드 (FellowCardView)
 //   - partySlotsParent    : 파티 4슬롯 부모
 //   - reservesParent      : 예비대 부모 (ScrollRect Content)
 //   - partyCountLabel     : "파티 인원: 2/4" 표시
-//   - statusLabel         : 안내/토스트 겸용 TMP_Text
 //   - closeButton         : 닫기 버튼
 // ============================================================
 
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -42,15 +36,9 @@ public class PartyEditPanel : PanelBase
 
     [Header("UI 라벨 / 버튼")]
     [SerializeField] private TMP_Text partyCountLabel;
-    [SerializeField] private TMP_Text statusLabel;
     [SerializeField] private Button   closeButton;
 
-    [Header("토스트")]
-    [SerializeField] private float toastDuration = 2f;
-
-    private const int    PartySize          = 4;
-    private const string DefaultGuide       = "파티 슬롯이나 예비대 카드를 먼저 선택한 뒤, 옮길 대상을 클릭하면 교체·합류됩니다. (순서 무관)";
-    private const string UnsupportedMessage = "지원하지 않는 기능입니다";
+    private const int PartySize = 4;
 
     // 카드 인스턴스 풀 — 예비대는 가변, 파티는 고정 슬롯이라 풀 불필요
     private readonly List<FellowCardView> _reserveCards = new();
@@ -60,8 +48,6 @@ public class PartyEditPanel : PanelBase
 
     // 현재 선택된 예비대 인덱스 (없으면 -1). 파티 슬롯과 동시에 선택되지 않는다(둘 중 하나).
     private int _selectedReserveIndex = -1;
-
-    private Coroutine _toastRoutine;
 
     protected override void Awake()
     {
@@ -102,7 +88,6 @@ public class PartyEditPanel : PanelBase
         _selectedPartyIndex   = -1;
         _selectedReserveIndex = -1;
         RebuildAll();
-        ShowGuide();
     }
 
     // ----------------------------------------------------------
@@ -196,7 +181,6 @@ public class PartyEditPanel : PanelBase
         if (!MercenaryService.Instance.DismissReserve(fellow)) return;
         ClearSelection();
         RebuildAll();
-        ShowGuide();
     }
 
     // ----------------------------------------------------------
@@ -214,17 +198,12 @@ public class PartyEditPanel : PanelBase
                 ? MercenaryService.Instance.TryAssignReserveToParty(_selectedReserveIndex)
                 : MercenaryService.Instance.TrySwapPartyAndReserve(target, _selectedReserveIndex);
             ClearSelection();
-            if (ok) { RebuildAll(); ShowGuide(); }
-            else    ShowToast(UnsupportedMessage);
+            if (ok) RebuildAll();
             return;
         }
 
         var fellow = GetPartyFellowAt(slotIndex);
-        if (fellow == null)
-        {
-            ShowToast(UnsupportedMessage);
-            return;
-        }
+        if (fellow == null) return;
 
         // 이미 다른 파티 슬롯이 선택된 상태에서 다른 채워진 슬롯 클릭 → 두 슬롯 순서 교환
         if (_selectedPartyIndex >= 0 && _selectedPartyIndex != slotIndex)
@@ -233,7 +212,6 @@ public class PartyEditPanel : PanelBase
             {
                 ClearSelection();
                 RebuildAll();
-                ShowGuide();
                 return;
             }
         }
@@ -249,21 +227,11 @@ public class PartyEditPanel : PanelBase
     private void HandlePartyRemove(int slotIndex)
     {
         var partyFellow = GetPartyFellowAt(slotIndex);
-        if (partyFellow == null)
-        {
-            ShowToast(UnsupportedMessage);
-            return;
-        }
+        if (partyFellow == null) return;
         if (MercenaryService.Instance == null) return;
-        bool ok = MercenaryService.Instance.TryMovePartyToReserve(partyFellow);
-        if (!ok)
-        {
-            ShowToast(UnsupportedMessage);
-            return;
-        }
+        if (!MercenaryService.Instance.TryMovePartyToReserve(partyFellow)) return;
         _selectedPartyIndex = -1;
         RebuildAll();
-        ShowGuide();
     }
 
     private static FellowData GetPartyFellowAt(int slotIndex)
@@ -286,8 +254,7 @@ public class PartyEditPanel : PanelBase
                 ? MercenaryService.Instance.TryAssignReserveToParty(reserveIndex)
                 : MercenaryService.Instance.TrySwapPartyAndReserve(fellows[_selectedPartyIndex], reserveIndex);
             ClearSelection();
-            if (ok) { RebuildAll(); ShowGuide(); }
-            else    ShowToast(UnsupportedMessage);
+            if (ok) RebuildAll();
             return;
         }
 
@@ -297,8 +264,7 @@ public class PartyEditPanel : PanelBase
         {
             bool joined = MercenaryService.Instance.TryAssignReserveToParty(reserveIndex);
             ClearSelection();
-            if (joined) { RebuildAll(); ShowGuide(); }
-            else        ShowToast(UnsupportedMessage);
+            if (joined) RebuildAll();
             return;
         }
 
@@ -307,35 +273,6 @@ public class PartyEditPanel : PanelBase
         _selectedPartyIndex   = -1;
         RefreshReserveSelectionVisual();
         RefreshPartySelectionVisual();
-    }
-
-    // ----------------------------------------------------------
-    // 안내 / 토스트
-    // ----------------------------------------------------------
-    private void ShowGuide()
-    {
-        if (statusLabel == null) return;
-        if (_toastRoutine != null)
-        {
-            StopCoroutine(_toastRoutine);
-            _toastRoutine = null;
-        }
-        statusLabel.text = DefaultGuide;
-    }
-
-    private void ShowToast(string message)
-    {
-        if (statusLabel == null) return;
-        statusLabel.text = message;
-        if (_toastRoutine != null) StopCoroutine(_toastRoutine);
-        _toastRoutine = StartCoroutine(RestoreGuideAfter(toastDuration));
-    }
-
-    private IEnumerator RestoreGuideAfter(float seconds)
-    {
-        yield return new WaitForSeconds(seconds);
-        if (statusLabel != null) statusLabel.text = DefaultGuide;
-        _toastRoutine = null;
     }
 
     // ----------------------------------------------------------

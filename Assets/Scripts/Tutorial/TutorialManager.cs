@@ -138,10 +138,9 @@ public class TutorialManager : MonoBehaviour
         EnemyTurnIntro  = 2,   // 적 행동 페이즈 첫 진입
         ResultIntro     = 3,   // 결과 처리 첫 진입 (미행동 보상)
         CombatVictory   = 4,   // 첫 전투 승리 → 다음 노드 안내
-        ShopIntro       = 5,
-        ChurchIntro     = 6,
-        EliteIntro      = 7,
-        BossIntro       = 8,
+        ShopIntro       = 5,   // 용병소 (튜토리얼 2층)
+        RestIntro       = 6,   // 화톳불 (튜토리얼 3층)
+        BossIntro       = 7,   // 보스 (튜토리얼 4층)
     }
 
     private static readonly string[] DialogueMessages = new[]
@@ -167,18 +166,11 @@ public class TutorialManager : MonoBehaviour
         "[성장]: 같은 직업, 성급 동료 3명을 합성해 별을 올려 강화합니다.\n" +
         "[나가기]: 다음 노드로 진행합니다.",
 
-        // 6 — ChurchIntro (교회)
-        "교회입니다. 영혼석으로 회복 기능을 사용하거나 사망 동료를 부활시킬 수 있어요.\n\n" +
-        "[HP 회복]: 살아있는 동료의 HP 를 회복합니다 (영혼석 소비).\n" +
-        "[스트레스 회복]: 동료의 스트레스를 감소시킵니다 (영혼석 소비).\n" +
-        "[부활 카드]: 사망 동료 카드의 [부활] 버튼으로 파티에 복귀시킵니다.\n" +
-        "[다음 층]: 다음 노드로 진행합니다.",
+        // 6 — RestIntro (화톳불)
+        "화톳불입니다. 다음 전투를 위해 정비할 수 있어요.\n\n" +
+        "HP / 스트레스를 회복하고, 파티를 점검한 뒤 [다음 층]으로 진행하세요.",
 
-        // 7 — EliteIntro
-        "엘리트 전투입니다.\n\n일반 고블린 대신 강력한 약탈자(攻 20 / HP 250)가 등장합니다.\n" +
-        "일반 전투와 같은 방식으로 진행하되, 카드를 더 신중하게 사용하세요.",
-
-        // 8 — BossIntro
+        // 7 — BossIntro
         "마지막... 거두는 자입니다.\n\n보스는 매우 강력해 한 번에 처치하기 어렵습니다.\n" +
         "튜토리얼에서는 보스의 압도감을 체험하는 것이 목표예요. 행운을 빕니다."
     };

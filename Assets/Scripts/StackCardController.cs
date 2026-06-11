@@ -87,10 +87,75 @@ public class StackCardController : MonoBehaviour
     public bool IsPendingDiscard { get; private set; }
     private static readonly Color PendingDiscardColor = new Color(1f, 0.84f, 0.2f, 1f); // 황금색
 
-    // 손패 카드 기본 배경 — 서사 톤(어둡고 차가운 슬레이트). 텍스트는 밝게 대비.
-    private static readonly Color NormalCardColor = new Color(0.13f, 0.16f, 0.20f, 1f);
-    private static readonly Color CardRoleLabelColor = new Color(0.85f, 0.88f, 0.92f, 1f);
-    private static readonly Color CardDescColor      = new Color(0.62f, 0.66f, 0.72f, 1f);
+    // 손패 카드 — 역할별 카드 스프라이트(sprite_sheet) 적용. 색은 스프라이트를 살리는 흰색 기준.
+    private static readonly Color NormalCardColor = Color.white;
+    private static readonly Color CardDescColor   = new Color(0.90f, 0.90f, 0.85f, 1f);
+
+    // 역할별 카드 배경 스프라이트 (sprite_sheet) — 딜=빨강 / 탱=파랑 / 힐=초록. 한번 로드 후 캐시.
+    private static Sprite[] _roleCardSprites;
+    private static Sprite RoleCardSprite(StackType role)
+    {
+        if (_roleCardSprites == null)
+        {
+            _roleCardSprites = new Sprite[3];
+            var all = Resources.LoadAll<Sprite>("Icons/sprite_sheet");
+            foreach (var s in all)
+            {
+                if (s.name == "sprite_sheet_8")  _roleCardSprites[0] = s; // 딜(Dealer) 빨강 (민무늬 — 탱9/힐14와 동일 모양, 2026-06-09 통일)
+                else if (s.name == "sprite_sheet_9")  _roleCardSprites[1] = s; // 탱(Tank) 파랑 (민무늬)
+                else if (s.name == "sprite_sheet_14") _roleCardSprites[2] = s; // 힐(Support) 초록 (민무늬)
+            }
+        }
+        int i = (int)role;
+        return (i >= 0 && i < 3) ? _roleCardSprites[i] : null;
+    }
+
+    // 역할 뱃지 아이콘 (sprite_sheet) — 딜=검 / 탱=방패 / 힐=하트. 한번 로드 후 캐시. (2026-06-09)
+    private static Sprite[] _roleBadgeSprites;
+    private static Sprite RoleBadgeSprite(StackType role)
+    {
+        if (_roleBadgeSprites == null)
+        {
+            _roleBadgeSprites = new Sprite[3];
+            var all = Resources.LoadAll<Sprite>("Icons/sprite_sheet");
+            foreach (var s in all)
+            {
+                if (s.name == "sprite_sheet_24")      _roleBadgeSprites[0] = s; // 딜 = 검
+                else if (s.name == "sprite_sheet_31") _roleBadgeSprites[1] = s; // 탱 = 방패
+                else if (s.name == "sprite_sheet_32") _roleBadgeSprites[2] = s; // 힐 = 하트
+            }
+        }
+        int i = (int)role;
+        return (i >= 0 && i < 3) ? _roleBadgeSprites[i] : null;
+    }
+
+    /// <summary>roleText 위치에 역할 아이콘 Image 를 보장(없으면 생성, 텍스트 영역을 채움).</summary>
+    private static Image EnsureRoleIcon(TextMeshProUGUI roleText)
+    {
+        if (roleText == null) return null;
+        var existing = roleText.transform.Find("RoleIcon");
+        if (existing != null) return existing.GetComponent<Image>();
+
+        var go = new GameObject("RoleIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(roleText.transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+
+        var img = go.GetComponent<Image>();
+        img.raycastTarget  = false;
+        img.preserveAspect = true;
+        return img;
+    }
+
+    // ── 발라트로식 토글 선택 (2026-06-08) ──────────────────────────
+    /// <summary>현재 카드가 '지정(선택)' 상태인지.</summary>
+    public bool isSelected { get; private set; }
+    private float _liftBaseY;                         // 선택 기준 Y (해제 시 복귀)
+    private const float LiftAmount  = 50f;            // 선택 시 위로 들어올리는 양(px)
+    private const float SelectScale = 1.06f;          // 선택 시 살짝 확대
+    private const float SelectDur   = 0.15f;          // 트윈 시간
+    private static readonly Color SelectedCardColor = new Color(1f, 0.95f, 0.70f, 1f); // 선택 강조(따뜻한 하이라이트)
 
     // ----------------------------------------------------------
     // 초기화
@@ -127,42 +192,57 @@ public class StackCardController : MonoBehaviour
         // 소유자 역할 기반으로 스택 타입 설정
         stackType = (StackType)(int)cardOwner.role;
 
-        // 숫자 텍스트 업데이트
+        // 숫자 텍스트 업데이트 — 검은색·볼드 통일, 양수/음수 색 분기 제거. (2026-06-09)
         if (numberText != null)
         {
-            numberText.text  = number > 0 ? $"+{number}" : $"{number}";
-            // 양수=초록, 음수=빨강
-            numberText.color = number > 0
-                ? new Color(0.2f, 0.85f, 0.3f)
-                : new Color(0.9f, 0.2f, 0.2f);
+            numberText.text      = number > 0 ? $"+{number}" : $"{number}";
+            numberText.color     = Color.black;
+            numberText.fontStyle = TMPro.FontStyles.Bold;
+            // 카드 안에서 숫자 강조하되 아이콘/설명 공간 확보 위해 축소 + 카드 정중앙 배치. (2026-06-09 디자인 보정)
+            numberText.enableAutoSizing = false;
+            numberText.fontSize         = 54f;
         }
 
-        // 역할 뱃지 텍스트 업데이트
+        // 역할 뱃지 — 문구(딜/탱/힐) 대신 아이콘 표시 (검=딜 / 방패=탱 / 하트=힐). (2026-06-09)
         if (roleText != null)
         {
-            roleText.text = stackType switch
+            roleText.text = ""; // 문구 제거 — 아이콘만 표시
+            var roleIcon = EnsureRoleIcon(roleText);
+            if (roleIcon != null)
             {
-                StackType.Dealer  => "딜",
-                StackType.Tank    => "탱",
-                StackType.Support => "힐",
-                _ => "?"
-            };
-            roleText.color = CardRoleLabelColor; // 다크 카드 위 가독성
+                var sp = RoleBadgeSprite(stackType);
+                roleIcon.sprite  = sp;
+                roleIcon.enabled = (sp != null);
+            }
         }
 
-        // 설명 텍스트 업데이트
+        // 설명 텍스트 업데이트 — 폰트 작게(숫자 강조), 색 유지. (2026-06-09)
         if (descText != null)
         {
             descText.text  = number > 0 ? "스택 증가" : "스택 감소";
             descText.color = CardDescColor;
+            descText.enableAutoSizing = false;
+            descText.fontSize         = 18f;
         }
 
         // 카드 상태 초기화
-        isUsed                = false;
-        myButton.interactable = true;
-        IsPendingDiscard      = false;
-        myImage.color         = NormalCardColor;
-        myImage.sprite        = null;
+        // SetupCard 가 SetActive(true) 보다 먼저 호출되면 Awake 가 아직이라 참조가 null →
+        // 지연 초기화 + null 가드로 NRE 방지. (2026-06-09)
+        if (myButton == null) myButton = GetComponent<Button>();
+        if (myImage  == null) myImage  = GetComponent<Image>();
+
+        isUsed           = false;
+        isSelected       = false;
+        IsPendingDiscard = false;
+        if (myButton != null) myButton.interactable = true;
+        if (myImage  != null)
+        {
+            // 역할별 카드 배경 스프라이트 적용 (딜=빨강/탱=파랑/힐=초록). 없으면 기존 흰색.
+            var cardSprite = RoleCardSprite(stackType);
+            if (cardSprite != null) myImage.sprite = cardSprite;
+            myImage.type  = UnityEngine.UI.Image.Type.Simple;
+            myImage.color = NormalCardColor;
+        }
     }
 
     /// <summary>손패 한도 초과 시 호출 — 시각 마킹(황금색), 턴 종료 시 랜덤 파괴 대상.</summary>
@@ -179,63 +259,64 @@ public class StackCardController : MonoBehaviour
     // 카드 클릭 처리
     // ----------------------------------------------------------
 
-    /// <summary>카드를 클릭했을 때 실행된다.</summary>
+    /// <summary>카드 클릭 — 지정/취소 토글 (2026-06-08 발라트로식). 다중 선택 가능.</summary>
     void OnCardClicked()
     {
-        // 이미 사용했거나 다른 카드의 확인 팝업이 열려있으면 무시
-        if (isUsed || GameManager.Instance.checkButtonBox.activeSelf) return;
+        if (isUsed) return;
 
-        // 턴 종료~다음 턴 시작 전 (PlayerCardPlay 가 아닌 모든 페이즈) 에는 카드 선택 불가.
+        // PlayerCardPlay 페이즈에서만 지정/취소 가능.
         if (BattleManager.Instance != null
             && BattleManager.Instance.currentPhase != BattlePhase.PlayerCardPlay)
-        {
             return;
-        }
 
-        // 1. 카드를 약간 크게 만들어 "선택됨" 을 표시
-        transform.localScale = originalScale * 1.15f;
+        if (!isSelected) Select();
+        else             Deselect();
+    }
+
+    /// <summary>카드 지정 — 위로 들어올리고(발라트로) 스택에 라이브 반영. 순서는 GameManager 가 기록.</summary>
+    private void Select()
+    {
+        isSelected = true;
+        var rt = (RectTransform)transform;
+        _liftBaseY = rt.anchoredPosition.y;
+        rt.DOKill();
+        rt.DOAnchorPosY(_liftBaseY + LiftAmount, SelectDur).SetEase(Ease.OutBack);
+        transform.DOScale(originalScale * SelectScale, SelectDur);
+        if (myImage != null && !IsPendingDiscard) myImage.color = SelectedCardColor;
+
         AudioManager.Instance?.PlaySfxById(SfxId.CardSelect);
-
-        // 2. 확인/취소 팝업 표시 + 위치 이동
-        GameManager.Instance.checkButtonBox.SetActive(true);
-        GameManager.Instance.checkButtonBox.transform.position =
-            transform.position + new Vector3(0, 100f, 0);
-
-        // 3. 이 카드의 확인/취소 버튼 이벤트로 교체
-        GameManager.Instance.btnConfirm.onClick.RemoveAllListeners();
-        GameManager.Instance.btnCancel.onClick.RemoveAllListeners();
-
-        GameManager.Instance.btnConfirm.onClick.AddListener(HandleConfirm);
-        GameManager.Instance.btnCancel.onClick.AddListener(HandleCancel);
+        GameManager.Instance?.OnCardSelected(this);
     }
 
-    /// <summary>취소 버튼 클릭 시: 카드 크기 복구 + 팝업 닫기</summary>
-    void HandleCancel()
+    /// <summary>카드 취소 — 내려놓고 스택 되돌림.</summary>
+    private void Deselect()
     {
+        isSelected = false;
+        var rt = (RectTransform)transform;
+        rt.DOKill();
+        rt.DOAnchorPosY(_liftBaseY, SelectDur).SetEase(Ease.OutCubic);
+        transform.DOScale(originalScale, SelectDur);
+        if (myImage != null && !IsPendingDiscard) myImage.color = NormalCardColor;
+
         AudioManager.Instance?.PlaySfxById(SfxId.Cancel);
-        transform.localScale = originalScale;
-        GameManager.Instance.checkButtonBox.SetActive(false);
+        GameManager.Instance?.OnCardDeselected(this);
     }
 
-    /// <summary>
-    /// 확인 버튼 클릭 시:
-    /// 카드를 사용 상태로 만들고 GameManager.OnCardUsed() 를 호출한다.
-    /// </summary>
-    void HandleConfirm()
+    /// <summary>턴 종료 시 GameManager 가 호출 — 지정 카드를 소비(사용됨) 처리. 스택은 이미 라이브 반영됨.</summary>
+    public void MarkConsumed()
     {
-        AudioManager.Instance?.PlaySfxById(SfxId.CardPlay);
-        // 카드를 "사용됨" 상태로 전환 (클릭 불가 + 반투명)
-        isUsed                = true;
-        myImage.sprite        = emptySprite;
-        myButton.interactable = false;
-        myImage.color         = new Color(1, 1, 1, 0.5f);
+        if (isUsed) return;
+        isSelected = false;
+        isUsed     = true;
 
-        // UI 정리
+        var rt = (RectTransform)transform;
+        rt.DOKill();
         transform.localScale = originalScale;
-        GameManager.Instance.checkButtonBox.SetActive(false);
+        rt.anchoredPosition  = new Vector2(rt.anchoredPosition.x, _liftBaseY); // 내려놓기
 
-        // GameManager 에 카드 사용 알림 → PlayerRoleCost 스택 반영
-        GameManager.Instance.OnCardUsed(this);
+        AudioManager.Instance?.PlaySfxById(SfxId.CardPlay);
+        if (myImage  != null) myImage.color = new Color(1, 1, 1, 0.45f); // 역할 카드 유지하고 흐리게(사용됨)
+        if (myButton != null) myButton.interactable = false;
     }
 
     // ----------------------------------------------------------

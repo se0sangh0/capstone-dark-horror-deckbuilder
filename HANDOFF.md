@@ -1,9 +1,241 @@
 # HANDOFF — 다음 세션 인수인계
 
-> 마지막 갱신: **2026-06-05** (6차 세션 — 기획자 피드백 15항목 **전부 완료**)
-> 6차 세션 요약: 버그 4건(#4 로그스크롤·#10 노드클릭가드·#12 사망재빌드·#13 패배엔딩) + 밸런스 2건(#11 역할별 스킬우선순위·#14 해금 직업당1) + UI 7건(#1 한글·#3 카드 스트레스바·#5 dim·#6 초상화·#2·7 스킬툴팁·#8 한기 팔레트·#9 모집비용 30 통일). 상세는 아래 §6차 세션 완료.
+> 마지막 갱신: **2026-06-11** (12차 — 로딩/결과 화면 + Panel_1 프레임 가시화 + **색 유실 사고 복구·씬 저장 함정 3가지**(§🚨 필독) + **UI 오버사이즈 일괄 개편**(#15~#20: PanelBase z-순서·좌패널·파티편집 세로 5:5·나가기 정사각 통일·용병소 아이콘·명단보기/성장 수정))
+> 마지막 갱신(이전): **2026-06-10** (11차 — 상태이상 호버 툴팁 전투카드 수정 확인 + **턴종료 버튼 재배치**(8차 #7))
+> 11차 세션 요약: (1) 상태 호버 툴팁이 전투 카드에서 안 뜨던 것 → 월드캔버스 호버를 뷰포트 수동검사로 해결, 사용자 확인 완료. (2) **턴종료 버튼 재배치(최종 B안)** — 상단 바 제거, **턴카운터=스택 헤더 우측 / 턴종료 버튼=검·방패·하트 3컬럼 줄 끝(4번째)** 가로정렬, 스택창 위로(+상하 마진). (3) **스킬 이펙트** — Effect/ 10개 mp4를 ffmpeg(흰배경 키잉)로 스프라이트화→`SkillEffectFx`로 스킬 시전 시 대상/시전자에 재생. 컴파일/렌더 검증(실전 훅은 사용자 확인). 상세 §11차.
+> 마지막 갱신(이전): 2026-06-09 (10차 세션 — 노드 아이콘 검증 + 옛 아이콘 삭제 + **상태이상 표시 UI 아이콘화**(8차 #6))
+> 10차 세션 요약: (1) 노드 아이콘 9차분 검증 완료(빈 원 아님, 재임포트 불필요) + 옛 Green/Random/Fire 삭제. (2) **상태이상 표시** — 공포경직/과호흡/중증디버프 등 표기 0이던 것을 아이콘+턴수로 표시(전투카드 HP아래 다중칩 + 좌패널 카드 우상단). FellowData 프로퍼티화+OnStatusChanged, StatusVisual 아이콘로더, status_*.png 7종. 컴파일 0·캡처 검증. 상세 §10차 세션.
+> 9차 세션 요약: #5 스택카드 모양 통일(딜 sprite_sheet_15→8 민무늬), #4 스택창 헤더(공격/방어/지원)→아이콘(검24/방패31/하트32), 카드 숫자 96→54·정중앙·아이콘/설명 카드 안으로, 노드 마커→원형 컬러버튼+1-bit 안쪽 아이콘. ✅ **노드 아이콘은 10차 세션에 검증 완료**. 상세 §9차/§10차 세션.
+> 8차 세션 요약: 스택카드 숫자 Bold·검은색·확대 + descText 축소, LeftPanelToggle hover 노출(180px), 하단 버튼 3개 stretch 복원·확대, Panel_1.png 9-slice border 0→60. ⚠️ LeftPanel ornament 노출 시도(VLG padding·자식 alpha·color tint)는 UI 깨져서 **전부 원복**. 상세 §8차 세션.
+> 직전 큰 작업(2026-06-09 7차): 동료·적 스킬 스프라이트 Loader, 노드 타입별 마석 차등(10·20·30), DamagePopup AOE cascade, 보스 텔레포트 연출, 영혼석 드롭 Pool/Fx 코드. 상세 §7차 세션 완료.
+> 직전 큰 작업(2026-06-05): 기획자 피드백 15항목 전부 완료 — 상세는 아래 §6차 세션 완료.
 > 직전 큰 작업(2026-06-02~06-05): UI 전반 다크 서사톤 통일, 좌측 패널 접기 기능, 파티편집 양방향 스왑, 용병소/교회 통일 등 — 상세는 아래 §직전 세션 완료(2026-06-02~05)
 > (이전) 2026-06-01: 튜토리얼 풀 플로우 + 모달 다이얼로그 + DoT + 노드/적 보강. 모달 박스 원본(900×400) 유지 롤백.
+
+---
+
+## ✅ 11차 세션 — 상태 호버 수정 + 턴종료 버튼 재배치 (2026-06-10)
+
+### ✅ 상태이상 호버 툴팁 — 전투 카드 수정 (10차 후속)
+> 좌패널은 됐지만 전투 카드 호버가 안 됐음. 원인: 신 InputSystem + 에디터 고DPI 에서 **포인터 좌표(≈데스크톱 2868·3381) ≠ 카메라 pixelWidth(1920)** → GraphicRaycaster 카메라 투영이 빗나감(좌패널은 오버레이+CanvasScaler라 정규화돼 정상). (※reversed/`ignoreReversedGraphics=false`·depth 도 짚었으나 진짜 원인은 좌표계 불일치)
+> **해결**: `BattleCardView.Update()` 에서 **뷰포트(0~1) 수동 호버** — `Input.mousePosition/Screen`(마우스 VP) vs 칩 `WorldToViewportPoint` 사각형 비교(해상도 불일치 상쇄). `s_hoverOwner` static 으로 카드 간 충돌 방지. activeInputHandler=Both 라 `Input.mousePosition` 사용 가능. **사용자 호버 확인 완료(전투·좌패널 둘 다)**.
+
+### ✅ 턴종료 버튼 재배치 (8차 #7)
+> 프리팹 `Assets/Prefab/UI/GamePlayScene_RightMainArea.prefab` 편집(`PrefabUtility.LoadPrefabContents`→`SaveAsPrefabAsset`).
+- 상단 바(`Top`) **비활성**. 그 안의 `Turn_Button`(턴종료)+`show_turn`(턴카운터)을 스택 패널(`StatusArea/MyStatus`)로 **reparent**.
+- MyStatus엔 **VerticalLayoutGroup**(자식 풀폭·세로배치) → 헤더를 가로로 하려면 **`HeaderRow`(HorizontalLayoutGroup) 신설**(MyStatus SiblingIndex 0, StackBar 1). **최종 B안**: HeaderRow=[스택 Text · Spacer(flexW=1) · show_turn(턴N, 우측·Right정렬)]. **Turn_Button은 `StackBar/Row_3_Boxes` 끝(4번째)** 으로 reparent + LayoutElement(preferredWidth=240, flexW=0, minWidth=200) → 검/방패/하트 3박스(flexW=1)는 남는 폭 균등, 턴종료는 우측 고정. (A안=턴종료도 헤더 우측이었으나 사용자가 B로 변경)
+- StatusArea 위로(`pos.y -250→-110`) — 상단 바 있던 자리로 올려 공간 절약.
+- **정렬 보정(사용자 요청)**: ① "스택" → 3박스 그룹 위 **중앙**(HeaderRow padding L30/R30·spacing10 으로 박스줄 인셋과 맞춤 + Text flexW=1·중앙정렬), ② "턴N" → 턴종료 버튼 위 **중앙**(show_turn preferredWidth=240=버튼폭·중앙정렬, Spacer 제거), ③ 검/방패/하트 3박스 **1:1:1**(각 LayoutElement preferredWidth=0·minWidth=0·flexW=1 — 콘텐츠 preferred 차이로 270/390/270 이던 것 강제 균등 310/310/310). 검증: 스택중앙=박스그룹중앙(1135), 턴중앙=버튼중앙(1740).
+- **박스 내부 아이콘/숫자 분리(사용자 요청)**: 박스가 넓고 낮아(310×58) 아이콘(job 36)+숫자(job_score)가 간격0으로 붙어 있던 것 → `Row_3_Boxes` LE preferredHeight 60→95 + HLG childForceExpandHeight=true(박스가 행 높이 채움), 각 박스 VLG spacing 0→18·padding T6B6 → **아이콘 위 / 숫자 아래 간격 18**. (※턴종료 버튼도 같은 행이라 같은 높이로 커짐 — 행 일관)
+- **패널 컴팩트화(후속)**: 박스를 키웠더니 `StatusArea` HLG가 MyStatus를 250-60=190으로 강제 + StackBar **상하 padding 30** + Row minH → StackBar가 부풀어 헤더 눌리고 라벨이 박스 위 ~30px 떠보임. 수정: **StackBar padding T30/B30→T8/B8** + StatusArea 높이로 패널 높이 조절(StatusArea HLG가 MyStatus 높이를 250-60으로 강제하므로 패널 높이는 StatusArea 높이로만 조절). 라벨이 박스 바로 위에 붙음.
+- **헤더 텍스트 상하 마진(사용자 요청, 최종)**: 사용자 의도는 "위 스택/턴 텍스트의 **탑 마진**(상단 여백) 부족" 이었음(박스 크기가 아니라). 박스를 키운 건 오해 → **박스 원복**(Row preferredHeight/minHeight=95, 박스 VLG spacing=18, 아이콘 job LE 40×36) + **`MyStatus` VLG padding top=22, bottom=20** 로 라벨 위·박스 아래 여백 확보. **`StatusArea` 높이=260·posY=-115**(여백분 패널 키움, 상단 고정). 결과: 탑마진 ~26 / 하단마진 ~28 / 라벨~박스 ~12 / 박스 95.
+  - ⚠️ **스택 패널 높이/마진 조절법(요약)**: StatusArea HLG가 MyStatus 높이를 `StatusArea높이-60`으로 강제 → 패널 키우려면 `StatusArea.sizeDelta.y`↑ + `posY`로 상단 고정(top=posY+높이/2 일정). 내부 상하 여백은 `MyStatus VLG padding top/bottom`. 박스 높이는 `Row_3_Boxes LE preferredHeight`. 박스↔헤더 간격은 `StackBar HLG padding.top`.
+- ⚠️ **교훈**: 이 UI들은 Layout Group 제어라 `anchoredPosition`/`sizeDelta` 직접 지정은 무시됨 → `LayoutElement`(preferredWidth/Height)·flexible + 컨테이너(HLG/VLG) 구조로 다뤄야 함. (처음에 직접 좌표로 시도→풀폭 세로로 깨짐)
+- 검증: 헤더 가로배치(스택[좌]·턴N·…·턴종료[우]) + 3컬럼 아래, 캡처 확인(가로비 1280×720). 버튼 Button/onClick/`TurnEndButtonController` + `BattleManager.turnDisplayText→show_turn` 참조 유지 확인.
+- 백업: `~/Documents/backup/2026-06-10_000922_session11_turnbutton_layout` (prefab+scene).
+
+### ✅ 스킬 이펙트(mp4→스프라이트 애니메이션) 적용 (8차 #3)
+> `Assets/Effect/` 10개 mp4를 ffmpeg로 변환해 스킬 시전 시 재생. ffmpeg는 `brew install ffmpeg`(8.1.1)로 설치.
+- **변환**: mp4가 H.264(알파 없음, **흰 배경**) → ffmpeg `colorkey=0xFFFFFF:0.14:0.10` 로 흰배경 제거 → 알파 프레임 PNG → `Assets/Resources/SkillFX/{key}/f_##.png` (총 183프레임, Sprite/알파/Bilinear). 명령: `ffmpeg -i "Effect/{이름}.mp4" -vf "colorkey=0xFFFFFF:0.14:0.10" "Resources/SkillFX/{key}/f_%02d.png"`.
+- **매핑**(skillId→폴더키): fireball=skill_fireball · magic_missile=skill_magic_missile · reckless_strike=skill_reckless · iaido=skill_draw · flash_slash=skill_flash · defense_ready=skill_guard · battle_stance=skill_battle_stance · indomitable=skill_indomitable · prayer=skill_prayer · star_call=skill_starlight.
+- **코드**: 신규 `UI/SkillEffectPlayer.cs`(SpriteRenderer 프레임 순차 재생 + 투사체면 from→to 이동, 후 자동 파괴) + `UI/SkillEffectFx.cs`(skillId→key/fps/높이/**종류** 레지스트리 + 캐시 + Play(casterPos,targetPos)). `BattleManager.Combat.UseSkill` 의 impactDelay 후 훅: `SkillEffectFx.Play(skill.id, GetUnitFxPos(user), GetPrimaryEnemyFxPos(user))`. 위치 헬퍼는 BattleCardView `.Fellow`/`.Enemy` 매칭.
+- **이펙트 종류 분류(FxKind, 이펙트 모양 보고 판단)**: **Projectile(시전자→적 좌→우 비행)**=파이어볼·매직미사일 / **AtTarget(적 위치 고정)**=발도·일섬·무모한강타·별부름(검호/일격/강하) / **AtCaster(시전자 위치)**=방어준비·전투태세·불굴·기원(원형 오라/광휘 버프·힐).
+- **검증**: 컴파일 0. Play+전투 직접 호출 — 투사체(파이어볼)=시전자(-2.5)→적(7.75) 비행(_travel=true, 중간위치 렌더 확인 `Temp/fx_projectile.png`) / 타격(발도)=적 위치 / 버프(전투태세)=시전자 위치, 알파 투명 렌더 확인. ⚠️ 실제 스킬 시전 훅은 MCP 프레임정지로 코루틴(WaitForSeconds) 타이밍 검증 불가 — 컴포넌트·매핑·라우팅·스폰은 검증됨, **실전 전투에서 사용자 확인 필요**.
+- 튜닝 여지(`SkillEffectFx` 레지스트리): 이펙트별 fps·worldHeight, 스폰 위치 오프셋(현재 캐릭터 transform 그대로 — 몸 중앙 +Y 오프셋 가능), AOE는 현재 첫 적에만(전체/중앙 확장 가능). 매핑 없는 스킬(전장의방패·워크라이·매직실드·아이스스톰 등)은 이펙트 없음.
+- 백업: `~/Documents/backup/2026-06-10_015115_session11_skillfx` (Combat.cs 변경 전). 원본 mp4는 `Assets/Effect/` 유지.
+
+---
+
+## ✅ 10차 세션 — 노드 아이콘 검증 + 옛 아이콘 정리 + 상태이상 표시 UI (2026-06-09)
+
+> (A) 9차의 미검증 노드 아이콘 검증 완료 + 옛 아이콘 삭제. (B) 8차 미처리 #6 **상태이상 표시 UI** 아이콘화 완성.
+
+### ✅ 노드 아이콘 검증 통과 (4단계)
+- **컴파일**: `NodeSystem.cs` 에러 0 (555행 `enableWordWrapping` obsolete 경고만 — 노드 아이콘과 무관, 기존부터 있던 TMP API 경고).
+- **임포트/로드**: `Resources/Icons/node_{start,combat,event,rest,boss}.png` 5종 전부 `textureType=Sprite, spriteImportMode=Single, filterMode=Point` + `Resources.Load<Sprite>` 성공(14×14·14×14·13×13·14×16·15×16). → **9차에 손수 작성한 Single .meta 정상 작동, 재임포트 불필요**.
+- **런타임(Play)**: MVP맵 6노드(시작/전투/Event/전투/화톳불/보스) 전부 `img.sprite=흰원(런타임 생성)`+타입색 틴트(시작 파랑/전투 흰/Event 노랑/화톳불 빨강/보스 보라) + `TypeIcon` 자식에 올바른 `node_*` 스프라이트 적용·enabled 확인(데이터 레벨).
+- **시각(캡처)**: 캔버스 임시 ScreenSpaceCamera→RenderTexture 기법(HANDOFF §262)으로 노드맵 + 5아이콘 몽타주 캡처. 깃발/십자검/물음표(원안)/모닥불/해골 전부 정상 렌더 — 흰색+검은 외곽선 1-bit이라 밝은 원·컬러 원 모두에서 식별됨. (`Temp/nodemap_verify.png`, `Temp/node_icons_montage.png`)
+- (선택) `node_event`는 "원 안 물음표"라 노드 원과 원-속-원이 되지만 식별 문제없음 → **유지**. 더 깔끔히 원하면 상자(`Tools_Crafting_Chest_Locked_Loot`) 등으로 교체 가능.
+
+### ✅ 옛 아이콘 정리 — 삭제 완료
+- `Green_icon.png` / `Random_node_icon.png` / `Fire_camp_icon.png` (Resources/Icons): **코드 문자열 참조 0 + 씬/프리팹/에셋/머티리얼 GUID 참조 0** = 완전 데드 확인 → `manage_asset delete`로 삭제(.meta 동반). 삭제 후 node_* 5종 로드 정상, 콘솔 스크립트/에셋 에러 0.
+- 백업: `~/Documents/backup/2026-06-09_213819_session10_old_node_icons_DELETE` (삭제 직전 9차수정본 png+meta). 9차이전 원본은 `..._194954_session9_node_icon_pngs`.
+
+### ✅ 상태이상 표시 UI — 아이콘화 완성 (8차 미처리 #6)
+> 기획 §04 상태이상. **로직은 기존 구현 완료**(BattleManager.Combat: 패닉/압박/중증디버프). 표시만 빠졌던 것.
+
+**진단**: 기존 칩은 `dotTurnsLeft`/`FromStress(stress)` 만 봐서 **공포경직(isFrozen)·과호흡(isOverBreathing)·중증디버프(hasSevereDebuff) 표기 0**. 패닉도 stress 100→즉시 50 드롭이라 칩 실질 미표시. (※중증디버프는 기획 §04엔 백로그지만 코드는 활성 — 딜러 받피+30%/탱커 실드-50%/서폿 광역→단일)
+
+**구현** (사용자 결정: 전부 표시 / 여러 아이콘 동시 / 텍스트→아이콘+턴수 / 전투카드+좌패널 둘 다):
+- `FellowData.cs`: isFrozen·isOverBreathing·hasSevereDebuff **bool→프로퍼티**화 + `[NonSerialized] OnStatusChanged` 이벤트(값 변경 시 발행). 로직·호출부(`ally.isFrozen=true` 등) 불변 — UI 갱신 신호만. (패닉 시 currentStress=50 이벤트가 플래그 set보다 먼저 발생→칩 갱신 트리거 없던 문제 해결)
+- `StatusVisual.cs`: enum +Frozen/OverBreathing/SevereDebuff. `IconOf(kind)` 아이콘 로더(`Resources/Icons/status_*`, 캐시) + 색/라벨.
+- `BattleCardView.cs`: 단일 텍스트칩 → **다중 아이콘 칩 행**(HP 아래, HorizontalLayoutGroup). 겹친 상태 모두 + 칩 우하단 턴수. 표시순: 경직·과호흡·중독·압박/패닉·중증. OnStatusChanged 구독 추가.
+  - ⚠️ **중첩 스케일 함정**(다음 세션 주의): 전투 카드 HP텍스트는 캐릭터별 **월드 캔버스에서 localScale 0.01**. 그래서 StatusRow를 **HP텍스트의 자식**으로 붙여 0.01 스케일 상속시키고, 크기/오프셋을 HP `fontSize`(24) 기준으로 잡음(`_chipSize=fs*0.85`, anchoredPos.y=`-fs*0.75`). 처음에 캔버스 자식+캔버스단위 오프셋(-50)으로 화면 밖으로 날아갔던 버그를 이렇게 수정.
+- `CardSlotView.cs`: 좌패널 카드 **우상단**에 동일 아이콘 행(36px). 기존 HP/스트레스의 "중독"/"압박" 텍스트 라벨 제거(아이콘 대체), HP·스트레스 숫자는 유지. OnStatusChanged 구독.
+- **호버 툴팁(후속 요청)**: `StatusVisual.DescOf/TooltipText` + `SkillTooltipController.ShowText`(범용 텍스트) + `StatusTooltipTrigger`(SkillTooltip.cs). 칩 호버 시 "**라벨 — 설명 (N턴 남음)**"(턴 0이면 이름+설명만) 공용 툴팁 표시. 칩 bg `raycastTarget=true`, 전투 월드 캔버스엔 `GraphicRaycaster` 자동 추가(worldCamera=Main) + **`ignoreReversedGraphics=false`**. 아이콘 크기 ↑(전투 `fs×0.85→1.0` / 좌패널 `30→36`). 검증: 4상태 칩 OnPointerEnter 시뮬→패널 활성+본문 정확(경직"1턴 남음"/압박 턴없음 등). ⚠️툴팁 패널 시각 캡처는 오프스크린 renderMode 전환이 스크린좌표 패널을 깨서 미확인 — 실게임 호버에선 정상.
+  - ⚠️ **전투 카드 호버 함정(중요)**: 처음엔 좌패널만 호버 되고 전투는 안 됐음.
+    - 1차 원인: 캐릭터 월드 캔버스가 카메라(전방 +Z)와 같은 +Z를 향해 **reversed**로 판정 → GraphicRaycaster 기본값(`ignoreReversedGraphics=true`)이 무시. → `false`로 설정(EnsureStatusRow). (depth=-1은 MCP 프레임정지 아티팩트, 실프레임/`cam.Render()` 후 정상)
+    - 2차(진짜) 원인: 신 InputSystem + 에디터 고DPI 에서 **포인터 좌표계(≈데스크톱 2868·3381)와 카메라 pixelWidth(1920)가 불일치** → GraphicRaycaster의 카메라 투영이 어긋나 보이는 칩을 못 맞힘(픽셀 비교 실패). 좌패널은 오버레이+CanvasScaler라 자동 정규화돼 정상.
+    - **최종 해결**: `BattleCardView.Update()` 에서 **뷰포트(0~1) 공간 수동 호버** — `mvp = Input.mousePosition/Screen` vs 칩 `WorldToViewportPoint` 사각형 비교(해상도 불일치 상쇄). `s_hoverOwner` static 으로 카드 간 충돌 방지. 좌패널은 기존 EventSystem 트리거 유지. (GraphicRaycaster/트리거는 잔존하나 전투에선 수동 호버가 실동작). 칩 VP 사각형·중앙적중 검증 완료 + **사용자 실제 호버 확인 완료(전투·좌패널 둘 다 정상, 2026-06-09)**.
+
+**아이콘** (1-bit 팩 `Sprites_Cropped` → `Resources/Icons/status_*.png`, Single/Point, 7종):
+| 상태 | status_*.png | 1-bit 원본 |
+|---|---|---|
+| 중독 | status_poison | Misc_Poison_Venom_Skull_Drop_Death |
+| 압박 | status_pressure | Emoji_Face_Sad_Frown |
+| 공포경직 | status_frozen | RPG_Debuff_Stunned_Disabled_CC |
+| 과호흡 | status_overbreath | Misc_Organ_Lungs_Breathing_Breath |
+| 중증디버프 | status_severe | RPG_Spell_Curse_Pentagram |
+| 도발(적) | status_taunt | RPG_Buff_Enraged_..._Taunt |
+| 패닉(찰나) | status_panic | Emoji_Face_Surprised_Shocked |
+
+**검증**(Play→`OnNodeClicked(1,0)` 전투 강제→아군 allies[0]에 중독2/압박/경직/중증 강제→캡처): 전투 카드 HP 아래 4아이콘+턴수("2") 정상, 좌패널 카드 우상단 아이콘 정상. 컴파일 0에러. (`Temp/final_battle.png`, `Temp/final_leftpanel.png`)
+> ⚠️ 좌패널 파티 카드는 ScrollRect의 RectMask2D+Mask 안이라 **오프스크린 RenderTexture 캡처엔 콘텐츠가 안 잡힘**(스텐실 한계, 버그 아님) — 실게임/에디터 게임뷰에선 정상. 캡처 검증 시 마스크 임시 비활성으로 확인함.
+> 미세조정 여지: 칩 크기/오프셋(코드 상수), 공포경직/과호흡 turns=1 표기 여부, 압박/중증 아이콘 교체(교체 후보 §대화 참조).
+
+### 백업 (~/Documents/backup/, 10차)
+```
+2026-06-09_213819_session10_old_node_icons_DELETE  (Green/Random/Fire png+meta — 삭제 직전본)
+2026-06-09_214310_session10_handoff                (HANDOFF.md.bak, A단계)
+2026-06-09_221347_session10_status_display         (FellowData/StatusVisual/BattleCardView/CardSlotView 변경 전 .cs)
+2026-06-09_225302_session10_status_handoff         (HANDOFF.md.bak, B단계)
+2026-06-09_230706_session10_status_tooltip         (StatusVisual/SkillTooltip/BattleCardView/CardSlotView — 호버 툴팁·크기 작업 전)
+```
+
+---
+
+## 🟡 9차 세션 — 스택/카드/노드 아이콘 (2026-06-09)
+
+> 앞 3건(스택카드·스택헤더·카드숫자)은 검증 완료(컴파일 0 + 몽타주). 노드 아이콘 교체는 **10차 세션에 검증 완료**(§10차 세션).
+
+### ✅ 완료·검증됨
+| 항목 | 변경 |
+|---|---|
+| #5 스택카드 모양 통일 | `StackCardController.cs` `RoleCardSprite` 딜 `sprite_sheet_15`(빨강+다이아 문양)→**`sprite_sheet_8`**(빨강 민무늬). 탱9/힐14 유지 → 3장 동일 모양·색만 다름 |
+| #4 스택창 헤더→아이콘 | `GamePlayScene_RightMainArea.prefab` `StatusArea/MyStatus/StackBar/Row_3_Boxes/Box_{Attack,Tank,Support}/job`: TMP 텍스트 비움 + LayoutElement(40×36) + **RoleIcon Image 자식**(공격=검24/방어=방패31/지원=하트32). job_score(숫자)는 유지 |
+| 카드 디자인 보정 | `StackCardController.cs:203` numberText `fontSize 96→54`. 프리팹 4장: CardStack(숫자) `y -122→-140`(정중앙), RoleType(아이콘) `y -30→-52`(아래로), SubText(설명) `y +30→+52`(위로) — 요소를 카드 테두리 안으로 |
+
+### ✅ 노드 아이콘 교체 — 코드/파일 적용 + **10차 검증 완료** (§10차)
+`NodeSystem.cs` 구조 변경 (런타임 only, 프리팹/씬 안 건드림 → 코드 되돌리면 원복):
+- **겉 = 원형 컬러 버튼**: `CircleFrameSprite()`가 런타임에 흰 원 텍스처 생성(빌트인 Knob이 Unity6에서 null → 직접 생성). `UpdateNodeStates`: `btn.Image.sprite=흰원` + 타입색 틴트(`baseColor`, 시작은 `StartFrameColor` 파랑) + `preserveAspect`.
+- **안 = 타입 아이콘**: `NodeInnerIconFor()` → `IconSprite("node_*")` (Resources/Icons 단독 PNG 로더, 캐시).
+- 옛 `NodeMarkerFor`(도형 마커) + `MarkerSprite`(sprite_sheet 로더) **제거**(데드코드). `EnsureNodeTypeIcon`(TypeIcon 자식)은 안쪽 슬롯으로 재사용.
+
+**1-bit 아이콘** (`Assets/1-bit_Pixel_Icons/Sprites_Cropped/` → `Assets/Resources/Icons/`로 복사 + **손수 작성한 Single .meta**, Point 필터, 새 guid):
+| 노드 | Resources 파일 | 1-bit 팩 원본 |
+|---|---|---|
+| 시작 | `node_start.png` (14×14) | Map_Markers_Flagpole (깃발) |
+| 전투 | `node_combat.png` (14×14) | RPG_Crossed_Swords_..._Combat_Battle_War (십자검) |
+| Event(랜덤) | `node_event.png` (13×13) | Software_..._Question_Mark_Help (물음표) |
+| 화톳불 | `node_rest.png` (14×16) | Weather_Campfire_Camping_Site_Rest (모닥불) |
+| 보스 | `node_boss.png` (15×16) | RPG_Skull_Death_Dead_Bones_Pirates (해골) |
+
+> **설계 검증됨(중요)**: 엘리트·용병소·교회는 **별도 노드가 아님** — `RoomType.Event` 1개 노드의 랜덤 결과(`NodeSystem.RollEventOutcome`, `EventOutcomeWeights={100,0,0}`=현재 용병소만). 그래서 Event엔 특정 결과 대신 **물음표**. MVP맵(`MapGenerator.cs:49-58`): 시작/전투/Event/전투/화톳불/보스 6노드 고정.
+
+### ✅ 노드 아이콘 검증 — 10차 완료 (상세 §10차 세션)
+1. ✅ NodeSystem.cs 컴파일 에러 0.
+2. ✅ Play 캡처 — MVP 6노드 색 원 + 1-bit 아이콘(깃발/십자검/물음표/모닥불/해골) 정상.
+3. ✅ 재임포트 불필요 — 5종 이미 Single 임포트 + `Resources.Load<Sprite>` 성공(빈 원 아님).
+4. (선택) `node_event` 원-속-원 — 식별 문제없어 유지. 더 깔끔히 원하면 상자(`Tools_Crafting_Chest_Locked_Loot`) 등으로 교체.
+
+### ✅ 옛 아이콘 정리 — 10차 삭제 완료
+- 옛 `Green_icon`/`Random_node_icon`/`Fire_camp_icon`(Resources/Icons): 참조 0 데드 확인 → **삭제 완료**(§10차). 백업 `213819` + 9차이전 원본 `194954`.
+
+### 백업 (~/Documents/backup/, 9차)
+```
+2026-06-09_183712_session9_stackcard_header   (StackCardController.cs + prefab)
+2026-06-09_185315_session9_card_layout
+2026-06-09_185611_session9_card_number_center
+2026-06-09_192455_session9_node_icons         (NodeSystem.cs 노드아이콘 변경 전)
+2026-06-09_194954_session9_node_icon_pngs      (Green/Random/Fire 원본)
+2026-06-09_212018_session9_handoff
+```
+
+### 남은 8차 미처리 (1건) — #6 상태이상(10차), 턴종료 재배치·스킬 mp4 이펙트(11차) 완료
+Foozle 전면 적용 (에셋 세트로 패널/버튼 스킨 교체 — 적용 범위 협의 필요).
+
+---
+
+## ✅ 8차 세션 — UI 소작업 (2026-06-09)
+
+> 컴파일 0에러. ⚠️ 교훈: UI 변경은 한 번에 하나씩 + 매번 캡쳐 검증해야 함(이번에 가설 다중변경 후 사용자가 깨진 화면 발견). 캡쳐: `ScreenCapture.CaptureScreenshot(Temp/xxx.png)` 를 execute_code 로.
+
+### 살아남은 변경 (4건)
+| 항목 | 파일 / 변경 |
+|---|---|
+| 스택카드 숫자 강조 | `StackCardController.SetupCard` — numberText `fontStyle=Bold`·`color=black`·`fontSize=96`·`enableAutoSizing=false` (기존 양수초록/음수빨강 분기 제거). descText `fontSize=18`·autoSize off. |
+| 좌패널 토글 hover | `LeftPanelToggle` — `hoverRevealRadius=180`(px, 0이면 항상 노출)·`hoverFadeDuration=0.15`. Update 에서 차단게이트 우선 → 비차단 시 마우스가 탭 중심 180px 내일 때만 alpha 1 fade. `IsMouseNearTab()` 신규. |
+| 하단 버튼 3개 복원·확대 | LeftPanel.prefab(씬 인스턴스) PartyEdit/Setting/Log RectTransform: anchor (0,0)~(1,0) stretch, pivot (0.5,0), sizeDelta (0,55), anchoredPosition y=165/105/45. 좌우 마진 0(흰 배경 최소화)·높이 55. |
+| Panel_1.png 9-slice | `.meta` per-sprite border + importer spriteBorder `{0,0,0,0}`→`{60,60,60,60}`. force reimport. ⚠️ **Panel_1.png 를 쓰는 다른 UI(있다면) 에도 영향** — 모니터링 필요. |
+
+### ⛔ 원복된 시도 (LeftPanel ornament 노출 — 실패)
+- LeftPanel VerticalLayoutGroup `padding` 추가 → 하단버튼이 패널 밖으로 삐져나옴 → **원복(0,0,0,0)**
+- Scroll View / 하단 Image 의 Image `color.a=0` → 가운데 검은 아코디언 박스 노출 → **원복(a=1)**
+- LeftPanel Image `color` 0.14/0.16/0.20 → **원복(0.05/0.06/0.07, 8차 이전 다크 톤)**
+- **결론: LeftPanel 은 손대지 말 것(사용자 지시). ornament 노출은 별도 디자인 협의 후 sprite 교체 등으로 재접근.**
+
+### 백업
+```
+~/Documents/backup/2026-06-09_173527_session8_smallfixes/      (StackCard/LeftPanelToggle/LeftPanel.prefab)
+~/Documents/backup/2026-06-09_174654_panel1_border/            (Panel_1.png.meta 원본 border 24)
+~/Documents/backup/2026-06-09_175813_leftpanel_image_visibility/ (Panel_1.meta + GamePlayScene — 원복 기준점)
+~/Documents/backup/2026-06-09_180903_handoff_session8/         (HANDOFF.md.bak)
+```
+
+### 8차 미처리 — 사용자 요청 11항목 중 7건 (다음 세션)
+> 사용자 원본 요청(전투/노드 UI 대개편). 이번엔 "주은 작은 건들" 4개만 처리. 나머지:
+1. **노드 마커 아이콘 제거** — 노드맵 다이아몬드/원 마커. NodeSystem 직접코드 없음 → prefab/씬 NodeButton child sprite 추정. 위치 재확인 필요.
+2. **Foozle UI 전면 적용** — `Assets/Foozle_UI_0001_RPG_Set_1/`(~35 PNG: Panel_1/2·Button·Main_Button·Accept/Decline 등). 노드마커용 다이아몬드는 없음. 적용 범위 사용자 협의 필요.
+3. **스킬 이펙트 (mp4)** — `Assets/Effect/` 에 10개 .mp4(기원/매직미사일/무모한강타/발도/방어준비/별부름/불굴/일섬/전투태세/파이어볼). **ffmpeg 로 스프라이트시트 변환 후** SpriteAnimation 적용 결정(별도 세션). VideoPlayer 직접은 보류.
+4. **공격/방어/지원 텍스트 → 아이콘** — 스택창. (스택카드 roleText 는 7차에 이미 아이콘화 — sprite_sheet_24검/31방패/32하트. 스택창 헤더는 미적용)
+5. **스택카드 모양 통일** — 딜=sprite_sheet_15 / 탱=9 / 힐=14 로 **서로 다른 인덱스**. "색만 다른 똑같은 모양" 으로 통일 요청 → 같은 프레임 + 색만 변경하게 수정 필요.
+6. ✅ **상태이상 표시 UI** — **10차 세션 완료**(§10차). 공포경직/과호흡/중증디버프 + 패닉칩을 아이콘+턴수로 표시(전투카드 HP아래 다중칩 + 좌패널 카드 우상단). status_*.png 7종.
+7. **턴 종료 버튼 위치** — 현재 배틀 진입 시 최상단. 스택 표기 표 안으로 넣어 가로정렬 + 스택창을 위로 올려 공간 절약 요청. 배틀 UI 재배치 작업.
+
+---
+
+## ✅ 7차 세션 완료 — 작은+중간 작업 묶음 (2026-06-09)
+
+> 백업 6건, 모두 컴파일 0에러. Play 검증은 다음 세션 또는 사용자 직접.
+
+| # | 작업 | 변경 파일 / 핵심 |
+|---|---|---|
+| 1 | 동료 스킬 스프라이트 Loader | `Fellow_Skill/SkillData.cs` `[NonSerialized] Sprite sprite` 추가 + `SkillDatabase.LoadSpritesForSkills()` 부팅 시 1회 Resources.Load. JSON `spritePath` 비면 skip, 누락 시 경고. |
+| 2 | 적 스킬 스프라이트 Loader | 1번과 동일 패턴 — `Enemy_Skill/EnemySkillData.cs` + `EnemySkillDatabase.LoadSpritesForSkills()`. Fellow/Enemy 일관 패턴. |
+| 3 | 노드 타입별 마석 차등 보상 | `BattleManager.Phases.GrantBattleReward` 재작성. `RoomType` switch: **Combat 10 / Elite 20 / Boss 30**(폴백 10). 영혼석은 적 처치 즉시(기존 동작 유지). |
+| 4 | 마석 UI 노출 결정 | 코드 변경 X — **현행 LeftPanel 표시 유지** 결정. 기획 백로그 §53 "MVP 숨김/노출" 미결을 "노출 유지" 로 사용자 확정. 문서 갱신은 보류. |
+| 5 | DamagePopup AOE cascade | `DamagePopup.Show(..., float startDelay)` 추가 (지연 동안 alpha=0). `BattleCardView.SpawnPopup` 에 정적 stagger 트래커 — 0.15s 윈도우 내 연속 스폰은 인덱스 누적, 0.05s 씩 지연, 최대 0.3s 캡. AOE 시 좌→우 cascade. |
+| 7 | 보스 K·Teleport 비가시 연출 | `BattleCardSprites.PlayTeleport(fadeDur=0.3, waitDur=0.2)` 추가(기존 `BuildFadeTween/CacheOriginalColors` 재활용, OnKill 색 복원). `BattleManager.EnemyAction.ExecuteTeleportSkill` TODO 제거 → `FindCardSprites(caster)` 헬퍼로 보스 카드 찾아 호출. allies.Reverse 는 기존대로 유지(타게팅 우선순위만 반전). |
+| 8 | 영혼석 드롭 Pool/Fx — **코드만** | 신규 `Currency/SoulstoneDropFx.cs`(pop→dwell 0.5s→tween 0.4s→onArrive 콜백→SetActive false) + `Currency/SoulstoneDropPool.cs`(싱글톤·prewarm·lazy 확장). `BattleManager.Combat.ProcessDeath` 에서 `SoulstoneDropPool.Instance?.SpawnAt(worldPos, drop)` 호출, **Pool null·prefab null·target null 모두 즉시 Add 폴백**. `LeftPanelView.soulstoneIconTransform` 인스펙터 슬롯 추가(이미 Item_SoulStone 연결). prefab/씬 Pool GameObject 는 **생성 안 함** — 스프라이트 자산 준비되면 사용자가 prefab 1개 만들고 Pool 연결 시 자동 활성화. |
+
+### 7차 세션 발견·이슈
+- ⚠️ **사고 회복**: 8번 진행 중 임시 Sphere prefab + 씬 Pool GameObject 까지 만들었다가 **씬 정중앙에 흰 Sphere 가 노출**되는 placeholder-in-production 사고 발생. 사용자가 Play 시 발견 → 즉시 모두 삭제(Sphere prefab `Assets/Prefab/UI/SoulstoneDropFx.prefab`, 씬 `SoulstoneDropPool` GameObject, 잔여 `SoulstoneDropFx_TEMP` 인스턴스). 교훈: 그래픽 자산 미정 작업은 **코드만 + null 폴백** 으로 마무리. prefab/씬 인스턴스 까지 만들지 않는다.
+- ⚠️ MCP `manage_gameobject delete` 가 instanceID 가 변경된 시점에 호출되면 silent 실패 → 씬에 잔재 → `find_gameobjects by_component MeshFilter` 로 재탐색해서 발견하는 패턴 학습.
+
+### 백업
+```
+~/Documents/backup/2026-06-09_000949_skill_sprite_loader/         (1번 — Fellow_Skill/*)
+~/Documents/backup/2026-06-09_001256_enemy_skill_sprite_loader/   (2번 — Enemy_Skill/*)
+~/Documents/backup/2026-06-09_001802_battle_reward_tiering/       (3번 — Phases.cs)
+~/Documents/backup/2026-06-09_002500_damage_popup_aoe_stagger/    (5번 — DamagePopup/BattleCardView)
+~/Documents/backup/2026-06-09_003229_boss_teleport_fx/             (7번 — BattleCardSprites/EnemyAction)
+~/Documents/backup/2026-06-09_003653_soulstone_drop_fx/            (8번 — Combat/LeftPanelView)
+~/Documents/backup/2026-06-09_172111_handoff_session7/             (HANDOFF.md.bak)
+```
+
+### Play 검증 체크리스트 (7차)
+- [ ] 노드 클리어 마석: 일반 +10 / 엘리트 +20 / 보스 +30
+- [ ] AOE(파이어볼 등) 시 적 카드들 데미지 팝업 좌→우 cascade (0.05s 간격, 최대 0.3s 캡)
+- [ ] 보스 K·Teleport: 까마귀 만료 다음 보스 턴 — 보스 카드 fade out → 0.2s 비가시 → fade in (총 0.8s)
+- [ ] 영혼석 드롭: 적 처치 시 숫자 즉시 +`soulstoneDrop` (시각 연출 없음, 폴백 동작)
+- [ ] 마석 LeftPanel 표시 정상 (현행 유지)
+- [ ] 화면 정중앙에 흰 Sphere 등 placeholder 잔재 0개
+
+### 7차 미진행
+- 6번 튜토리얼 시스템 코드 — **기획 §15 매우 상세하나 코드 0**. 반나절+ 작업. 별도 세션 권장
+- 9번 합성 UI 검증 — `TrySynthesize`/`GrowthPanel`/`FellowSourcePickerPopup` 코드 완비, Play 모드에서 직접 검증 필요
+- 10번 교회 노드 / 11번 마석 사용처 메타 / 12번 DoT 사후 도트뎀 / 13번 디버프 — 각 큼 작업
+- 영혼석 스프라이트 자산 준비 후 prefab + Pool 연결 (그래픽 작업 동반)
 
 ---
 
@@ -291,7 +523,7 @@ mcp__UnityMCP__manage_editor action=telemetry_status
 |---|---|---|
 | — UI | 튜토리얼 모달 박스 크기 | 1100×560 시도 → **원본(900×400) 유지로 롤백** (추가 작업 없음) |
 | W1 | 전투 시각 흐름 (dash → 모션 → impact → back dash) | Play 모드 1회 전투 |
-| W2/W3 | Portrait (LeftPanel) | 좌패널 표시 |
+| ✅ W2/W3 | ~~Portrait (LeftPanel)~~ | **2026-06-10 완료** — 초상화는 Idle 첫 프레임 자동 추출로 정상 표시됨. 파티 아코디언이 기본 접힘이라 안 보였던 것 → 기본 펼침으로 변경 |
 | W5 | Attack2 모션 (캐스터/어택커) | 2번 스킬 발동 |
 | W6 | Idle 5종 자동 재생 | 카드 spawn 직후 |
 | **신규** | **튜토리얼 한 사이클** | 자동진입 / 5노드 / 보스 즉사 / 메뉴 / [처음이신가요?] |
@@ -467,3 +699,327 @@ mcp__UnityMCP__manage_editor action=telemetry_status
 19. DoT 시스템 + 초록 tint (`OnDotChanged` + `SetPersistentTint`)
 20. (미완) 모달 박스 1100×560 사이즈 조정 — 다음 세션
 21. HANDOFF.md 갱신 (현재 문서)
+
+---
+
+## 🎆 2026-06-10 세션 — 스킬 이펙트/모션/데미지 타이밍 정리
+
+**백업**: `~/Documents/backup/skillfx_timing_20260610_125503/` (SkillEffectFx, SkillEffectPlayer, BattleCardSprites, BattleManager.cs, BattleManager.Combat.cs)
+
+### 1) 어택커 근접 데미지 모션 수정 — `BattleCardSprites.PlayAttack`
+- 확인: 어택커 애니 `Attack`=검 휘두르기(strike), `Attack2`=방패 들기(shield).
+- 문제: 역류(counter_flow, Damage, skillIndex 3)가 `Attack2`(방패)를 타서 "데미지인데 방패만 드는" 모션.
+- 수정: **Melee 카테고리는 항상 `Attack`(0)** 사용 (`PlayMeleeAttackSequence(0, ...)`). Attack2(방패)는 비-근접(불굴 Heal/워크라이 Taunt) 전용으로 남김.
+
+### 2) 이펙트 좌우 반전 — `SkillEffectFx` + `SkillEffectPlayer`
+- `Fx`에 `nativeRight`(원본이 오른쪽 향함) 추가. 공격 방향(시전자→타겟)과 다르면 `flipX`.
+- `SkillEffectPlayer.Play(..., bool flipX)` → `SpriteRenderer.flipX`.
+- nativeRight: fireball=true(폭발 오른쪽), magic_missile/iaido/flash/reckless=false(→반전), 버프/힐=true(대칭).
+
+### 3) 캐스터 투사체 지팡이 발사 + 확대 — `SkillEffectFx.Play`
+- Projectile from = `casterPos + StaffUp(0,1.15) + (StaffFwd 0.55 × 방향)` (지팡이 끝 근사), to = `targetPos + EnemyBody(0,0.7)` (적 상체).
+- 크기: fireball 2.6→2.8, magic_missile 1.8→2.4.
+
+### 4) 카테고리별 데미지 타이밍 — `BattleManager.Combat.cs UseSkill` + `BattleManager.cs`
+- 기존 단일 `impactDelay`(1.25) 분기 → 카테고리별로 분리 (impactDelay는 **적 행동 전용**으로 유지).
+- **Ranged**: `rangedCastWindup`(0.4) → 지팡이서 투사체 발사 → 비행(이펙트 길이 `SkillEffectFx.GetDuration`)이 끝난 뒤 데미지. (이펙트 끝나고 데미지)
+- **Melee**: `meleeImpactDelay`(0.55, 전진 dash 후 휘두름 순간) 에 이펙트+데미지 **동시**. (발도·일섬 등 휘두를 때 발동)
+- **Stationary(힐/실드/버프)**: `stationaryImpactDelay`(0.7) 후 이펙트+효과.
+- 4개 타이밍 필드 모두 인스펙터 노출(BattleManager) — 플레이 후 미세조정 가능.
+
+### 5) 별부름(star_call) 위치 — AtTarget→AtCaster (힐이므로 시전자 측)
+
+### 검증
+- 컴파일 0 에러. `GetDuration` fireball 1.23s / magic_missile 0.59s.
+- 정적 캡처: 5개 이펙트 flip 적용 후 모두 오른쪽(적) 향함 확인.
+- 실씬 캡처: fireball 지팡이서 발사·확대·고블린行 / iaido 적 위치 반전 확인 (`Temp/v_fire_staff.png`, `v_fire_fly.png`, `v_iaido.png`).
+- 실제 플레이 타이밍 체감은 사용자 플레이로 미세조정 권장(필드 인스펙터 조정).
+
+### 역할별 스킬 이펙트/모션 표 → 본 세션 응답 참조 (20스킬: 이펙트 10개 등록 / 10개 미등록)
+
+---
+
+## 🧑‍🤝‍🧑 2026-06-10 세션 — 좌패널 파티 초상화 기본 표시 (W2/W3)
+
+**백업**: `~/Documents/backup/leftpanel_party_expand_20260610_134226/` (AccordionController, LeftPanelView)
+
+- 진단: 좌패널 초상화 시스템은 이미 정상(초상화 = 역할 애니메이터 Idle 첫 프레임 자동 추출, CardSlotView 표시). 단지 **4개 아코디언(재화/파티/덱/스트레스)이 기본 접힘**이라 파티가 안 보였음.
+- 수정 ①: `AccordionController` — `SetOpen(bool, instant)` + `IsOpened` 추가. `ToggleAccordion`은 `SetOpen` 호출로 리팩터. instant 펼침 시 **스크롤 콘텐츠(ScrollRect.content) 전체 재계산** → 형제 아코디언 재배치(겹침 방지).
+- 수정 ②: `LeftPanelView.Refresh` — 카드 바인딩 직후 **파티 아코디언만 1회 자동 펼침**(카드 슬롯의 부모 `AccordionController`를 찾아 `SetOpen(true, instant:true)`). `_partyAutoExpanded` 플래그로 1회만 → 사용자가 수동으로 접으면 존중.
+- 검증: 깨끗한 플레이에서 파티 4명 초상화 기본 노출 + 덱이 파티 아래로 정상 배치 확인(`Temp/leftpanel_fixed.png`). 씬/프리팹 수정 없음(순수 코드).
+
+---
+
+## 🎴 2026-06-10 세션 — 재화 아이콘 / 파티 박스 / 카드 초상화
+
+**백업**: `~/Documents/backup/ui_cards_icons_20260610_231636/` (CardPrefab, LeftPanel, MercenaryRoot, GamePlayScene)
+
+### 1) 재화 아이콘 적용 — `LeftPanel.prefab`
+- `Item_SoulStone/Icon`·`Magic_SoulStone/Icon` 비어있던 슬롯에 sprite_sheet 보석 할당.
+- 영혼석 = `sprite_sheet_52`(금 마름모), 마석 = `sprite_sheet_65`(청 마름모).
+
+### 2) 파티 카드 박스 크기 — `LeftPanel.prefab`
+- 좌패널 `Card_Base_1~4` LayoutElement.preferredHeight **130 → 160** (여백 확보).
+
+### 3) 카드 초상화 자연스럽게 — `CardPrefab.prefab` (1곳 수정 → 전 패널 반영)
+- 모집/성장(MercenaryRoot)/파티편집(PartyEditPanel) 카드가 **전부 CardPrefab 중첩(nested) 인스턴스** → CardPrefab 하나만 고치면 자동 전파.
+- RoleBadge(초상화) **80×80 → 150×165**, 상단(top-anchor) 배치 + preserveAspect. 전신 Idle 스프라이트가 작게 떠 보이던 문제 해결(약 2배).
+- 카드 320×330 유지, NameLabel/HpLabel/AffinityLabel/SkillsLabel/ActionButton 위치 재정돈(겹침 없음).
+- 검증: 4역할 카드 캡처(`Temp/cards_final.png`) — 초상화 크게·일관. 재화/파티 캡처(`Temp/leftpanel_currency.png`).
+- 비고: 카드 배경 프레임(`Panel_2`) 하단의 붉은 띠는 프레임 스프라이트 디자인 요소(요소 아님).
+
+---
+
+## 🖼️ 2026-06-11 세션 — UI 개편 (Panel_1 / 1-bit 아이콘 / 좌패널 / 스킬 아이콘)
+
+**백업**: `~/Documents/backup/ui_overhaul_20260610_235541/` (CardPrefab, LeftPanel, skills.json, CardSlotView, FellowCardView, SkillData)
+
+### A. 카드 배경 Panel_2 → Panel_1 — `CardPrefab.prefab`
+- Panel_2(가로 배너, 보더24)는 세로 카드에 늘리면 붉은 줄이 어색 → **Panel_1**(장식 프레임, 9-slice 보더60)로 교체. Sliced 유지.
+
+### B. 재화 아이콘 1-bit 재지정 — `LeftPanel.prefab`
+- 영혼석 = `1-bit Sprites/RPG_Coin_Gold_Currency_Money_GP`(금 틴트), 마석 = `RPG_Magic_Mana_Hearth_Stone`(청 틴트). Icon 박스 40×40.
+
+### C. 좌패널 파티 레이아웃 — `LeftPanel.prefab` + `CardSlotView.cs`
+- **카드 높이 130→150**: VLG childControlHeight=false라 LayoutElement.preferredHeight 무시됨 → Card_Base RectTransform 높이 직접 150 설정(이전 세션 prefHeight 변경이 무효였던 원인).
+- **성향 태그 잘림 수정**: affinityTagBg 57→**98폭**, 코드 autofit 18→15. "안전주의자"(5자) 들어감.
+- 기본 상태(재화 접힘)에서 4카드 모두 뷰포트(800)에 표시 확인.
+
+### D. 스킬 아이콘 20종 (1-bit) — Resources + skills.json + 표시 코드
+- `Assets/Resources/Sprites/Skills/{skillId}.png` 20개 복사 + Sprite(Point) 임포트. skills.json `spritePath`="Sprites/Skills/{id}" 20개 추가. (※ json 외부 편집 후 **AssetDatabase.ImportAsset 강제 재임포트** 필요 — 안 하면 TextAsset 캐시가 옛 버전이라 spritePath 빈 값으로 로드됨.)
+- `SkillData.spritePath`→`SkillDatabase.LoadSpritesForSkills`가 Resources.Load → `skill.sprite`.
+- **표시**: `CardSlotView`(좌패널 Skill1/2 박스) + `FellowCardView`(용병/성장/파티편집 카드 skillsLabel) 둘 다 **왼쪽 아이콘 + 종류별 색 틴트**(공격=적/마법=청/힐=초록/방어=하늘/버프·도발=금). 1-bit 단색을 Image.color 틴트로 채색.
+- 아이콘 매핑: 발도/일섬=검, 파이어볼=혜성, 아이스스톰=얼음, 매직미사일=비전, 무모한강타=해골, 워크라이=분노, 역류=발톱, 축성=태양, 심판=혜성, 별부름=별, 기원=하트, 불굴=∞, 방어/전장/방밀/전태=방패 등.
+- 검증: 좌패널(`Temp/lp_skillicon2.png`) + 용병카드(`Temp/recruit_final.png`).
+- 남은 미세조정: 용병카드(FellowCardView) 스킬이 Panel_1 두꺼운 보더(60)에 약간 붙음 — 콘텐츠 inset 여지.
+
+---
+
+## 🐛 2026-06-11 세션 — 배틀 카드 배치 타이밍 레이스 수정
+
+**백업**: `~/Documents/backup/battle_race_20260611_010124/` (BattleManager, DefaultSetting)
+
+- 증상: 첫 로딩 시 아군 카드가 한 곳에 뭉치거나(또는 2장 겹침) 배치가 꼬임. 데이터/HP바는 정상. 리그룹 시도 겹침.
+- 진짜 원인: **간격 문제 아님**(spacingX 1.5 정상). `BattleManager.OnEnable`(InitBattle→BattleLoop)과 `DefaultSetting.OnEnable`(SpawnObject→RelayoutCards)이 **독립 실행**되어 순서 미보장 → 스폰/재배치 전에 전투 로직 진행 시 레이스. MCP는 프레임 정지라 재현 안 되지만 실기기(풀 프레임)에서 발생.
+- 수정 ①: `BattleManager.BattleLoop` 시작에 가드 — `yield null`(스폰 완료 대기) → `allies[i].battleSlotIndex=i` 재스탬프 → `DefaultSetting.AllyLayout.RelayoutNow(instant)` 강제 스냅 → `yield null` → 턴 시작. (사용자 요청 "전부 옮긴 후 전투 시작")
+- 수정 ②: `DefaultSetting.RelayoutCards` 아군 분기 — `battleSlotIndex<0` 카드를 **스킵하지 않고** allies 순서 폴백으로 포함(스킵 시 스폰 위치에 잔존→겹침).
+- 검증: 깨끗한 전투 4명 고유위치 4/4(2,0,-2,-4) + 리그룹 시뮬 겹침 없음. spacingX는 1.5/1.25 원복(사용자가 "배치는 정상"이라 함).
+- 리그룹 트윈(0.25s) 중 카드 교차는 애니메이션 특성(Combat.cs가 0.25s 대기 후 진행) — 최종 위치 정상.
+
+### 전투 진입 로딩 화면 (시간 벌기 + 스폰 가림) — `UI/LoadingScreen.cs` 신규
+- 자체 생성형(씬 배치 불필요, DontDestroyOnLoad, Canvas sortingOrder 10000). 다크 풀스크린 + **회전 스피너**(금색 원형 화살표 `Resources/UI/loading_spinner`, 240°/s) + 금색 "전투 준비 중…"(점 애니) + 금색 진행바(자동 채움). 폰트=`TMP_Settings.defaultFontAsset`(NanumGothic).
+- API: `LoadingScreen.Cover(msg)` / `UncoverRoutine(d)` / `UncoverInstant()`.
+- 연결: `BattleManager.OnEnable`에서 `Cover("전투 준비 중")` → `BattleLoop`이 [yield→슬롯재스탬프→RelayoutNow(instant)→yield→`battleEntryLoadingHold`(0.6s) 대기→`UncoverRoutine(0.4)`] → 턴 시작. 노드맵→전투는 같은 씬 패널전환이라 SceneTransition(씬로드 페이드) 미적용 → 이 커버가 스폰/정렬 찰나를 가림.
+- 검증: 진입 시 커버 alpha=1 + 그 아래 카드 4명 정상배치 확인. (MCP는 프레임 정지라 타이머 자동 언커버는 실기기에서 동작; UncoverInstant로 메커니즘 확인.)
+- 인스펙터 `battleEntryLoadingHold`(BattleManager)로 커버 유지시간 조정 가능.
+
+### 중복/잔존 카드 제거 가드 + 파티 아코디언 기본 접힘 (2026-06-11)
+- 증상: 실기기 전투 진입 시 캐릭 스프라이트가 뭉쳐 보임(4명인데 5개처럼) = 중복/잔존 카드. MCP에선 항상 4개라 재현 안 됨 → **원인 무관 제거 가드**로 해결.
+- `BattleManager.BattleLoop` 가드: 스폰 완료 후 **씬 전체** BattleCardView(적 제외) 중 **Fellow 없음(유령) / allies 에 없음(잔존) / 같은 Fellow 중복**을 제거. (이전엔 AllyLayout 하위만 봐서 **컨테이너 밖으로 분리된 유령 카드를 놓침** → 씬 전체로 확장.) 이후 슬롯 재스탬프 + RelayoutNow(instant).
+- `DefaultSetting.ClearSpawnedObjects`: 컨테이너 자식을 **DestroyImmediate**(지연 Destroy로 인한 잔존/중복 방지) + 진영 프리팹명(MyObject/EnemyObject)으로 시작하는 **분리된 잔존 카드까지 씬 전체에서 제거**.
+- 검증: 유령/중복 카드 2장 주입(4→6) → 프루닝이 2장 제거 → 4 복구 확인. 정상 4카드는 유지.
+
+### ⚠️ 2026-06-11 — 위 "배틀 중복/배치 버그"는 **유니티 렉(렌더 글리치)** 으로 판명, 코드 수정 전부 폐기
+- 사용자 확인: 실제 코드 버그가 아니라 **에디터 렉**으로 캐릭이 겹쳐 보인 것(MCP에선 항상 4명 정상이었음).
+- 폐기(원복): `DefaultSetting.cs` → 원본 복원(ClearSpawnedObjects 지연 Destroy, RelayoutCards `slotIdx<0 continue`). `BattleManager.BattleLoop` → 가드/프루닝/진단 제거. 씬 spacingX 1.5(원본).
+- **유지(폐기 안 함)**: 로딩창(`LoadingScreen.cs` + `BattleManager.OnEnable` Cover + BattleLoop 로딩 hold/uncover + `battleEntryLoadingHold` 필드) — 사용자가 "나쁘지 않다"며 유지 요청.
+- 별개 요청으로 유지: 파티 아코디언 기본 접힘(LeftPanelView), 재화 아이콘(영혼석=소울오브/마석), 마석상점→파워업, 카드 초상화·스킬아이콘.
+
+### 노드맵 잔여 초록 노드 제거 (2026-06-11)
+- `GamePlayScene` `Canvas/NodeDisplay/Viewport/Content` 의 번호 없는 첫 `NodeLevel`(초록 placeholder Image+Button, sprite 없음) 삭제. nodeRows(NodeLevel 1~10)에 미포함된 잔여물(옛 시작 노드)이라 노드맵 영향 없음. 백업 `remove_greennode_*`.
+
+### 모든 팝업 Panel_1 통일 (2026-06-11)
+- 점검 결과 설정/로그/교회/용병소(office)/모집/성장은 **이미 Panel_1**(9-slice) 사용 중이었음.
+- **파워업(MagicStoneShopPanel)** 만 단색 다크였음 → `Resources/UI/panel_1`(Panel_1 복사본, border 60) 로드해 `panelImg`에 Sliced 적용. (코드빌드 패널이라 Resources 경유.)
+- 파티편집은 Dim+카드(각 Panel_1) 구조 — 중앙 프레임 없이 유지(성장 패널과 동일, 정상).
+- 검증: 파워업/설정 캡처로 Panel_1 9-slice 정상 렌더(공백/늘어남 없음) 확인.
+
+### 승리/패배 결과 화면 (2026-06-11) — `UI/BattleResultScreen.cs` 신규
+- 기존 `DisplayChange.ToggleResultDisplay`("Win/Lose" 텍스트)를 **비-튜토리얼 경로에서 새 화면으로 교체**(튜토리얼은 기존 유지).
+- **승리**: Panel_1 팝업 — "전투 승리"(금) + "획득 재화" + "영혼석 +N  마석 +M" + **"다음으로"** 버튼(→`DisplayChange.ToggleDisplay()` 노드맵 + NodeMap BGM). 자체 생성형(DontDestroyOnLoad, sortingOrder 9990).
+- **패배**: 전체 어둡게(alpha 0.9) + 중앙 **빨강 볼드 "게임오버"** + "클릭하여 계속"(클릭 시 `StartNextRunLoop()` 로그라이크 루프).
+- `BattleManager.HandleBattleEnd` 비-튜토리얼 분기에서 `BattleResultScreen.ShowVictory(soul,mana,onNext)` / `ShowDefeat(onContinue)` 호출. 보상: 영혼석=`enemies.Sum(soulstoneDrop)`, 마석=`GrantBattleReward()`(int 반환으로 변경). 보스 클리어 엔딩은 기존 유지.
+- 검증: 승리/패배 화면 캡처 확인(`Temp/result_victory.png`, `result_defeat.png`). 실제 전투 승/패 플로우는 빌드/플레이 확인 권장.
+
+### ⚠️ 작업 지침 (사용자 요청) — 렉/렌더 글리치 의심 시
+- 캐릭/오브젝트가 겹쳐 보이거나 이상 배치인데 **코드상 정상(MCP에서 정상 확인)**이면, 사용자에게 **유니티 종료 후 재부팅**을 권장할 것. (2026-06-11 배틀 중복 현상이 에디터 렉으로 판명된 사례)
+- `LeftPanelView.Refresh`: 파티 아코디언 **자동 펼침 제거**(사용자 요청 — 불편). 모든 아코디언 기본 접힘으로 시작(프리팹 Image_Content 높이 0). `_partyAutoExpanded` 필드 삭제(데드코드).
+
+### Panel_1 프레임 가시화 — 용병소·좌패널·파티편집 (2026-06-11)
+> 위 "모든 팝업 Panel_1 통일"에서 "office/모집/성장 이미 Panel_1"이라 했으나 **어두운 틴트(0.04,0.06,0.085,0.96)로 덮여 프레임이 안 보였음** → 사용자 지적("설정/로그는 잘 했으면서 왜 빠져먹음")으로 수정.
+- **용병소(office)/모집/성장/교회 Background** 색 → **흰색**(씬 인스턴스, 이미지별 SetDirty) — 설정/로그와 동일한 오너먼트 프레임 노출.
+- **좌패널**: 루트 Panel_1 어두움(0.05,0.06,0.07)→흰색, Scroll View 흰 회색 박스→반투명(0.06,0.07,0.09,0.5). **LeftPanel.prefab에도 베이크**.
+- **파티편집**: Panel_1 **WindowFrame(1840×980) 신규 추가**(BackgroundDim 다음 sibling), PartyArea(1000×760)@x600·ReserveArea(680×760)@우-440 재배치(카드 4장 프레임 안 수용), 예비대 ReserveScrollView 불투명 다크→반투명(0.06,0.07,0.10,0.45), PartySlots HLG spacing 20→16, Title (320,-130). **PartyEditPanel.prefab에 색·spacing 베이크**.
+- **CardPrefab RoleBadge 150×165→108×132**(캐릭 너무 큼) + anchoredPos(0,-8).
+- 캡처 검증: `~/Documents/_cap_recruit.png`·`_cap_leftpanel.png`·`_cap_partyedit.png`. 카드 뒤 흰 박스는 SelectionOutline(선택 강조)로 런타임엔 숨김(`FellowCardView` 바인드 시 SetActive(false)).
+- 백업: `~/Documents/backup/panel1_fix_20260611_025551`(프리팹4), `partyedit_frame_20260611`(씬), `panel1_restore_20260611`(씬+좌패널/파티편집 프리팹).
+
+### 🚨 색 유실 사고 + 복구 (2026-06-11) — **씬 저장 함정 3가지(중요!)**
+> 사용자가 플레이 돌린 뒤 좌패널 루트색/스크롤뷰/예비대/spacing 4개가 옛값으로 복귀. 조사로 진짜 원인 규명:
+1. **프리팹 인스턴스의 컴포넌트 값 변경은 `EditorUtility.SetDirty(컴포넌트)` 필수.** GameObject 단위 SetDirty + MarkSceneDirty + SaveScene(true 반환)만으로는 m_Modifications에 직렬화 안 됨 → 메모리/캡처는 정상인데 디스크는 옛값(리로드·플레이로 노출).
+2. **`Resources.FindObjectsOfTypeAll` 탐색은 죽은 복제본을 잡을 수 있음**(씬 리로드 후). 수정용 탐색은 `scene.GetRootGameObjects()`→transform.Find.
+3. **확실한 저장 검증 = `EditorSceneManager.OpenScene(scene.path)` 디스크 재로드 후 값 재확인.** SaveScene 반환 true는 보증 아님.
+- 복구 완료(디스크 재로드 검증): 좌패널 루트 흰색·스크롤뷰 반투명·예비대 반투명·spacing16 + **프리팹 베이크로 이중 안전**. WindowFrame/영역재배치/용병소 흰색화는 유실 안 됐었음(신규 GO·RectTransform·이미지별 SetDirty는 저장됨).
+
+### UI 오버사이즈 일괄 개편 (2026-06-11, #15~#20)
+> 사용자 요청: "작게 보이는 데 오버사이즈" + 버튼 정리 + z-순서 버그.
+- **팝업 z-순서 (#16)**: `PanelBase.Open()`에 `transform.SetAsLastSibling()` 1줄 추가 — 설정/로그/명단보기/판매픽커/파티편집 등 PanelBase 파생 전부 열릴 때 최상단. **플레이 모드 실증**: 설정→14/14, 로그→14(설정13), 좌패널 10. 팝업 열림 중 좌패널 접기버튼이 dim에 가리는 건 의도 동작(사용자 OK).
+- **좌패널 오버사이즈 (#15)**: 아코디언(재화/파티/덱) 헤더 50→64·fs30·골드볼드·Button 흰색, 하단 버튼(파티편집/설정/로그) fs30·골드볼드, 하단 흰 'Image' 컨테이너 → **투명**(패널 일체화)+높이 210+VLG 패딩(20,20,8,14). Scroll View 750h로 축소(-495). LeftPanel.prefab + 씬 양쪽.
+- **파티편집 세로 5:5 (#17)**: 파티(위 1700×440@-400)/예비대(아래 1700×380@-830). 슬롯 RowLabel(슬롯1~4) 삭제 + 슬롯 220×335·**localScale 1.10**(HLG childScale on, spacing20). 예비대 ScrollRect **가로 전환**(vertical 스크롤바 off) + Grid FixedRowCount=1·**cell(224,330)**(기존 180×240 찌그러짐 해소)·CSF horizontal. ToastLabel 프레임 아래(960,-1052). PartyEditPanel.prefab+씬.
+- **카드 오버사이즈 (#18)**: 파티 슬롯 1.10배 + 예비대/픽커 그리드 셀 정상화(180×240→224×330)로 카드 원사이즈 표시.
+- **나가기 버튼 통일 (#19)**: Exit/Close 8개 전부 **80×80 정사각 + 텍스트 라벨 제거**(Exit_Button_Normal 스프라이트에 X 내장). 패널 4종(-90,-90 anchor(1,1)): 용병소/모집/성장(MercenaryRoot.prefab)+파티편집(prefab). 팝업 4종(설정/로그/명단/판매)은 씬에서 라벨 SetActive(false).
+- **용병소 메뉴 아이콘 (#20)**: 동료모집=`Hats_Knight_Helmet_Armor`(투구), 동료성장=`Boardgames_Card_Star`(카드+별) — 120×120 골드, 라벨 하단 정렬 (MercenaryRoot.prefab).
+- **명단보기(FellowSourcePickerPopup) 표시 버그 (#20)**: 'Background'가 **흰색 솔리드 풀스크린**이라 가려 보였음 → 투명(레이캐스트 차단 유지). 그리드 2개 cell 224×330. PartyScrollView/ReserveScrollView 흰 반투명 → 다크 글래스(0.06,0.07,0.10,0.45). 판매픽커도 동일 처리.
+- **성장 카드 Panel_1 (#20)**: SynthSlot1~3/ResultPreview의 Background(Panel_1)가 어두운 틴트(0.05,0.06,0.07)로 가려져 있던 것 → 흰색화(씬 오버라이드, SetDirty 컴포넌트). ※GrowthPanel은 fellowCardPrefab 없음(미리 배치된 FellowCardView 4개 구조).
+- 검증 캡처: `~/Documents/_cap_leftpanel.png`·`_cap_partyedit.png`(더미6장)·`_cap_office.png`·`_cap_growth.png`·`_cap_picker.png`. 백업: `~/Documents/backup/oversize_ui_20260611/`(씬+프리팹4+UI/Mercenary 스크립트).
+
+### 좌패널 Panel_1 HD 교체 (2026-06-11)
+- 좌패널 중앙이 검게 보이는 문제: ① 스크롤뷰 어두운 덮개 → 투명화(raycast 유지), ② 사용자가 누끼 딴 고해상도 패널(`~/Downloads/panel1.png`, 1024×715 = 기존 624×436의 1.64배) 을 **`Assets/Foozle_UI_0001_RPG_Set_1/Panel_1_HD.png`** 로 임포트(Sprite, border 98=60×1.64, alphaIsTransparency).
+- ⚠️ 사용자 파일 2차본에 **체커보드(투명표시 무늬)가 픽셀로 구워져** 있었음 → Unity에서 콘텐츠 박스 측정(x[18,1006] y[30,685]) 후 **989×656로 크롭**해 덮어씀(여백 제거). 크롭은 isReadable=true → GetPixels → EncodeToPNG 방식.
+
+### Panel_1_HD 일괄 적용 + 버튼 통합 관리 (2026-06-11)
+- **Panel_1 → Panel_1_HD 전면 교체**: 프리팹(LeftPanel 1·CardPrefab 1·MercenaryRoot 7·PartyEditPanel 5) + 씬 18곳. **spritePixelsPerUnit=164.06**(=100×1.6406)으로 임포트해 sliced 테두리가 자동으로 기존 60px급으로 렌더 — Image.pixelsPerUnitMultiplier는 전부 1로 통일(좌패널의 1.641 제거).
+- **Resources/UI/panel_1.png 파일 자체를 크롭 HD로 교체**(GUID 유지) → 코드 로드처(파워업·BattleResultScreen·LoadingScreen·파티편집 WindowFrame) 자동 HD화. 임포트: border 98, PPU 164.06.
+- **버튼 통합**: 사용자가 만든 `Assets/Resources/Button/`(default_button.png 200×52 스틸+블루라인, Exit_Button_Dark.png)에 **Foozle Button.png 복사**해 버튼 에셋 일원화. default_button 임포트: Sprite, border 14.
+- **default_button 적용처**: 씬 12개(교회 NextNode/Hp/Stress·용병소 RecruitMenu/GrowthMenu·모집 Reroll/명단보기·성장 Synthesize+ActionButton×4) — 판별식: sprite==Button && 낡은 회색(0.17,0.2,0.24). + MetaShopButton(파워업). + **코드 2곳**: `BattleResultScreen.NewButton`·`MagicStoneShopPanel.NewButton` — `Resources.Load<Sprite>("Button/default_button")` Sliced 흰색, 실패 시 기존 단색 폴백.
+- 🚨 **오적용 사고+원복**: sprite==null 버튼 일괄 적용 1차 스캔이 **노드맵 NodeLevel 클릭존 24개 + 전투 CardArea 이미지 4개**(GamePlayScene_RightMainArea.prefab)까지 물들임 → 즉시 sprite=null·흰색 원복(원래가 흰 사각 placeholder). 노드맵 캡처로 복구 확인. **교훈: 버튼 일괄 스타일링 시 NodeLevel/CardArea/투명 클릭존 제외 필수.**
+- 검증: `_cap_nodemap.png`(원복)·`_cap_office.png`·`_cap_growth.png`(HD 슬롯+스틸 버튼)·`_cap_partyedit.png`(HD 카드). 컴파일 0. 백업: `~/Documents/backup/panel_hd_rollout_20260611/`.
+
+### 재화 규칙 수정 — 전투 마석 지급 폐지 (2026-06-11, 기획 §15 준수)
+> 사용자 지적: 노드(전투) 종료 시 영혼석·마석 둘 다 상승. 기획 `시스템/15_보상_시스템_명세.md` = **전투 보상은 영혼석만**(처치 즉시 드롭·자동수거), 마석은 "런 종료 후 영혼석→마석 치환(비율 미결)" **백로그**.
+- `BattleManager.Phases.cs`: **`GrantBattleReward()` 삭제**(전투마다 마석 10/20/30 지급하던 7차 코드 — 데드코드 정책으로 메소드째 제거). 승리 분기에서 호출 제거.
+- `BattleResultScreen.ShowVictory(int soul, Action)` 으로 시그니처 변경 — 팝업 표시 "영혼석 +N" 만. (영혼석 자체는 전투 중 처치 시 즉시 지급되는 기존 구조 유지 — 팝업은 합계 표시용.)
+- ※ 현재 마석 수입 경로 없음(의도) — 백로그의 "런 종료 영혼석→마석 치환" 구현 시 추가(치환 비율 기획 확정 필요).
+
+### 파워업 팝업 안 보이던 버그 수정 (2026-06-11)
+- 원인: **NodeDisplay(노드맵)가 런타임에 SetAsLastSibling 되어 위로 올라옴** → 상점(MagicStoneShop, sibling 8 고정·PanelBase 미상속이라 z-수정 누락분)이 노드맵 **뒤에서** 열려 안 보였음. Open() 자체는 정상(IsOpen=true 확인).
+- 수정: `MagicStoneShopPanel.Open()` 에 `transform.SetAsLastSibling()` 추가. **플레이 실증**: Open 후 sibling 14/14 + 캡처(`_cap_powerup.png`)로 노드맵 위 표시 확인.
+
+### 예비대 보기 개편 + 카드 프리팹 240×380 확대 + 버튼 텍스트 가독성 (2026-06-11)
+> 사용자: 예비대 보기 카드 크기 맞춤·스크롤바 숨김·카드 배경이 구성 대비 작음·버튼 텍스트 안 보임.
+- **CardPrefab 220×330 → 240×380**: Background/SelectionOutline(260×400) 동반 확대, RoleBadge (0,-14), 라벨 상단앵커 재배치(Name fs22@-152 / HP·성향 fs16@-188 / 스킬 fs16@-218).
+- **버튼 텍스트 원인**: ActionButtonLabel이 **진회색(0.196)** — 다크 스틸 default_button 위에서 안 보였음 → **fs26 골드 볼드** (FellowCardView는 text만 세팅하므로 프리팹 스타일 안전). ActionButton 200×46 + default_button.
+- **RemoveButton 정체**: 'DECLINE' 가로바 스프라이트를 28×28로 찌그러뜨려 쓰고 있었음 → **Resources/Button/Exit_Button_Dark(X 사각형) 32×32** + 라벨 비활성. 성장 SynthSlot1~3/ResultPreview도 동일(라벨 골드 포함, MR 프리팹+씬).
+- **파티편집 재조정**(새 카드 맞춤): PartyArea(1700,440)@-390·슬롯 240×385·**스케일 1.10 제거**(카드 자체 확대로 대체), ReserveArea(1700,418)@-821·뷰포트 384·그리드 셀(244,380). PartyEditPanel.prefab+씬.
+- **픽커 2종(동료 명단/판매)**: 그리드 셀(244,384)·**3열**·spacing(16,12), 스크롤바 GO off+ScrollRect 참조 null(드래그/휠 스크롤은 유지). 모집 CandidatesParent HLG spacing 24.
+- ⚠️ **활성 씬 함정**: 사용자가 타이틀(GameStartScene)에서 플레이 중이라 활성 씬이 바뀌어 있었음 → 씬 작업 전 `GetActiveScene().name` 확인, GamePlayScene 열고 작업 후 원래 씬 복귀. (이번 NRE 원인)
+- 검증 캡처: `_cap_partyedit.png`·`_cap_picker.png`(선택 골드 가독 ✓)·`_cap_growth.png`. 백업: `~/Documents/backup/cardprefab_resize_20260611/`.
+
+### 버튼 비트음 전부 제거 (2026-06-11)
+- **UIButtonSfxInstaller 삭제** — 씬의 모든 Button.onClick에 ButtonClick 비트음을 자동 장착하던 스크립트. 양 씬(AudioManager GO)에서 컴포넌트 제거 후 .cs 삭제 (외부 Rescan 호출 0 확인).
+- 명시 호출 제거: LeftPanelToggle(접기 클릭음)·MoveScene×2·TutorialGuidePanel×2·MagicStoneShopPanel×3 — 전부 Confirm/ButtonClick 계열.
+- **유지**: 전투(타격/스킬/아군사망/패배음), 노드 이동/진입, 씬 전환, 카드 뽑기(CardDraw), 모집/판매/코인(Recruit/Sell/CoinSpend), **스택 카드 선택/사용/해제(CardSelect/CardPlay/Cancel — 버튼 아닌 카드 조작음. 원하면 제거 가능)**. SfxId enum의 ButtonClick/Confirm 값은 매핑 호환 위해 유지(호출 0).
+- **추가 제거(사용자 요청 2차)**: **적 처치음(EnemyDeath, EnemyData.Hp.cs)** + **승리음(Victory ×2, BattleManager.Phases.cs — 튜토리얼/일반 경로)**. 호출 0 확인.
+- **추가 제거(3차)**: **아군 사망음(FellowDeath)** + **패배음(Defeat ×3)**. 전투 사운드 중 남은 것: 타격(AttackSword/HurtAlly/HurtEnemy)·스킬·힐·스택카드 조작음·노드/씬 전환·재화.
+
+### 승패 결과 표시 단축 (2026-06-11)
+- HandleBattleEnd 가 결과 표시 전 `gameOverDelay(1.5s)×2 = 3초` 대기하던 것 → **비튜토리얼은 신규 `resultPopupDelay = 0.6s`** 한 번만 (마지막 처치 연출 호흡). 튜토리얼 Win/Lose 팝업 흐름(1.5→토글→1.5)은 유지. 인스펙터에서 조정 가능.
+
+### 보스 처치(엔딩) 팝업 UI 적용 (2026-06-11)
+- 원인: `PopUp`(RightMainArea 프리팹) 루트가 **흰색 풀스크린** + 자식 `Result` TMP 가 파랑 'New Text' 방치 — 엔딩은 그 위에 글자만 얹혀 회색+겹침으로 보였음.
+- 수정: PopUp 루트 → 다크 dim(0,0,0,0.8) / Result → 빈 문자열+골드 볼드 96(튜토리얼 Win·Lose 용 스타일 정리) [프리팹+씬]. **EndingPanel(씬 전용 오브젝트) 재구성**: dim 0.92 + **Panel_1 HD 프레임(760×440)** + EndingText(골드 볼드 56, 코드가 메시지 set — 프레임 첫 자식 유지) + 하단 힌트 "잠시 후 새로운 탐사가 시작됩니다…". 캡처 `_cap_ending.png`.
+
+### 텔레포트 순서·투사체 시작점·스킬 전용음 타이밍 (2026-06-11)
+- **순간이동 = 모션 후 배치**: `ExecuteTeleportSkill` 코루틴화 — Attack3 모션+후방 잔상(≈2.1s) **완료 후** allies.Reverse + 슬롯 재할당 + 순차 재배치(+재배치 대기). 시전부(ExecuteEnemySkillCast)가 yield 로 대기.
+- **캐스터 투사체 시작점**: SkillEffectFx 발사 오프셋 — 지팡이 끝(높이 1.15+전방 0.55) → **몸통(높이 0.7, 전방 0)** 으로 변경.
+- **스킬 전용음 = 타격 순간**: 시전 직후 재생하던 파이어볼/무모한강타/매직미사일 전용음을 제거하고, `_castImpactSfx` 로 **DealDamageToEnemy 의 디폴트 타격음(AttackSword) 자리에서 1회 대체 재생**(AOE 도 첫 타격만, 피격음 HurtEnemy 는 유지). UseSkill 종료 시 플래그 리셋.
+
+### 팝업 버튼 라벨 골드+볼드 통일 (2026-06-11)
+- 텍스트 있는 모든 버튼 라벨에 좌패널 스타일(골드 1,0.84,0.4 + Bold) 적용 — 폰트 크기는 각자 유지. 프리팹 5종 19개(MercenaryRoot 9·PartyEdit 4·CardPrefab 1·RightMainArea 5) + 양 씬 31개 + 코드 생성 1곳(MagicStoneShopPanel.NewButton — 해금/닫기). 멱등 가드(이미 골드+볼드면 스킵). 캡처: `_cap_setting.png` (게임 종료 골드 확인).
+
+### 설정창 '재화 초기화' 제거 (2026-06-11)
+- SettingPopup.cs: `resetPrefsButton` 필드·구독·`OnResetPrefs()` 삭제(데드코드 정책). 양 씬(GamePlay/GameStart)의 **ResetPrefsButton GO 삭제**. 재화/메타패시브 리셋이 필요하면 **디버그 툴(F1)** 의 재화 0 버튼 사용. ※MetaPassiveManager.ResetAll 호출처가 사라짐 — 디버그 툴에는 메타패시브 리셋 버튼 없음(필요 시 추가).
+
+### 미사용 에셋 대청소 — 약 1,900파일 삭제 (2026-06-11)
+> 방식: 전 직렬화 파일(.unity/.prefab/.asset/.controller/.anim/.mat)에서 참조 GUID 1패스 수집 → 후보별 대조. **Resources 는 문자열 로드 가능성 때문에 코드 grep 교차 확인** (node_*.png 가 GUID 무참조인데 `IconSprite("node_combat")` 로 사용 중이던 것을 이걸로 잡음 — 보존!).
+- 삭제: **Free Pack 통째**(wav 44 전부 미참조 — 실사용 클립은 `오디오추가/` 10개 + 400팩 18개), **1-bit 아이콘 1,473 + 시트 19**(보존 4: 마나스톤/크리스탈볼/투구/카드별), **Foozle 30**(보존: Button/Coin/Exit 3종/Panel_1/Panel_1_HD/Readme), **400 Sounds Pack 384**(보존 18 = SoundDatabase 참조분), **빈 폴더 5**(Test_Image/free horror ambience 2/Door팩/Material/Editor).
+- 검증: 리프레시 후 **에러 0**. 폰트 경고 발견 → 가운뎃점(·)이 NanumGothic 에 없어 □ 깨짐: 디버그 라벨·툴팁 구분자를 ASCII(|, /, +, 괄호)로 교체.
+- 백업: **`~/Documents/backup/cleanup_20260611/`** (트리 보존 3,900여 파일 — 복구 시 그대로 덮어쓰면 됨).
+- ⚠️ 잔존 추적: "referenced script (Unknown) missing" 경고 1건이 간헐 출현(전 프리팹+양 씬 스캔은 0건) — 플레이 세션 잔재로 추정, 재발 시 전 프리팹 스캔 재실행.
+
+### 보스 행동 패턴 기획 §11 §3 원안 복귀 (2026-06-11, 사용자 결정)
+> 운용 규칙 대조에서 기획과 다른 2건 발견 → 사용자 확인 후 기획대로 수정.
+- **① 확정 소환 규칙 [J] 폐기**: "필드에 까마귀 없으면 무조건 소환"(과거 구두 결정, 60/40 룰렛을 사문화시킴) 제거 → **기본 상태 매 턴 60% 휘두르기 / 40% 까마귀 부름 룰렛** 복귀. 생존 중/쿨다운 중 제외는 기존 룰렛 가드 유지.
+- **② 재소환 쿨다운 시점**: 소환 시점 → **까마귀 사망(처치·자폭 공통) 시점부터 3턴** (기획 "처치 시 재사용 대기 3턴"). 구현: 소환 시 Summon 타입은 캐스트 쿨다운 제외 + `ExecuteSummonSkill` 에서 각 까마귀 `OnDied += owner.StartSkillCooldown(summon, 3)` (마지막 사망 기준 갱신, owner.isDead 가드).
+- 효과: 까마귀를 빨리 잡을수록 다음 소환이 늦어지는 보상 구조 + 소환 타이밍 랜덤화. 순간이동(만료→예약) 흐름은 무변경.
+
+### 보스 스킬별 애니메이션(Attack1~4) + 순간이동 후방 잔상 + 까마귀 표기 (2026-06-11)
+- **트리거 시스템 4슬롯 일반화**: `BattleCardSprites` — `_hashAttack1/2` 쌍 → `_attackHashes[4]/_hasAttack[4]` 배열. `AttachAnimator(animator, string[] attackNames)` 신설(기존 2-파라미터는 호환 위임). `TriggerAttackImmediate(skillIndex)` — 해당 인덱스 트리거 없으면 아래로 폴백. 기본명 Attack/Attack2/**Attack3/Attack4**.
+- **데이터**: EnemyDef/EnemyData/EnemyDatabase 에 `attack3Anim/attack4Anim` 추가. enemies.json 보스: **skillIds 에 teleport 추가**(인덱스3 — weight 0 이라 룰렛 영향 없음, OnSkillCast 인덱스용) + attack3/4Anim 명시. 매핑(사용자 확인): 휘두르기=Attack1(근접 dash) · 까마귀 부름=Attack2 · **수확=Attack4 · 순간이동=Attack3** (attack3Anim="Attack4"/attack4Anim="Attack3" — 필드명은 스킬 인덱스, 값은 트리거명).
+- **순간이동 보강**: ① `allies.Reverse()` 후 **battleSlotIndex 재할당 + RelayoutNow** (기존엔 리스트만 뒤집혀 카드 위치 안 바뀌던 잠재버그). ② 연출 — `PlayTeleportGhost(후방pos)`: 0.45s(Attack4 모션) → 페이드아웃 → **아군 최후방(-1.6) 잔상(α0.45) 0.5s** → 원위치 페이드인 (기획 §11 §3 연출 가이드 충족).
+- **까마귀 카운트다운 표기**: 내부 +1 보정 제외하고 표시 — 소환 직후 "자폭까지 3턴"(기획 일치), 0 되면 "이번 턴 자폭!".
+
+### 적 플립·보스 검증·까마귀 카운트다운·보스 BGM 1회 (2026-06-11)
+- **플립**: 새 아트 3종(Wolf/Scarecrow/Crow) 모두 **좌향으로 그려짐** — `SetFacing(isEnemy ^ flipSprite)` 구조상 고블린처럼 `flipSprite: true` 필요 → enemies.json 3종 추가. **보스전 캡처로 좌향 확인**.
+- **보스 BGM 1회 재생**: `AudioManager.PlayBgm/PlayBgmById 에 loop 파라미터(기본 true)` 추가, NodeSystem 보스 진입만 `loop:false`. 플레이 검증: clip=보스 노드, loop=False ✓.
+- **보스 스킬 검증(플레이)**: 보스 노드 강제 진입(OnNodeClicked) → Scarecrow Idle 6프레임 순환 ✓ / SetTrigger Attack1→Scarecrow_Attack_1~3 ✓ / Attack2→Attack2_1~3 ✓ / 까마귀 부름(ExecuteSummonSkill 직접 호출)→까마귀 2마리 소환·수명 4턴 ✓. 수확(Harvest)은 정적 검증(HP≤50% 1회 강제 발동 + 실드 제외 드레인 코드) — 코루틴이라 라이브 생략.
+- **까마귀 카운트다운**: 이미 구현돼 있었음(BattleCardView가 summonLifeTurns>0 시 HP 아래 'CrowCountdownText' 동적 생성 + OnLifeTurnsChanged 구독). 소환 직후 **"자폭까지 4턴" 표시 확인** — 매 턴 끝 감소 갱신.
+- ⚠️ **검증 함정**: 에디터 비포커스 시 프레임 정지 → 애니메이터 normTime 0·LoadingScreen 안 걷힘 — `Animator.Update(dt)` 수동 펌핑으로 우회 검증. 실플레이(포커스)에선 무관.
+
+### 화톳불 BGM 제거 + 적 종류별 애니메이터 적용 (2026-06-11)
+- **Rest BGM 제거**: NodeSystem 의 `PlayBgmById(BgmId.Rest)` 2곳(화톳불·교회 — 같은 트랙) 삭제. 진입해도 노드맵 BGM 유지(이탈 후 Rest 브금이 계속 남던 문제 해소). BgmId.Rest enum/매핑은 유지(호출 0).
+- **적 애니메이터** (enemies.json — 사용자가 만든 컨트롤러 연결): 약탈자=`Animators/Enemies/Wolf/Wolf`(트리거 기본 Attack/Attack2), 거두는 자=`Scarecrow/Scarecrow`(**attack1Anim=Attack1, attack2Anim=Attack2 명시** — 트리거명이 기본값과 다름. Attack3/4는 파이프라인 미사용), 까마귀=`Crow/Crow`(Idle 전용, 파라미터 없음 → 트리거 안 씀). 고블린은 기존 연결 유지.
+- 검증: 컨트롤러 4종 Resources.Load OK + JSON 경로/트리거 포함 확인. 실제 모션은 전투에서 확인 필요.
+
+### 덱 더미 UI + 남은 장수 표시 (2026-06-11)
+- **기존 `GamePlayScene_RightMainArea/Deck`(172×280, 우하단 빈 흰 박스 placeholder) 활용** (사용자 지시 — 신규 DeckPile 은 만들었다가 폐기): 루트 Image 비활성(흰 박스 제거) + 자식으로 `sprite_sheet_9`(파랑 카드 프레임) **3장 겹침**(Back2/1/0 깊이감) + **CountText**(흰 볼드 56) + "덱" 골드 라벨 + `DeckPileView` 부착.
+- **`UI/DeckPileView.cs`** 신규: `GameManager.RemainingDeckCount`(신규 public 프로퍼티 = drawDeck.Count - currentDrawIndex) 폴링해 숫자 갱신.
+- **씬 GameManager.cardStackAnchor = Deck 연결** → 기존에 null 이라 생략되던 **드로우 애니메이션(덱→손패 날아가기)이 활성화됨**. 어색하면 cardStackAnchor 만 비우면 원복.
+- 디버그툴 즉시승리/패배: HP 0 + **DebugForceBattleEnd()**(StopAllCoroutines→BattleEnd 직행 — 입력 대기 없이 결과 화면). 디버그창 **드래그 이동**(DragMove, 빈 영역 잡고 끌기).
+
+### #14 디버그 툴 — F1 팝업 (2026-06-11, 에디터/개발빌드 전용)
+- **신규 `Debugging/DebugToolPanel.cs`**: `#if UNITY_EDITOR || DEVELOPMENT_BUILD` 전체 가드, RuntimeInitializeOnLoad 자가생성(DDOL, 씬 배치 불필요), **F1 토글** 우측 팝업(Panel_1 HD + default_button).
+  - 재화: 영혼석 +100/-100/**0** · 마석 +50/-50/**0** (감소·초기화 — 사용자 요구)
+  - 전투(전투 중 가드): 즉시 승리(적 전멸)/즉시 패배/풀힐·스트레스0/스택 999
+  - 진행: 층 전진(구 F2=`NodeSystem.CheatAdvanceFloor`)/새 런 시작(StartNextRunLoop 동일 절차 독립 구현 — 노드맵에서도 동작)
+  - 스킬/연출 테스트(전투 중 단축키, 3차 개편): **1·2=아군 스킬1·2, 3·4=적 전원 스킬1·2, 5·6=적(보스) 스킬3·4 — 전부 모션+효과 실제 적용**. 2차의 '모션 전용'은 사용자 피드백(데미지 안 들어감·까마귀 안 생김)으로 폐기 — `ExecuteEnemyTurn` 에서 시전부를 **`ExecuteEnemySkillCast(enemy, skill)` 로 분리**해 본전투와 디버그가 동일 경로 공유(사운드/쿨다운/모션/데미지/소환/순간이동/수확). passive(까마귀) 제외. 패널 버튼: + 적 랜덤 행동/피격 모션. 박스 높이 880.
+- **신규 `BattleManager.Debug.cs`**(파셜, 동일 가드): DebugKillAllEnemies/Allies·DebugFullHeal·DebugCastAllAllySkills(내부 UseSkill 순차)·DebugEnemyTurnOnce(ExecuteEnemyTurn)·DebugHitMotionAll(OnDamaged(0,1)).
+- **구 `CheatInput.cs` 삭제**(F1 즉발치트/F2 — 팝업으로 대체. 씬 컴포넌트 제거 후 파일 삭제, 백업 보관).
+- 검증(플레이): 자가생성 ✓ F1 토글 ✓ 영혼석 10134→+100→-100→0 ✓ 마석 ±50 ✓ 비전투 시 전투버튼 가드 ✓ 캡처 `_cap_debugtool.png`.
+
+### #11 스킬 호버 툴팁 재설계 — 이미지1 사양 (2026-06-11)
+- `SkillTooltipController` 내부 재작성: 단일 리치텍스트 → **구조화 엔트리 2개(코드 생성)**. 엔트리 = [아이콘 52(타입색 틴트) | 이름+`[타입 · 대상]`칩 / `위력 N · 사거리 X · 코스트 M` 스탯줄] + 설명(줄바꿈) + 2번째 엔트리 위 구분선. VLG/CSF 자동 높이.
+- 타입 라벨/색: 공격=빨강·회복=초록·실드=파랑·강화=금·약화=보라·공격+실드/도발=주황. **사거리**: Damage계=isRanged(원거리/근접), 그 외=자신/아군 지원.
+- `ShowText`(상태이상 칩 툴팁)는 엔트리 숨기고 기존 Body 텍스트 모드로 동작 — 호환 유지. 트리거(CardSlotView/FellowCardView)는 무변경(Show API 동일).
+- 씬: TooltipBox → Panel_1_HD 프레임 + 폭 440 + VLG 패딩(20,20,16,16)·childControlWidth.
+- **검증(플레이)**: 발도 → 아이콘 skill_draw 빨강, "[공격 · 단일 적]", "위력 25 · 사거리 근접 · 코스트 2", 설명 ✓ / 매직 실드 → "[실드 · 단일 아군]", "사거리 아군 지원" ✓. (RT 캡처는 SkillTooltip 로컬 z=-100 탓에 번번이 컬링 — 내용 덤프로 검증, 실호버 확인은 사용자)
+- ⚠️ 캡처 메모: SkillTooltip GO는 **로컬 z=-100** — 임시카메라 RT 캡처 시 근평면에 잘림. 백업: `~/Documents/backup/skilltooltip_20260611/`.
+
+### 승리/패배 자동 진행 + Card.prefab missing script 정리 (2026-06-11)
+- **승리/패배 화면 클릭 필수 → 자동 진행**: `BattleResultScreen` 에 `AutoAdvanceDelay=2.5f` — 표시 후 2.5초면 자동으로 다음(승리=노드맵 / 패배=새 런). **클릭/다음으로 버튼은 즉시 스킵**으로 유지. 버튼·자동이 같은 Proceed 경로 공유 + activeSelf 가드로 중복 발화 차단, Hide 시 코루틴 정지. 패배 힌트 문구 "잠시 후 계속됩니다 (클릭 시 즉시)".
+- **콘솔 missing script 경고 근원**: `Assets/Prefab/Card.prefab` 루트에 깨진 스크립트 참조 1건 → 제거. 프리팹 전수(Prefab/Resources) + 양 씬 재스캔 0건, 콘솔 클린.
+
+### 파티편집 토스트 제거 + 헤더 정밀 배치 (2026-06-11)
+- **토스트/안내문 제거(사용자 요청)**: PartyEditPanel.cs 에서 statusLabel·toastDuration·DefaultGuide·UnsupportedMessage·_toastRoutine·ShowGuide/ShowToast/RestoreGuideAfter **전부 삭제**(데드코드 정책, using System.Collections 도 제거). ToastLabel GO 프리팹에서 삭제(씬 전파).
+- **헤더 겹침 수정**: '파티'(인원 N/4)/'예비대' 라벨이 카드 상단과 수px 겹쳐 있었음 → 전용 밴드 확보: PartyHeaderLabel (0,-18) 500×32 fs28 / PartySlots 인셋 T36 B2 / ReserveHeaderLabel (0,-14) 300×28 fs26 / ReserveScrollView T30 B0 → **뷰포트 400 = 셀 400 정확**(패딩 0). 프리팹+씬.
+- 양 씬 missing script 스캔: 0건 (콘솔의 1회성 경고는 플레이 세션 잔재로 판단).
+
+### 보스 진입 문소리 + 적 데미지 타이밍 수정 (2026-06-11)
+- **문 열림음 계속 울림**: 전투 노드 진입음(NodeEnter)이 원본이 길어 보스 진입 후 계속 재생 → `PlaySfxByIdClipped(SfxId.NodeEnter, 1.5f)` 로 1.5초 컷 (NodeMove 와 동일 기법, NodeSystem.cs).
+- **적 공격 딜 지연**: 아군 근접은 `meleeImpactDelay=0.55s`(휘두르는 순간) 인데 적은 `impactDelay=1.25s` — **모션이 다 끝난 뒤 데미지**가 들어갔음(사용자 체감 "1턴 늦게"). EnemyAction 3곳(Fallback 직타/스킬/수확) 전부 `meleeImpactDelay` 로 교체 → 아군과 동일하게 타격 순간 적용. **`impactDelay` 필드 삭제**(사용처 0, 데드코드 정책). ⚠️ 타이밍 체감은 실플레이 확인 필요 — 빠르/늦으면 meleeImpactDelay 또는 적 전용 상수로 미세조정.
+
+### 용병소 기획(§14) 대조 + 명세 위반 2건 수정 (2026-06-11)
+> 일치 확인: 후보 3인 / 리롤 2→+1 누적·노드 진입 리셋·무한 / 예비대 9칸 / 빈 슬롯 우선 합류 / 중복 직업 허용 / 1성 30 (승급 추가비용 없음 = 명세 "현재는" 조항 그대로) / 부족 시 실행 차단.
+- **수정① §7-1 실패 사유 메시지**: Debug.Log뿐이었음 → `RecruitPanel.statusLabel`(빨강 fs28, MR프리팹에 StatusLabel GO 생성+SerializedObject 연결) + ShowToast 2초: 고용/리롤 실패 시 "영혼석이 부족합니다 (필요 N)" / "파티와 예비대가 가득 찼습니다".
+- **수정② §8-3 비용 부족 빨간 경고**: 버튼 비활성뿐이었음 → `FellowCardView.SetInteractable`에서 costLabel 색 흰↔빨강(0.9,0.25,0.25) 토글.
+- **판단 유보(보고)**: ⓐ §7-2 "만석 시 교체 모드" vs 현행 "만석 고용→예비대 직행" — §5-3 "파티 **또는 후보 대기열**에 반영"과는 부합, 교체는 파티편집 담당. 강제 교체 선택 UI 원하면 별도 작업. ⓑ §3 "동료 성장 MVP 배제" vs 성장(합성) 구현됨 — **문서가 뒤처진 것**(성급 비용표가 성장 전제). 코드 유지, 기획 문서 갱신 권장.
+- 백업: `~/Documents/backup/sfx_mercspec_20260611/`.
+
+### 미행동 리그룹 겹침 — 딜레이+순차 이동 (2026-06-11)
+> 미행동 재정렬(예: 1-2-3-4→3-1-2-4) 시 카드들이 **동시에 직선 이동하며 교차** → 몸 관통 겹침. 딜레이만으론 교차 자체가 안 사라져 **스태거(순차 출발)** 조합으로 해결 (사용자 선택).
+- `DefaultSetting.cs`: `RelayoutStagger=0.1f` 신설. `RelayoutCards`→`PlaceCardAt(..., delay)` — instant 아닐 때 **왼쪽 자리부터 k×0.1초 시차** 출발(`DOMove().SetDelay`). 사망/적 재정렬도 동일 적용(연출 일관).
+- `BattleManager.Combat.cs` 미행동 블록: 재정렬 **전 0.25초 사전 호흡** + 대기시간을 `RelayoutDuration + Stagger×(생존아군-1)` 로 보정(적 턴이 이동 중 시작 안 되게).
+- ⚠️ 트윈 체감은 MCP 프레임 정지로 검증 불가 — **실플레이 확인 필요**. 튜닝 노브: `RelayoutStagger`(0.08~0.12), 사전 호흡(0.25f). 백업: `~/Documents/backup/regroup_stagger_20260611/`.
+- LeftPanel 루트 Image: sprite=Panel_1_HD, Sliced, **pixelsPerUnitMultiplier=1.641**(1024/624 — 화면상 테두리 두께를 기존 60px급으로 유지). 프리팹+씬.
+- 다른 Panel_1 사용처(팝업/카드/파티편집 프레임)는 아직 원본 — 필요 시 같은 방식(sprite 교체 + ppum 1.641)으로 일괄 교체 가능. 백업: `~/Documents/backup/panel1_hd_20260611/`.
+
+### 까마귀 자폭 카운트다운 가시성 수정 (2026-06-11)
+> 사용자: "까마귀 자폭하는거 어디서 뜨니? 안 보이던데" — 텍스트는 생성됐지만 **화면 밖 y=-3102px**에 있었음.
+- **근본 원인**: `EnsureCountdownText`가 HP 텍스트(rectTransform)를 복제 후 `rect.height × 1.1` 만큼 아래로 내렸는데, HP 텍스트가 **스트레치 앵커**라 rect.height = 카드 전체(~2800 캔버스 단위) → 오프셋이 화면 밖 3천px. 추가로 HP rect 폭이 "2/2" 기준이라 긴 문구는 truncate.
+- **수정** (BattleCardView.cs `EnsureCountdownText`/`UpdateCountdownText`):
+  - 배치 기준을 rect → **렌더된 글리프 경계(`hpScoreText.textBounds`)**로: `ForceMeshUpdate()` 후 글리프 하단 - fontSize×0.4 지점을 `TransformPoint`로 월드 변환, 비스트레치 앵커(0.5,0.5)+pivot(0.5,1)로 고정 배치.
+  - sizeDelta = fontSize×(14, 2.2) + `Overflow`+`NoWrap`+Center — truncate 차단.
+  - 스타일: fontSize **HP×1.25 볼드 주황**(1,0.55,0.25), 마지막 턴 **빨강**(1,0.2,0.2).
+  - 문구: "자폭까지 N턴" → **"자폭 N턴" / "자폭!"** — 까마귀 2마리 나란히 설 때 옆 텍스트와 겹치던 것 해소 (×1.5 폰트도 같은 이유로 ×1.25).
+- **검증(플레이)**: 보스 노드 강제 진입(currentRowIndex=5 → OnNodeClicked(5,2) — row==currentRowIndex 여야 통과!) + ExecuteSummonSkill reflection → 까마귀 2마리 각각 HP "2/2" 바로 아래 "자폭 3턴" 주황 볼드, 픽셀 캡처 확인 ✓.
+- ⚠️ 에디터 비포커스 시 stop→play 만으론 **컴파일이 안 돔** — `refresh_unity(compile=request)` 후 진행할 것 (이번에 구코드로 2회 헛검증).

@@ -14,7 +14,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 전체에 20 데미지(분산) + 아군 전체에 30 실드 부여.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_war_shield"
     },
     {
       "id": "skill_war_cry",
@@ -30,7 +30,7 @@
       "statusEffect": "Taunt",
       "statusValue": 1,
       "description": "적 전체에 20 데미지(분산) + 시전자에게 1턴 도발. 도발 불가 적은 데미지만 적용.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_war_cry"
     },
     {
       "id": "skill_draw",
@@ -46,7 +46,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 25의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_draw"
     },
     {
       "id": "skill_fireball",
@@ -62,7 +62,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "모든 적에게 35의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_fireball"
     },
     {
       "id": "skill_flash",
@@ -78,7 +78,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 50의 강력한 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_flash"
     },
     {
       "id": "skill_magic_missile",
@@ -94,7 +94,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 15의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_magic_missile"
     },
     {
       "id": "skill_battle_stance",
@@ -109,7 +109,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "아군 전체에게 40의 실드를 부여한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_battle_stance"
     },
     {
       "id": "skill_guard",
@@ -124,7 +124,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "아군 전체에게 20의 실드를 부여한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_guard"
     },
     {
       "id": "skill_indomitable",
@@ -139,7 +139,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "아군 전체의 HP를 34 회복한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_indomitable"
     },
     {
       "id": "skill_reckless",
@@ -155,7 +155,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 15의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_reckless"
     },
     {
       "id": "skill_prayer",
@@ -170,7 +170,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "아군 전체의 HP를 40 회복한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_prayer"
     },
     {
       "id": "skill_starlight",
@@ -185,7 +185,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "HP가 가장 낮은 아군 1명의 HP를 35 회복한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_starlight"
     },
     {
       "id": "skill_magic_shield",
@@ -200,7 +200,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "아군 1명에게 20의 실드를 부여한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_magic_shield"
     },
     {
       "id": "skill_ice_storm",
@@ -216,7 +216,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "모든 적에게 55의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_ice_storm"
     },
     {
       "id": "skill_sky_slash",
@@ -232,7 +232,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 75의 강력한 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_sky_slash"
     },
     {
       "id": "skill_moonlight_slash",
@@ -248,7 +248,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 60의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_moonlight_slash"
     },
     {
       "id": "skill_shield_bash",
@@ -264,7 +264,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 15의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_shield_bash"
     },
     {
       "id": "skill_counter_flow",
@@ -280,7 +280,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "모든 적에게 25의 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_counter_flow"
     },
     {
       "id": "skill_consecration",
@@ -295,7 +295,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "아군 1명의 HP를 12 회복한다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_consecration"
     },
     {
       "id": "skill_judgment",
@@ -311,7 +311,7 @@
       "statusEffect": "None",
       "statusValue": 0,
       "description": "적 1명에게 35의 신성 데미지를 입힌다.",
-      "spritePath": ""
+      "spritePath": "Sprites/Skills/skill_judgment"
     }
   ]
 }

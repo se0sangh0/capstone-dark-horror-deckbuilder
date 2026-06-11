@@ -169,6 +169,7 @@ public class FellowCardView : MonoBehaviour
             skillsLabel.text = BuildSkillsText(fellow);
             // 스킬 호버 툴팁 (#7) — 보유 스킬 전체 정보 표시
             SkillTooltipTrigger.Ensure(skillsLabel.gameObject).SetSkills(fellow.GetSkills());
+            UpdateSkillIcons(fellow.GetSkills()); // 줄별 스킬 아이콘 (1-bit, 종류별 색)
         }
 
         // ── 모드별 버튼/비용 표시 ──
@@ -237,6 +238,8 @@ public class FellowCardView : MonoBehaviour
     public void SetInteractable(bool interactable)
     {
         if (actionButton != null) actionButton.interactable = interactable;
+        // 기획 §8-3 — 비용 부족 시 비용 표기를 빨간색으로 경고
+        if (costLabel != null) costLabel.color = interactable ? Color.white : new Color(0.9f, 0.25f, 0.25f, 1f);
     }
 
     // ----------------------------------------------------------
@@ -254,6 +257,7 @@ public class FellowCardView : MonoBehaviour
         {
             skillsLabel.text = string.Empty;
             SkillTooltipTrigger.Ensure(skillsLabel.gameObject).SetSkills(); // 빈 → 호버 표시 안 함
+            HideSkillIcons();
         }
         if (roleBadgeImage != null)
         {
@@ -315,5 +319,48 @@ public class FellowCardView : MonoBehaviour
             lines.Add($"{name} ({s.costAmount})");
         }
         return string.Join("\n", lines);
+    }
+
+    // ── 스킬 아이콘 (줄별, 1-bit 단색 → 종류별 색 틴트, 텍스트 왼쪽에 배치) ──
+    private readonly System.Collections.Generic.List<UnityEngine.UI.Image> _skillIcons = new System.Collections.Generic.List<UnityEngine.UI.Image>();
+
+    private void UpdateSkillIcons(System.Collections.Generic.List<SkillData> skills)
+    {
+        if (skillsLabel == null) return;
+        skillsLabel.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        float fs = skillsLabel.fontSize > 0 ? skillsLabel.fontSize : 15f;
+        float lineH = fs * 1.25f;
+        float iconSize = Mathf.Clamp(lineH - 2f, 14f, 24f);
+        skillsLabel.margin = new Vector4(iconSize + 6f, 0f, 0f, 0f); // 텍스트를 아이콘 폭만큼 들여쓰기
+        int n = skills != null ? skills.Count : 0;
+        for (int i = 0; i < 2; i++)
+        {
+            UnityEngine.UI.Image icon = i < _skillIcons.Count ? _skillIcons[i] : null;
+            if (icon == null)
+            {
+                var go = new GameObject("SkillIcon" + i, typeof(RectTransform), typeof(CanvasRenderer), typeof(UnityEngine.UI.Image));
+                var it = (RectTransform)go.transform; it.SetParent(skillsLabel.transform, false);
+                it.anchorMin = new Vector2(0f, 1f); it.anchorMax = new Vector2(0f, 1f); it.pivot = new Vector2(0f, 1f);
+                var im = go.GetComponent<UnityEngine.UI.Image>(); im.raycastTarget = false; im.preserveAspect = true;
+                icon = im; _skillIcons.Add(im);
+            }
+            var irt = icon.rectTransform; irt.sizeDelta = new Vector2(iconSize, iconSize);
+            irt.anchoredPosition = new Vector2(1f, -i * lineH - (lineH - iconSize) * 0.5f);
+            var s = (i < n) ? skills[i] : null;
+            if (s != null && s.sprite != null) { icon.enabled = true; icon.sprite = s.sprite; icon.color = SkillTint(s.effectType); }
+            else icon.enabled = false;
+        }
+    }
+
+    private void HideSkillIcons() { foreach (var ic in _skillIcons) if (ic != null) ic.enabled = false; }
+
+    private static Color SkillTint(string et)
+    {
+        if (string.IsNullOrEmpty(et)) return Color.white;
+        if (et.Contains("Heal"))   return new Color(0.50f, 0.95f, 0.55f); // 초록 — 힐
+        if (et.Contains("Shield")) return new Color(0.60f, 0.82f, 1.00f); // 하늘 — 방어/실드
+        if (et.Contains("Damage")) return new Color(1.00f, 0.55f, 0.45f); // 적 — 공격
+        if (et.Contains("Buff") || et.Contains("Taunt")) return new Color(1.00f, 0.85f, 0.40f); // 금 — 버프/도발
+        return Color.white;
     }
 }

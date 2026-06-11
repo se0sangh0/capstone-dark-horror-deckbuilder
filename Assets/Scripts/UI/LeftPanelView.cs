@@ -200,6 +200,7 @@ public class LeftPanelView : MonoBehaviour
 
         // 덱 요약
         RefreshDeckSummary(party);
+        // (파티 아코디언 기본 펼침은 사용자 요청으로 제거 — 모든 섹션 기본 접힘 상태로 시작. 2026-06-11)
     }
 
     private void UnbindAll()

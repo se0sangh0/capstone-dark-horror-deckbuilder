@@ -152,11 +152,12 @@ public static class MetaPassiveManager
 
     public static bool TryUnlock(string id)
     {
-        // 해금 비용은 영혼석(SoulStone) 기반 (사용자 요청 — 마석상점 아님). 2026-06-05.
+        // 해금 비용 = 마석(ManaStone) — 영구 메타 재화. 기획 §16. (2026-06-08: 영혼석→마석 정정)
+        // 마석 상점 패널이 마석 잔액을 표시/검사하므로 차감도 마석으로 일치시킨다.
         if (IsUnlocked(id)) return false;
         int cost = CostOf(id);
-        if (SoulstoneManager.Instance == null || SoulstoneManager.Instance.Amount < cost) return false;
-        SoulstoneManager.Instance.Use(cost);
+        if (ManastoneManager.Instance == null || ManastoneManager.Instance.Amount < cost) return false;
+        ManastoneManager.Instance.Use(cost);
         Unlock(id);
         return true;
     }

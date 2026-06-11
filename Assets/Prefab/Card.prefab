@@ -159,7 +159,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3436761677327327793}
-  - component: {fileID: 7112125627643305703}
   m_Layer: 5
   m_Name: Card
   m_TagString: Untagged
@@ -189,30 +188,6 @@ RectTransform:
   m_AnchoredPosition: {x: 1130, y: -140}
   m_SizeDelta: {x: 200, y: 300}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &7112125627643305703
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1653896057140597561}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f12b687b85667f45abdf3a249548b78, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CardView
-  borderImage: {fileID: 4154012267791108619}
-  iconImage: {fileID: 743606351290681742}
-  valueText: {fileID: 5144508695686840178}
-  cardWidth: 150
-  cardHeight: 220
-  borderThickness: 6
-  cornerRadius: 16
-  borderColor: {r: 1, g: 1, b: 1, a: 1}
-  fillColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
-  fontSize: 48
-  textColor: {r: 1, g: 1, b: 1, a: 1}
-  fontStyle: 1
 --- !u!1 &3591422020817888979
 GameObject:
   m_ObjectHideFlags: 0
