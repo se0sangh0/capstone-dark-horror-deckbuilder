@@ -77,11 +77,9 @@ public class BattleCardSprites : MonoBehaviour
     private const string DefaultAttack1 = "Attack";
     private const string DefaultAttack2 = "Attack2";
     // 피격(Hit)은 애니메이터 트리거를 쓰지 않음 — DOTween 깜빡임으로만 처리.
-    // 런타임 트리거 해시 — JSON 에서 받은 이름으로 결정 (AttachAnimator 에서 세팅)
-    private int _hashAttack1;
-    private int _hashAttack2;
-    private bool _hasAttack1;
-    private bool _hasAttack2;
+    // 런타임 트리거 해시 — 스킬 인덱스(0~3) → 트리거. JSON attack1~4Anim 으로 결정 (보스 Attack1~4 대응)
+    private readonly int[]  _attackHashes = new int[4];
+    private readonly bool[] _hasAttack    = new bool[4];
 
     private void Awake()
     {
@@ -110,7 +108,9 @@ public class BattleCardSprites : MonoBehaviour
         if (cat == MotionCategory.Melee)
         {
             // 순차 흐름: forward dash → 적 앞에서 SetTrigger + 모션 재생 대기 → back dash
-            PlayMeleeAttackSequence(skillIndex, hasAnim);
+            // 근접 타격은 항상 Attack(검 휘두르기). Attack2(어택커 방패 들기)는 방어/버프 전용이라
+            // 근접 데미지 스킬(예: 역류)에 쓰면 "방패만 드는 모션"이 돼 어색하므로 0으로 고정.
+            PlayMeleeAttackSequence(0, hasAnim);
         }
         else
         {
@@ -120,11 +120,11 @@ public class BattleCardSprites : MonoBehaviour
         }
     }
 
-    /// <summary>제자리에서 즉시 Attack(또는 Attack2) 트리거. Melee 가 아닌 카테고리에서 사용.</summary>
+    /// <summary>스킬 인덱스의 트리거 발동. 해당 트리거가 없으면 아래 인덱스로 폴백 (… → 1번).</summary>
     private void TriggerAttackImmediate(int skillIndex)
     {
-        if (skillIndex >= 1 && _hasAttack2) _animator.SetTrigger(_hashAttack2);
-        else if (_hasAttack1)               _animator.SetTrigger(_hashAttack1);
+        for (int i = Mathf.Clamp(skillIndex, 0, 3); i >= 0; i--)
+            if (_hasAttack[i]) { _animator.SetTrigger(_attackHashes[i]); return; }
     }
 
     /// <summary>현재 근접 공격 시퀀스 (dash + 모션 + 복귀) 가 진행 중인지. BattleManager 가 턴 전환 시 polling.</summary>
@@ -139,28 +139,34 @@ public class BattleCardSprites : MonoBehaviour
     }
 
     /// <summary>
-    /// DefaultSetting 에서 RuntimeAnimatorController 주입 직후 호출.
-    /// JSON 에 지정된 트리거 이름을 받아 해시 캐싱 + 컨트롤러 보유 여부 검사.
-    /// 이름이 비어있으면 기본값 (Attack / Attack2) 사용.
+    /// DefaultSetting 에서 RuntimeAnimatorController 주입 직후 호출 (2-트리거 호환용).
     /// </summary>
     public void AttachAnimator(Animator animator, string attack1Name = null, string attack2Name = null)
     {
+        AttachAnimator(animator, new[] { attack1Name, attack2Name });
+    }
+
+    /// <summary>
+    /// 스킬 인덱스별 트리거 이름 배열(최대 4)을 받아 해시 캐싱 + 보유 여부 검사.
+    /// 이름이 비어있으면 기본값 (Attack / Attack2 / Attack3 / Attack4) 사용. (보스 4스킬 대응, 2026-06-11)
+    /// </summary>
+    public void AttachAnimator(Animator animator, string[] attackNames)
+    {
         _animator = animator;
 
-        string n1 = string.IsNullOrEmpty(attack1Name) ? DefaultAttack1 : attack1Name;
-        string n2 = string.IsNullOrEmpty(attack2Name) ? DefaultAttack2 : attack2Name;
-        _hashAttack1 = Animator.StringToHash(n1);
-        _hashAttack2 = Animator.StringToHash(n2);
-
-        _hasAttack1 = false;
-        _hasAttack2 = false;
+        string[] defaults = { DefaultAttack1, DefaultAttack2, "Attack3", "Attack4" };
+        for (int i = 0; i < 4; i++)
+        {
+            string n = (attackNames != null && i < attackNames.Length && !string.IsNullOrEmpty(attackNames[i]))
+                ? attackNames[i] : defaults[i];
+            _attackHashes[i] = Animator.StringToHash(n);
+            _hasAttack[i]    = false;
+        }
         if (animator != null)
         {
             foreach (var p in animator.parameters)
-            {
-                if (p.nameHash == _hashAttack1) _hasAttack1 = true;
-                if (p.nameHash == _hashAttack2) _hasAttack2 = true;
-            }
+                for (int i = 0; i < 4; i++)
+                    if (p.nameHash == _attackHashes[i]) _hasAttack[i] = true;
         }
     }
 
@@ -469,6 +475,36 @@ public class BattleCardSprites : MonoBehaviour
         // 안전망 — 중단/완료 시 원본 색 복원 (다른 트윈 인터럽트 대비)
         _teleportSeq.OnKill(() => RestoreCardColor());
         _teleportSeq.OnComplete(() => onComplete?.Invoke());
+    }
+
+    /// <summary>
+    /// 순간이동(후방 잔상) — 기획 §11 §3 연출 가이드: 비가시로 사라짐 → 아군 후방에 잔상 출현 → 원위치 재등장.
+    /// preDelay 동안 스킬 모션(Attack4)이 먼저 재생되도록 약간 기다린 뒤 페이드를 시작한다.
+    /// </summary>
+    public void PlayTeleportGhost(Vector3 ghostWorldPos, float preDelay = 0.45f, float fadeDuration = 0.3f, float ghostHold = 0.5f)
+    {
+        CacheOriginalColors();
+        if (_teleportSeq != null && _teleportSeq.IsActive()) _teleportSeq.Kill();
+
+        Vector3 origin = transform.position;
+        _teleportSeq = DOTween.Sequence();
+        if (preDelay > 0f) _teleportSeq.AppendInterval(preDelay);
+
+        var outT = BuildFadeTween(0f, fadeDuration);
+        if (outT != null) _teleportSeq.Append(outT);
+
+        _teleportSeq.AppendCallback(() => transform.position = ghostWorldPos);   // 아군 후방으로 이동
+        var ghostIn = BuildFadeTween(0.45f, fadeDuration * 0.7f);
+        if (ghostIn != null) _teleportSeq.Append(ghostIn);                        // 잔상으로 출현
+        _teleportSeq.AppendInterval(ghostHold);
+        var ghostOut = BuildFadeTween(0f, fadeDuration * 0.7f);
+        if (ghostOut != null) _teleportSeq.Append(ghostOut);
+
+        _teleportSeq.AppendCallback(() => transform.position = origin);          // 원위치 복귀
+        var inT = BuildFadeTween(1f, fadeDuration);
+        if (inT != null) _teleportSeq.Append(inT);
+
+        _teleportSeq.OnKill(() => { transform.position = origin; RestoreCardColor(); });
     }
 
     private Transform ResolveFlipTarget()

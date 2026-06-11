@@ -108,8 +108,24 @@ public partial class BattleManager : Singleton<BattleManager>
     [Tooltip("행동 실행 후 대기 시간 (초). 카드 사이 짧은 텀.")]
     public float actionDelayTime = 0.5f;
 
-    [Tooltip("스킬 발동(OnSkillCast) → 데미지/힐/실드 적용 사이 대기. 모션의 dashForward + holdAttack 합과 동일하게 맞춤. 기본 1.25초.")]
-    public float impactDelay = 1.25f;
+    // 스킬 타이밍 — 카테고리별 (2026-06-10).
+    //  근접: 전진 dash(0.25) 후 휘두름 타이밍에 이펙트+데미지 동시.
+    //  원거리: 시전 윈드업(지팡이 들기) 후 투사체 발사 → 비행(이펙트 길이)이 끝나면 데미지.
+    //  제자리(힐/실드/버프): 시전 후 이펙트+효과 적용.
+    [Tooltip("근접: 전진 dash 후 휘두름 타이밍(이펙트+데미지 동시)까지. 기본 0.55초.")]
+    public float meleeImpactDelay = 0.55f;
+
+    [Tooltip("원거리: 시전 윈드업(지팡이 들기) 후 투사체 발사까지. 기본 0.4초.")]
+    public float rangedCastWindup = 0.4f;
+
+    [Tooltip("원거리: 등록 이펙트 없을 때 투사체 비행 대체 시간. 기본 0.8초.")]
+    public float rangedDefaultTravel = 0.8f;
+
+    [Tooltip("제자리(힐/실드/버프): 시전 후 이펙트+효과 적용까지. 기본 0.7초.")]
+    public float stationaryImpactDelay = 0.7f;
+
+    [Tooltip("전투 진입 로딩 커버 유지 시간(초) — 스폰/정렬 후 이만큼 머문 뒤 페이드로 전투 공개. 기본 0.6초.")]
+    public float battleEntryLoadingHold = 0.6f;
 
     [Tooltip("10층 보스 클리어 시 표시할 엔딩 패널. 미할당 시 콘솔 로그만.")]
     [SerializeField] private GameObject endingPanel;
@@ -147,8 +163,11 @@ public partial class BattleManager : Singleton<BattleManager>
     [Tooltip("턴 종료 후 다음 턴 시작 전 대기 시간 (초)")]
     public float turnTransitionDelay = 1.0f;
 
-    [Tooltip("게임 오버 연출 대기 시간 (초)")]
+    [Tooltip("게임 오버 연출 대기 시간 (초) — 튜토리얼 Win/Lose 팝업 흐름 전용")]
     public float gameOverDelay = 1.5f;
+
+    [Tooltip("전투 종료 → 승리/패배 결과 화면 표시까지 대기 (초). 마지막 처치 연출 호흡용 — 기존 3초(1.5×2)에서 단축 (2026-06-11)")]
+    public float resultPopupDelay = 0.6f;
 
     // ----------------------------------------------------------
     // [탈진 페널티]
@@ -194,6 +213,9 @@ public partial class BattleManager : Singleton<BattleManager>
     {
         // 엔딩 패널은 보스 클리어 시에만 표시 — 진입 시 무조건 비활성화 (부모 PopUp 활성 시 자동 노출 방지)
         if (endingPanel != null) endingPanel.SetActive(false);
+
+        // 전투 진입 즉시 로딩 커버 — 스폰/정렬되는 찰나를 가리고 시간을 번다 (2026-06-11).
+        LoadingScreen.Cover("전투 준비 중");
 
         InitBattle();
         StartCoroutine(BattleLoop());
@@ -337,6 +359,10 @@ public partial class BattleManager : Singleton<BattleManager>
     /// <summary>전투 종료 전까지 페이즈를 반복 실행하는 코루틴</summary>
     private IEnumerator BattleLoop()
     {
+        // 전투 진입 로딩 커버(OnEnable 에서 띄움)를 잠깐 유지 후 페이드로 전투를 공개한다.
+        if (battleEntryLoadingHold > 0f) yield return new WaitForSecondsRealtime(battleEntryLoadingHold);
+        yield return LoadingScreen.UncoverRoutine(0.4f);
+
         while (currentPhase != BattlePhase.BattleEnd)
             yield return StartCoroutine(ExecutePhase(currentPhase));
     }

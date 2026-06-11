@@ -45,10 +45,12 @@ public partial class EnemyData : ScriptableObject
     [Tooltip("RuntimeAnimatorController 의 Resources 기준 경로. 비면 Animator 비활성.")]
     public string animatorPath;
 
-    [Tooltip("모션 트리거 이름. 비면 기본값 Idle/Attack/Attack2 사용.")]
+    [Tooltip("모션 트리거 이름. 비면 기본값 Idle/Attack/Attack2/Attack3/Attack4 사용.")]
     public string idleAnim;
     public string attack1Anim;
     public string attack2Anim;
+    public string attack3Anim;
+    public string attack4Anim;
 
     [Header("메모")]
     [TextArea(2, 4)]

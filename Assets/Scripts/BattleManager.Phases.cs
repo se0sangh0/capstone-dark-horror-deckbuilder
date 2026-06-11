@@ -64,6 +64,9 @@ public partial class BattleManager
             (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
         );
 
+        // 지정(발라트로식 토글)한 카드 소비 확정 — 버튼/스페이스바 등 모든 턴종료 경로 공통. 2026-06-08
+        GameManager.Instance?.ConsumeSelectedCards();
+
         currentPhase = BattlePhase.InitiativeCheck;
     }
 
@@ -151,6 +154,7 @@ public partial class BattleManager
                 e.taunter = null;
                 Debug.Log($"[도발 해제] {e.displayName}");
             }
+            e.OnTauntChanged?.Invoke(); // 상태 칩 갱신 (감소/해제)
         }
 
         // DoT 처리 — 매 턴 끝 아군 dot 누적 적용 후 카운터 -1 (기획 §11 §독침 도트)
@@ -193,13 +197,19 @@ public partial class BattleManager
     private IEnumerator HandleBattleEnd()
     {
         bool allEnemiesDead = enemies.Count > 0 && enemies.All(a => a.isDead);
-
-        yield return new WaitForSeconds(gameOverDelay);
-        DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
-        yield return new WaitForSeconds(gameOverDelay);
-
         // 튜토리얼 모드 분기 — 기획 §15 + 2026-05-29 5노드 시퀀스
         bool isTutorial = TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial;
+
+        // 비-튜토리얼은 새 결과 화면(BattleResultScreen) — 마지막 처치 연출 호흡(resultPopupDelay)만 두고 바로 표시.
+        // 튜토리얼은 기존 Win/Lose 팝업 흐름 유지 (1.5s → 토글 → 1.5s).
+        if (isTutorial)
+        {
+            yield return new WaitForSeconds(gameOverDelay);
+            DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
+            yield return new WaitForSeconds(gameOverDelay);
+        }
+        else
+            yield return new WaitForSeconds(resultPopupDelay);
         if (isTutorial)
         {
             bool isBossRoom = NodeSystem.Current != null && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
@@ -209,7 +219,6 @@ public partial class BattleManager
                 // 일반 적 전투 승리 — 다음 노드로 진행 (일반 흐름과 동일)
                 GameLog.Event("전투 승리!", LogCategory.Reward);
                 Debug.Log("[BattleManager] 튜토리얼 일반 전투 승리 — 다음 노드");
-                AudioManager.Instance?.PlaySfxById(SfxId.Victory);
                 DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
                 DisplayChange.Instance.ToggleDisplay();
                 AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
@@ -221,20 +230,18 @@ public partial class BattleManager
                 // 보스 노드 전멸 — 튜토리얼 완료 (1턴에 전멸시킨 시나리오 그대로 진행)
                 GameLog.Event("튜토리얼 완료!", LogCategory.Reward);
                 Debug.Log("[BattleManager] 튜토리얼 보스 노드 전멸 — 완료 플래그 저장 후 메뉴 복귀");
-                AudioManager.Instance?.PlaySfxById(SfxId.Defeat);
                 yield return new WaitForSeconds(gameOverDelay);
                 TutorialManager.Instance.EndTutorial(markComplete: true);
-                SceneManager.LoadScene("GameStartScene");
+                SceneTransition.Go("GameStartScene");
             }
             else
             {
                 // 일반 노드 패배 — 자동 재시작 (튜토리얼 처음부터)
                 GameLog.Event("다시 도전!", LogCategory.Status);
                 Debug.Log("[BattleManager] 튜토리얼 일반 노드 패배 — 파티 재생성 후 같은 씬 리로드");
-                AudioManager.Instance?.PlaySfxById(SfxId.Defeat);
                 yield return new WaitForSeconds(gameOverDelay);
                 PartyManager.Instance?.ForceReinitParty();
-                SceneManager.LoadScene("GamePlayScene");
+                SceneTransition.Go("GamePlayScene");
             }
             yield break;
         }
@@ -243,14 +250,11 @@ public partial class BattleManager
         {
             GameLog.Event("전투에서 승리했다!", LogCategory.Reward);
             Debug.Log("[BattleManager] 전투 승리!");
-            AudioManager.Instance?.PlaySfxById(SfxId.Victory);
-            // 영혼석 보상은 적 처치 즉시 ProcessDeathAndStress 에서 지급됨 (기획 §15).
-            // GrantBattleReward 는 추가 보상(예: 클리어 보너스) 자리로 남겨둠.
-            GrantBattleReward();
+            // 보상 — 영혼석만 (기획 §15: 전투 보상=영혼석, 처치 시 즉시 누적. 마석 치환은 런 종료 백로그). 팝업엔 합계 표시.
+            int soulGained = enemies.Where(e => e != null).Sum(e => e.soulstoneDrop);
             GrantStressRecovery();
 
-            // 보스 클리어 판정 — 사용자 기획: "보스 오브젝트가 나온 노드 이겼을 때 기준".
-            // enemies 에 Boss tier 가 있었고 + RoomType.Boss 노드 였을 때만 엔딩 (둘 다 만족 필수).
+            // 보스 클리어 판정 — 보스 tier 적 + RoomType.Boss 노드 둘 다 만족 시 엔딩.
             bool bossWasInBattle = enemies.Any(e => e != null && e.tier == EnemyTier.Boss);
             bool isBossRoom      = NodeSystem.Current != null && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
             if (bossWasInBattle && isBossRoom)
@@ -258,33 +262,27 @@ public partial class BattleManager
                 GameLog.Event("보스를 쓰러트렸다!", LogCategory.Reward);
                 Debug.Log("[BattleManager] 🎉 보스 클리어 — 엔딩 진입");
                 ShowEndingPanel("보스 처치\n\n엔딩");
-
-                // 엔딩 표시 후 → 로그라이크 루프(기획 §16): 메인 메뉴로 가지 않고
-                //   예비대/파티/영혼석 초기화 + 마석 유지 + 패시브 해금 화면 → 새 런 첫 노드.
                 yield return new WaitForSeconds(endingDisplayDuration);
                 Debug.Log("[BattleManager] 보스 클리어 — 로그라이크 루프: 리셋 후 새 런 시작 (마석 유지)");
                 StartNextRunLoop();
             }
             else
             {
-                DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
-                DisplayChange.Instance.ToggleDisplay();
-                AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+                // 승리 결과 팝업 (이미지2) — '다음으로' 클릭 시 노드맵으로 진행 (2026-06-11).
+                BattleResultScreen.ShowVictory(soulGained, () =>
+                {
+                    DisplayChange.Instance.ToggleDisplay();
+                    AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+                });
             }
         }
         else
         {
             GameLog.Event("전원 쓰러졌다…", LogCategory.Death);
-            Debug.Log("[BattleManager] 아군 전멸 — 엔딩 팝업 표시 후 로그라이크 루프");
-            AudioManager.Instance?.PlaySfxById(SfxId.Defeat);
-            DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
-            // 기획 §16 — 패배도 보스 클리어와 동일하게 엔딩 팝업(글) 표시 후 로그라이크 루프 (마석 유지).
-            ShowEndingPanel("전원 전멸…\n\n패배");
-            yield return new WaitForSeconds(endingDisplayDuration);
-            Debug.Log("[BattleManager] 전멸 — 로그라이크 루프: 리셋 후 새 런 시작 (마석 유지)");
-            StartNextRunLoop();
+            Debug.Log("[BattleManager] 아군 전멸 — 게임오버 화면 후 로그라이크 루프");
+            // 게임오버 — 전체 어둡게 + 중앙 빨강 볼드 '게임오버'. 클릭 시 로그라이크 루프(마석 유지) (2026-06-11).
+            BattleResultScreen.ShowDefeat(() => StartNextRunLoop());
         }
-
     }
 
     /// <summary>
@@ -327,35 +325,6 @@ public partial class BattleManager
         SceneManager.LoadScene("GamePlayScene");          // 새 런 (노드맵 재생성)
     }
 
-    // ============================================================
-    // 전투 승리 보상 지급 — 노드 타입별 마석 차등
-    // ============================================================
-    //   영혼석은 BattleManager.Combat 에서 적 처치 시 즉시 지급되므로 여기서는 처리하지 않음.
-    //   마석은 메타 재화 — 노드 타입별 차등 지급:
-    //     일반 전투 (RoomType.Combat) → +10
-    //     엘리트 (RoomType.Elite)    → +20
-    //     보스   (RoomType.Boss)     → +30
-    // ============================================================
-    private void GrantBattleReward()
-    {
-        int floor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
-        RoomType room = NodeSystem.Current != null ? NodeSystem.Current.CurrentRoomType : RoomType.Combat;
-
-        int reward = room switch
-        {
-            RoomType.Boss  => 30,
-            RoomType.Elite => 20,
-            _              => 10,   // Combat 및 그 외 안전 폴백
-        };
-
-        if (ManastoneManager.Instance != null)
-        {
-            ManastoneManager.Instance.Add(reward);
-            GameLog.Event($"마석 +{reward} 획득.", LogCategory.Reward);
-            Debug.Log($"[BattleManager] 전투 승리 (층 {floor} / {room}) — 노드 보상 마석 +{reward}");
-        }
-    }
-    
     // 기획 §스트레스 §기본 회복 — 전투 승리: -10
     private void GrantStressRecovery()
     {

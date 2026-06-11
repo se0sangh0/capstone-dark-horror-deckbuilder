@@ -50,13 +50,28 @@ public partial class BattleManager
         // 살아있는 아군이 0명이면 행동 자체가 의미 없음
         if (allies.All(a => a.isDead)) yield break;
 
-        AudioManager.Instance?.PlaySfxById(SfxId.EnemySkill);
-
         // ── 1) 스킬 선택 ────────────────────────────────────────
         var skill = PickEnemySkill(enemy);
 
+        // ── 2) 시전 (사운드/쿨다운/모션/효과) — 디버그 툴도 이 경로를 그대로 재사용 ──
+        yield return StartCoroutine(ExecuteEnemySkillCast(enemy, skill));
+    }
+
+    /// <summary>
+    /// 선택된 스킬 1개의 실제 시전 — 사운드/쿨다운/모션 트리거/효과(데미지·소환·순간이동·수확) 전부.
+    /// ExecuteEnemyTurn(스킬 자동선택) 과 DebugCastAllEnemySkills(인덱스 지정) 가 공유한다. (2026-06-11 분리)
+    /// </summary>
+    private IEnumerator ExecuteEnemySkillCast(EnemyData enemy, EnemySkillData skill)
+    {
+        // 적 스킬음 — 도끼 던지기(약탈자)는 전용음, 그 외는 일반 적 스킬음. (2026-06-09)
+        if (skill != null && (skill.displayName ?? "").Contains("도끼 던지기"))
+            AudioManager.Instance?.PlaySfxById(SfxId.SkillAxeThrow);
+        else
+            AudioManager.Instance?.PlaySfxById(SfxId.EnemySkill);
+
         // 선택된 스킬에 cooldown 설정이 있으면 즉시 시작 (다음 N 턴 동안 룰렛 제외).
-        if (skill != null && skill.cooldownTurns > 0)
+        // 단 소환 스킬은 예외 — 기획 §11 §3: 재소환 쿨다운은 '까마귀 처치/만료 시점'부터 (ExecuteSummonSkill 의 OnDied 훅이 시작).
+        if (skill != null && skill.cooldownTurns > 0 && skill.effectType != "Summon")
         {
             enemy.StartSkillCooldown(skill.id, skill.cooldownTurns);
             Debug.Log($"[적 스킬/쿨다운 시작] {enemy.displayName} → {skill.displayName} | {skill.cooldownTurns}턴 동안 사용 불가");
@@ -76,14 +91,14 @@ public partial class BattleManager
             var firstAlive = allies.FirstOrDefault(a => !a.isDead);
             if (firstAlive == null) yield break;
 
-            yield return new WaitForSeconds(impactDelay);
+            yield return new WaitForSeconds(meleeImpactDelay);   // 아군과 동일 — 휘두르는 순간 데미지
             ApplyDamageToAlly(firstAlive, enemy.attackPower);
             GameLog.Event($"{enemy.displayName}이(가) {firstAlive.displayName ?? firstAlive.positionStack.ToString()}을(를) 공격!", LogCategory.Skill);
             Debug.Log($"[적 행동/Fallback] {enemy.displayName} → {firstAlive.positionStack} 에게 {enemy.attackPower} 데미지 (스킬 미정의)");
             yield break;
         }
 
-        // ── 2) effectType 별 분기 — Summon/Teleport 는 즉시 효과 (모션 없음, impactDelay 불필요)
+        // ── 2) effectType 별 분기 — Summon/Teleport 는 즉시 효과 (모션 없음, 타격 대기 불필요)
         if (skill.effectType == "Summon")
         {
             ExecuteSummonSkill(enemy, skill);
@@ -91,7 +106,7 @@ public partial class BattleManager
         }
         if (skill.effectType == "Teleport")
         {
-            ExecuteTeleportSkill(enemy, skill);
+            yield return StartCoroutine(ExecuteTeleportSkill(enemy, skill));   // 연출 완료 후 배치 역전까지 대기
             yield break;
         }
         if (skill.effectType == "Harvest")
@@ -119,8 +134,8 @@ public partial class BattleManager
         Debug.Log($"│  설명: {skill.description}");
         Debug.Log($"└─────────────────────────────────────────");
 
-        // 모션 (forward dash + hold) 끝 후 데미지 적용
-        yield return new WaitForSeconds(impactDelay);
+        // 타격 순간(전진 후 휘두를 때) 데미지 적용 — 아군 근접과 동일 타이밍 (기존: 모션 종료 후 1.25s 라 늦게 들어갔음)
+        yield return new WaitForSeconds(meleeImpactDelay);
         foreach (var t in targets)
         {
             ApplyDamageToAlly(t, skill.power);
@@ -179,6 +194,18 @@ public partial class BattleManager
             RaiseEnemySpawned(summoned); // 시각 카드/이펙트/사운드 구독자에게 알림 (BattleCardView 가 이 시점에 BindEnemy 호출, 초기 표시는 BindEnemy 내부에서 처리)
             GameLog.Event($"{summoned.displayName}이(가) 등장!", LogCategory.Skill);
             Debug.Log($"  └ [소환됨] {summoned.displayName} (수명 {summoned.summonLifeTurns}턴 / {summoned.hitCountToDie} hit 처치)");
+
+            // 기획 §11 §3 — 재소환 쿨다운 3턴은 '까마귀가 죽은 시점'(처치·자폭 공통)부터 시작.
+            // 마지막으로 죽은 까마귀 기준으로 갱신된다 (OnDied 는 CurrentHp=0 시 1회 발동).
+            var owner   = caster;
+            var skillId = skill.id;
+            int cd      = Mathf.Max(1, skill.cooldownTurns);
+            summoned.OnDied += () =>
+            {
+                if (owner == null || owner.isDead) return;
+                owner.StartSkillCooldown(skillId, cd);
+                Debug.Log($"[소환체 사망] {owner.displayName} — 재소환 쿨다운 {cd}턴 시작 (기획: 처치 시점 기준)");
+            };
         }
 
         // TODO[K]: 보스 상태머신 — 까마귀 소환했으므로 다음 만료까지 추적.
@@ -345,26 +372,8 @@ public partial class BattleManager
             }
         }
 
-        // [J] 보스 — 필드에 까마귀가 한 마리도 없으면 까마귀 부름 강제 발동.
-        //     사용자 기획: "필드에 까마귀가 없을 시 소환 (룰렛 무관, 확정 발동)"
-        //     단 cooldown 잔여가 있으면 강제 안 함 (cooldown 우선).
-        if (enemy.tier == EnemyTier.Boss && !enemy.pendingTeleport)
-        {
-            const string SUMMON = "enemy_skill_reaper_summon";
-            if (enemy.GetSkillCooldown(SUMMON) <= 0)
-            {
-                bool crowAlive = enemies.Any(e => e != null && !e.isDead && e.id == "enemy_crow_01");
-                if (!crowAlive)
-                {
-                    var summon = EnemySkillDatabase.Instance.GetSkill(SUMMON);
-                    if (summon != null)
-                    {
-                        Debug.Log($"[적 스킬/강제] {enemy.displayName} → 까마귀 부름 (필드에 까마귀 없음 → 확정 발동)");
-                        return summon;
-                    }
-                }
-            }
-        }
+        // [J] (폐기, 2026-06-11) "필드에 까마귀 없으면 확정 소환" 규칙 제거 — 사용자 결정으로 기획 §11 §3 원안 복귀:
+        //     기본 상태 매 턴 60% 휘두르기 / 40% 까마귀 부름 룰렛. (생존 중·쿨다운 중 제외는 룰렛 가드가 처리)
 
         // [K] 보스 — 까마귀 부름 실패(수명 만료) 후 다음 턴 순간이동 강제 발동
         //     기획 §11 §3 거두는 자 §행동 패턴 [순간이동 상태]
@@ -399,8 +408,8 @@ public partial class BattleManager
         Debug.Log($"│ [적 스킬·수확] {caster.displayName} → {skill.displayName} (각 아군 {skill.power} 데미지 + 드레인)");
         Debug.Log($"└─────────────────────────────────────────");
 
-        // 모션 (forward dash + hold) 끝 후 데미지 + 드레인 적용
-        yield return new WaitForSeconds(impactDelay);
+        // 타격 순간 데미지 + 드레인 적용 — 아군 근접과 동일 타이밍
+        yield return new WaitForSeconds(meleeImpactDelay);
 
         int totalDrain = 0;
         foreach (var ally in allies)
@@ -435,28 +444,47 @@ public partial class BattleManager
     //   [탱커, 딜러, 서포터, 힐러] → [힐러, 서포터, 딜러, 탱커]
     //   allies 리스트 전체 reverse (사망 자리 빈칸 포함).
     // ============================================================
-    private void ExecuteTeleportSkill(EnemyData caster, EnemySkillData skill)
+    private IEnumerator ExecuteTeleportSkill(EnemyData caster, EnemySkillData skill)
     {
         Debug.Log($"┌─────────────────────────────────────────");
         Debug.Log($"│ [적 스킬·순간이동] {caster.displayName} → {skill.displayName}");
         Debug.Log($"│  효과: 파티 배치 순서 역전");
         Debug.Log($"└─────────────────────────────────────────");
 
+        // ① 연출 먼저 — 기획 §11 §3 가이드: Attack3 모션 → 비가시 → 아군 후방 잔상 → 원위치 재등장.
+        //    배치 역전은 모션이 전부 끝난 뒤에 (사용자 요청 2026-06-11).
+        float visualTotal = 0.6f;   // 폴백(연출 생략) 시 최소 호흡
+        var bossCardSprites = FindCardSprites(caster);
+        if (bossCardSprites != null)
+        {
+            float backX = float.MaxValue;
+            foreach (var v in Object.FindObjectsByType<BattleCardView>(FindObjectsSortMode.None))
+                if (v != null && v.Fellow != null && !v.Fellow.isDead)
+                    backX = Mathf.Min(backX, v.transform.position.x);
+            if (backX < float.MaxValue)
+            {
+                var p = bossCardSprites.transform.position;
+                bossCardSprites.PlayTeleportGhost(new Vector3(backX - 1.6f, p.y, p.z));
+                visualTotal = 2.1f;   // preDelay 0.45 + 페이드들 + 잔상 0.5 ≈ 2.0
+            }
+            else { bossCardSprites.PlayTeleport(); visualTotal = 0.9f; }   // 아군 전멸 등 — 기본 페이드 폴백
+        }
+        else
+            Debug.LogWarning($"[Teleport] {caster.displayName} 의 BattleCardView 를 찾지 못해 연출 생략.");
+        yield return new WaitForSeconds(visualTotal);
+
+        // ② 모션 종료 후 배치 역전 + 카드 순차 재배치
         string before = string.Join(", ",
             allies.Select(a => !string.IsNullOrEmpty(a?.displayName) ? a.displayName : (a?.positionStack.ToString() ?? "?")));
         allies.Reverse();
+        for (int i = 0; i < allies.Count; i++)
+            if (allies[i] != null) allies[i].battleSlotIndex = i;
+        DefaultSetting.AllyLayout?.RelayoutNow();
         string after = string.Join(", ",
             allies.Select(a => !string.IsNullOrEmpty(a?.displayName) ? a.displayName : (a?.positionStack.ToString() ?? "?")));
         GameLog.Event($"{caster.displayName}이(가) 진형을 뒤바꿨다!", LogCategory.Skill);
         Debug.Log($"  └ [순간이동] 배치 역전: [{before}] → [{after}]");
-
-        // 보스 카드 비가시 연출 — fade out → 대기 → fade in.
-        // 시각적으로 "보스가 순간이동하는" 느낌만 추가 (실제 위치는 동일).
-        var bossCardSprites = FindCardSprites(caster);
-        if (bossCardSprites != null)
-            bossCardSprites.PlayTeleport();
-        else
-            Debug.LogWarning($"[Teleport] {caster.displayName} 의 BattleCardView 를 찾지 못해 연출 생략.");
+        yield return new WaitForSeconds(DefaultSetting.RelayoutDuration + DefaultSetting.RelayoutStagger * 3f);
     }
 
     /// <summary>EnemyData 에 바인딩된 BattleCardView 의 BattleCardSprites 를 반환. 없으면 null.</summary>

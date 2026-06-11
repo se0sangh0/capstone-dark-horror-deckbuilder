@@ -31,6 +31,8 @@ public class EnemyDef
     public string idleAnim;
     public string attack1Anim;
     public string attack2Anim;
+    public string attack3Anim;   // 보스 3번 스킬(수확) 트리거 — 비면 "Attack3" 폴백
+    public string attack4Anim;   // 보스 4번 스킬(순간이동) 트리거 — 비면 "Attack4" 폴백
 }
 
 [System.Serializable]

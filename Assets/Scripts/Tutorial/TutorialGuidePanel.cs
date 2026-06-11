@@ -115,7 +115,6 @@ public class TutorialGuidePanel : MonoBehaviour
             case TutorialManager.DialogueId.CombatIntro:    return handTarget;
             case TutorialManager.DialogueId.ResultIntro:    return handTarget;
             case TutorialManager.DialogueId.EnemyTurnIntro: return enemyTarget;
-            case TutorialManager.DialogueId.EliteIntro:     return enemyTarget;
             case TutorialManager.DialogueId.BossIntro:      return enemyTarget;
             default:                                        return null;
         }
@@ -162,15 +161,13 @@ public class TutorialGuidePanel : MonoBehaviour
 
     private void OnConfirmClicked()
     {
-        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
         Hide();
     }
 
     private void OnMainMenuClicked()
     {
-        AudioManager.Instance?.PlaySfxById(SfxId.Confirm);
         if (TutorialManager.Instance != null) TutorialManager.Instance.EndTutorial(markComplete: true);
         Debug.Log("[TutorialGuidePanel] [메인 메뉴로] 클릭 — 메뉴 복귀");
-        SceneManager.LoadScene(mainMenuSceneName);
+        SceneTransition.Go(mainMenuSceneName);
     }
 }

@@ -6,7 +6,7 @@
       "tier": "Weak",
       "maxHp": 150,
       "attackPower": 15,
-      "attackCost": 1,
+      "attackCost": 3,
       "skillId": "",
       "skillIds": [
         "enemy_skill_goblin_dagger",
@@ -16,7 +16,7 @@
       "visualScale": 0.85,
       "flipSprite": true,
       "animatorPath": "Animators/Enemies/Goblin/Goblin",
-      "soulstoneDrop": 0
+      "soulstoneDrop": 8
     },
     {
       "id": "enemy_raider_01",
@@ -24,7 +24,7 @@
       "tier": "Normal",
       "maxHp": 250,
       "attackPower": 20,
-      "attackCost": 2,
+      "attackCost": 4,
       "skillId": "",
       "skillIds": [
         "enemy_skill_raider_swing",
@@ -32,8 +32,9 @@
       ],
       "spritePath": "Characters/test_enemy_goblin",
       "visualScale": 1.0,
-      "animatorPath": "",
-      "soulstoneDrop": 0
+      "flipSprite": true,
+      "animatorPath": "Animators/Enemies/Wolf/Wolf",
+      "soulstoneDrop": 12
     },
     {
       "id": "enemy_reaper_boss",
@@ -41,17 +42,23 @@
       "tier": "Boss",
       "maxHp": 700,
       "attackPower": 30,
-      "attackCost": 4,
+      "attackCost": 10,
       "skillId": "",
       "skillIds": [
         "enemy_skill_reaper_swing",
         "enemy_skill_reaper_summon",
-        "enemy_skill_reaper_harvest"
+        "enemy_skill_reaper_harvest",
+        "enemy_skill_reaper_teleport"
       ],
       "spritePath": "Characters/test_enemy_goblin",
       "visualScale": 1.25,
-      "animatorPath": "",
-      "soulstoneDrop": 0
+      "flipSprite": true,
+      "animatorPath": "Animators/Enemies/Scarecrow/Scarecrow",
+      "attack1Anim": "Attack1",
+      "attack2Anim": "Attack2",
+      "attack3Anim": "Attack4",
+      "attack4Anim": "Attack3",
+      "soulstoneDrop": 20
     },
     {
       "id": "enemy_crow_01",
@@ -64,7 +71,8 @@
       "skillIds": [],
       "spritePath": "Characters/test_enemy_goblin",
       "visualScale": 0.6,
-      "animatorPath": "",
+      "flipSprite": true,
+      "animatorPath": "Animators/Enemies/Crow/Crow",
       "hitCountToDie": 2,
       "summonLifeTurns": 3,
       "expirePenaltyPower": 40,

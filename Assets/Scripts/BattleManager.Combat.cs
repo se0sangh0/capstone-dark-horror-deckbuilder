@@ -149,10 +149,13 @@ public partial class BattleManager
                     if (allies.Remove(f)) allies.Insert(0, f);
                 for (int i = 0; i < allies.Count; i++)
                     if (allies[i] != null) allies[i].battleSlotIndex = i;
+                // 사전 호흡 — 직전 행동 연출과 재정렬을 분리해 "재정렬 시작"이 읽히게 (겹침 체감 개선, 사용자 요청).
+                yield return new WaitForSeconds(0.25f);
                 DefaultSetting.AllyLayout?.RelayoutNow();
-                Debug.Log($"[아군 미행동] {noAction.Count}명 → allies 맨 앞으로 재정렬 (진형/위치 변경)");
-                // 진형 재배치(카드 이동) 애니메이션이 끝날 때까지 대기 — 적이 배치 변경 도중 공격하지 않도록 (사용자 요청).
-                yield return new WaitForSeconds(DefaultSetting.RelayoutDuration);
+                Debug.Log($"[아군 미행동] {noAction.Count}명 → allies 맨 앞으로 재정렬 (진형/위치 변경, 순차 이동)");
+                // 진형 재배치(카드 순차 이동 포함)가 끝날 때까지 대기 — 적이 배치 변경 도중 공격하지 않도록.
+                int aliveAllies = allies.Count(f => f != null && !f.isDead);
+                yield return new WaitForSeconds(DefaultSetting.RelayoutDuration + DefaultSetting.RelayoutStagger * Mathf.Max(0, aliveAllies - 1));
             }
         }
         else
@@ -535,7 +538,7 @@ public partial class BattleManager
     // 스킬 실행
     // ===========================================================
 
-    /// <summary>동료가 스킬을 사용한다. OnSkillCast 모션 발동 후 impactDelay 대기 → 데미지/힐/실드 적용.</summary>
+    /// <summary>동료가 스킬을 사용한다. OnSkillCast 모션 발동 후 카테고리별 타이밍(근접=휘두름 순간 / 원거리=이펙트 종료 후 / 제자리)으로 이펙트+데미지/힐/실드 적용.</summary>
     private IEnumerator UseSkill(FellowData user, SkillData skill)
     {
         // 기획 백로그 §5 성급 — 데미지 배율 1.25^(star-1) 적용 (배율은 FellowData 가 보유)
@@ -570,9 +573,36 @@ public partial class BattleManager
         // 동료 스킬은 isRanged=false (jobClass="캐스터" 면 Resolver 가 자동으로 Ranged 처리)
         user.OnSkillCast?.Invoke(skill.effectType, skillIndex, skill.isRanged);
 
-        // 모션 (forward dash + 공격 hold) 이 끝나는 시점까지 대기 — 그 후 데미지/힐/실드 적용.
-        // back dash 는 적용 후 진행 (스킬 결과 즉시 보임).
-        yield return new WaitForSeconds(impactDelay);
+        // 스킬 전용음은 '시전'이 아니라 '타격 순간' 에 재생 — 아래 임팩트 지점에서 _castImpactSfx 로 처리 (사용자 요청 2026-06-11).
+
+        // ── 카테고리별 타이밍 + 이펙트 (2026-06-10) ─────────────────────────────
+        //  Ranged     : 시전 윈드업 → 지팡이에서 투사체 발사 → 비행(이펙트 길이)이 끝난 뒤 데미지.
+        //  Melee      : 전진 dash 후 '휘두르는 순간' 에 이펙트+데미지 동시 (발도/일섬/무모한강타 등).
+        //  Stationary : 시전 후 이펙트와 함께 힐/실드/버프 적용.
+        var motionCat = MotionCategoryResolver.Resolve(user.jobClass, skill.effectType, skill.isRanged);
+        bool hasFx = SkillEffectFx.Has(skill.id);
+
+        if (motionCat == MotionCategory.Ranged)
+        {
+            yield return new WaitForSeconds(rangedCastWindup);
+            if (hasFx) SkillEffectFx.Play(skill.id, GetUnitFxPos(user), GetPrimaryEnemyFxPos(user));
+            float travel = hasFx ? SkillEffectFx.GetDuration(skill.id) : rangedDefaultTravel;
+            yield return new WaitForSeconds(travel);   // 투사체가 적에 도달/이펙트 종료 후 데미지
+        }
+        else if (motionCat == MotionCategory.Melee)
+        {
+            yield return new WaitForSeconds(meleeImpactDelay);  // 전진 후 휘두르는 순간
+            if (hasFx) SkillEffectFx.Play(skill.id, GetUnitFxPos(user), GetPrimaryEnemyFxPos(user)); // 휘두름과 동시
+        }
+        else // Stationary (힐/실드/버프)
+        {
+            yield return new WaitForSeconds(stationaryImpactDelay);
+            if (hasFx) SkillEffectFx.Play(skill.id, GetUnitFxPos(user), GetPrimaryEnemyFxPos(user));
+        }
+
+        // 스킬 전용음 — 부여된 스킬은 타격 순간에 전용음이 '디폴트 타격음 대신' 1회 재생 (DealDamageToEnemy 가 소비).
+        _castImpactSfx = SkillCustomImpactSfx(skill);
+        _castImpactSfxPlayed = false;
 
         switch (skill.effectType)
         {
@@ -596,6 +626,42 @@ public partial class BattleManager
 
             default:       Debug.LogWarning($"[UseSkill] 알 수 없는 effectType: '{skill.effectType}'");       break;
         }
+
+        _castImpactSfx = SfxId.None;   // 이번 시전 종료 — 다음 시전/일반 공격은 디폴트 타격음으로
+    }
+
+    // ── 스킬 전용 타격음 (2026-06-11) ────────────────────────────────
+    //   부여된 스킬은 '맞는 순간' 디폴트 타격음(AttackSword) 대신 전용음을 1회 재생.
+    //   (피격 반응음 HurtEnemy 는 그대로 유지)
+    private SfxId _castImpactSfx = SfxId.None;
+    private bool  _castImpactSfxPlayed;
+
+    private static SfxId SkillCustomImpactSfx(SkillData skill)
+    {
+        string n = skill.displayName ?? "";
+        if (n.Contains("파이어볼")) return SfxId.SkillFireball;
+        if (n.Contains("무모한 강타") || n.Contains("매직 미사일")) return SfxId.SkillStrike;
+        return SfxId.None;
+    }
+
+    // ── 스킬 이펙트 위치 헬퍼 (2026-06-10) — 유닛에 바인딩된 BattleCardView 의 월드 위치 ──
+    private Vector3 GetUnitFxPos(FellowData u)
+    {
+        if (u != null)
+            foreach (var v in Object.FindObjectsByType<BattleCardView>(FindObjectsSortMode.None))
+                if (v != null && v.Fellow == u) return v.transform.position;
+        return Vector3.zero;
+    }
+    private Vector3 GetPrimaryEnemyFxPos(FellowData fallbackUser)
+    {
+        var live = enemies.Where(e => e != null && !e.isDead).ToList();
+        if (live.Count > 0)
+        {
+            var t = live[0];
+            foreach (var v in Object.FindObjectsByType<BattleCardView>(FindObjectsSortMode.None))
+                if (v != null && v.Enemy == t) return v.transform.position;
+        }
+        return GetUnitFxPos(fallbackUser);
     }
 
     /// <summary>
@@ -641,6 +707,7 @@ public partial class BattleManager
         {
             e.tauntTurnsLeft = turns;
             e.taunter = user;
+            e.OnTauntChanged?.Invoke(); // 상태 칩 갱신
             applied++;
         }
         GameLog.Event($"{user.displayName}이(가) {applied}마리 적을 {turns}턴 도발!", LogCategory.Status);
@@ -828,7 +895,17 @@ public partial class BattleManager
     /// </summary>
     private void DealDamageToEnemy(EnemyData target, int power)
     {
-        AudioManager.Instance?.PlaySfxById(SfxId.AttackSword);
+        // 전용음 부여 스킬이면 디폴트 타격음 대신 전용음 1회 (AOE 도 첫 타격에서만)
+        if (_castImpactSfx != SfxId.None)
+        {
+            if (!_castImpactSfxPlayed)
+            {
+                AudioManager.Instance?.PlaySfxById(_castImpactSfx);
+                _castImpactSfxPlayed = true;
+            }
+        }
+        else
+            AudioManager.Instance?.PlaySfxById(SfxId.AttackSword);
         AudioManager.Instance?.PlaySfxById(SfxId.HurtEnemy);
         // 적은 쉴드 없음 — 흡수=0, HP 감소=power
         if (power > 0) target.OnDamaged?.Invoke(0, power);

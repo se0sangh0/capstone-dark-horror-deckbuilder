@@ -51,7 +51,11 @@ public class RecruitPanel : PanelBase
     [Header("닫기")]
     [SerializeField] private Button closeButton;
 
+    [Header("실패/경고 메시지 (기획 §7-1)")]
+    [SerializeField] private TMP_Text statusLabel;
+
     private readonly List<FellowCardView> _candidateCards = new();
+    private Coroutine _toastRoutine;
 
     protected override void Awake()
     {
@@ -164,14 +168,39 @@ public class RecruitPanel : PanelBase
     {
         if (MercenaryService.Instance == null) return;
         bool ok = MercenaryService.Instance.TryHire(candidateIndex);
-        if (ok) RebuildAll();
+        if (ok) { RebuildAll(); return; }
+
+        // 기획 §7-1 — 실패 사유를 화면에 표시
+        var list = MercenaryService.Instance.Candidates;
+        var cand = (candidateIndex >= 0 && candidateIndex < list.Count) ? list[candidateIndex] : null;
+        if (cand != null && SoulstoneManager.Instance != null && SoulstoneManager.Instance.Amount < cand.recruitCost)
+            ShowToast($"영혼석이 부족합니다 (필요 {cand.recruitCost})");
+        else
+            ShowToast("파티와 예비대가 가득 찼습니다");
     }
 
     private void HandleReroll()
     {
         if (MercenaryService.Instance == null) return;
         bool ok = MercenaryService.Instance.TryReroll();
-        if (ok) RebuildAll();
+        if (ok) { RebuildAll(); return; }
+        ShowToast($"영혼석이 부족합니다 (필요 {MercenaryService.Instance.NextRerollCost})");
+    }
+
+    // 기획 §7-1/§8-3 — 실패 사유 표시 (빨간색, 2초 후 자동 소거)
+    private void ShowToast(string msg)
+    {
+        if (statusLabel == null) return;
+        statusLabel.text = msg;
+        if (_toastRoutine != null) StopCoroutine(_toastRoutine);
+        _toastRoutine = StartCoroutine(ClearToastAfter(2f));
+    }
+
+    private System.Collections.IEnumerator ClearToastAfter(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        if (statusLabel != null) statusLabel.text = string.Empty;
+        _toastRoutine = null;
     }
 
     private void HandleOpenFellowList()

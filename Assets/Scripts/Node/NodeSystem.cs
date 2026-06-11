@@ -143,11 +143,11 @@ public class NodeSystem : MonoBehaviour
     [SerializeField] private MercenaryOfficePanel mercenaryOfficePanel;
 
     [Header("화툿불 (Rest 노드 — 선택)")]
-    [Tooltip("Rest(화툿불) 노드 클릭 시 열릴 패널. 9층 고정. 비어있으면 회복 없이 다음 층 진행.")]
+    [Tooltip("Rest(화툿불) 노드 클릭 시 열릴 패널. MVP 고정맵 layer4. 비어있으면 회복 없이 다음 층 진행.")]
     [SerializeField] private RestPanel restPanel;
 
-    [Header("교회 (Event 노드)")]
-    [Tooltip("Event(교회) 노드 클릭 시 열릴 패널. 비어있으면 안내 로그만 출력하고 다음 층 진행.")]
+    [Header("교회 (Event 랜덤노드 결과 중 하나)")]
+    [Tooltip("Event 노드(용병소/교회/엘리트 랜덤) 결과가 교회일 때 열릴 패널. 비어있으면 안내 로그만 출력하고 다음 층 진행.")]
     [SerializeField] private ChurchPanel churchPanel;
 
     // ----------------------------------------------------------
@@ -314,6 +314,7 @@ public class NodeSystem : MonoBehaviour
     private static readonly Color BorderPassed  = new Color(0.30f, 0.85f, 0.35f, 1f); // 지나온(현재 위치 포함) = 초록
     private static readonly Color BorderCurrent = new Color(1.00f, 0.85f, 0.25f, 1f); // 현재 클릭 가능 = 금색
     private static readonly Color BorderNone    = new Color(0f, 0f, 0f, 0f);          // 잠김/미선택 = 없음
+    private static readonly Color StartFrameColor = new Color(0.42f, 0.60f, 0.95f, 1f); // 시작 노드 원형 = 파랑 (추후 기지/발판 아이콘)
 
     public void UpdateNodeStates()
     {
@@ -366,10 +367,36 @@ public class NodeSystem : MonoBehaviour
                 }
 
                 btn.interactable = interactable;
+
+                // 겉 — 원형 컬러 버튼 (런타임 흰 원 + 타입색 틴트). 시작은 별도 색. (2026-06-09 교체)
                 if (img != null)
-                    img.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+                {
+                    var circle = CircleFrameSprite();
+                    if (circle != null)
+                    {
+                        img.sprite         = circle;
+                        img.type           = Image.Type.Simple;
+                        img.preserveAspect = true; // 버튼이 정사각이 아니어도 원형 유지
+                    }
+                    Color fc = isStart ? StartFrameColor : baseColor;
+                    img.color = new Color(fc.r, fc.g, fc.b, alpha);
+                }
                 if (ol != null)
                     ol.effectColor = border;
+
+                // 안 — 타입 아이콘 (전투=십자검/보스=해골만, 나머지는 비움). (2026-06-09 교체)
+                Image icon = EnsureNodeTypeIcon(btn);
+                if (icon != null)
+                {
+                    Sprite ic = NodeInnerIconFor(type, isStart);
+                    if (ic != null)
+                    {
+                        icon.sprite  = ic;
+                        icon.enabled = true;
+                        icon.color   = new Color(1f, 1f, 1f, Mathf.Min(1f, alpha + 0.2f));
+                    }
+                    else icon.enabled = false; // 비움 (시작/Event/화톳불 — 추후 아이콘 소싱)
+                }
             }
         }
 
@@ -542,6 +569,84 @@ public class NodeSystem : MonoBehaviour
     };
 
     // ----------------------------------------------------------
+    // 노드 표시 — 원형 프레임(버튼) + 안쪽 타입 아이콘. (2026-06-09 교체)
+    //   겉: 원형 컬러 버튼 (런타임 생성 흰 원 + 타입색 틴트)
+    //   안: 타입 아이콘 — 시작=깃발 / 전투=십자검 / 화톳불=모닥불 / 랜덤(Event)=물음표 / 보스=해골.
+    //   (전부 1-bit_Pixel_Icons 팩 → Resources/Icons/node_*.png, 흰색 1-bit 실루엣)
+    // ----------------------------------------------------------
+
+    // 런타임 생성 흰 원 — 빌트인 Knob 이 Unity 6 에서 null 이라 직접 생성. 타입색으로 틴트해 원형 버튼으로 사용.
+    private static Sprite _circleFrame;
+    private static Sprite CircleFrameSprite()
+    {
+        if (_circleFrame == null)
+        {
+            const int S = 64; float c = (S - 1) * 0.5f; float rad = S * 0.5f - 1.5f;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            var px = new Color32[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                    float a = Mathf.Clamp01(rad - d + 0.5f); // 가장자리 1px 안티에일리어싱
+                    px[y * S + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            tex.SetPixels32(px); tex.Apply();
+            _circleFrame = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100f);
+        }
+        return _circleFrame;
+    }
+
+    // Resources/Icons/ 의 단독 PNG 아이콘 로드(캐시). 노드 전용 아이콘(깃발/모닥불/물음표)용.
+    private static readonly Dictionary<string, Sprite> _iconCache = new();
+    private static Sprite IconSprite(string resName)
+    {
+        if (!_iconCache.TryGetValue(resName, out var sp))
+        {
+            sp = Resources.Load<Sprite>("Icons/" + resName);
+            _iconCache[resName] = sp;
+        }
+        return sp;
+    }
+
+    /// <summary>노드 안쪽 타입 아이콘. 시작=깃발 / 전투=십자검 / 화톳불=모닥불 / 랜덤(Event)=물음표 / 보스=해골.</summary>
+    private static Sprite NodeInnerIconFor(RoomType type, bool isStart)
+    {
+        if (isStart) return IconSprite("node_start");                // 깃발 = 시작
+        switch (type)
+        {
+            case RoomType.Combat: return IconSprite("node_combat");   // 십자검 = 전투
+            case RoomType.Boss:   return IconSprite("node_boss");     // 해골 = 보스
+            case RoomType.Rest:   return IconSprite("node_rest");     // 모닥불 = 화톳불
+            case RoomType.Event:  return IconSprite("node_event");    // 물음표 = 랜덤노드(엘리트/용병소/교회)
+            default:              return null;                        // Shop(튜토리얼)/엘리트 등 = 비움
+        }
+    }
+
+    /// <summary>노드 버튼 중앙에 타입 마커 아이콘 Image 를 보장(없으면 생성). 클릭 방해 안 함.</summary>
+    private static Image EnsureNodeTypeIcon(Button btn)
+    {
+        if (btn == null) return null;
+        var existing = btn.transform.Find("TypeIcon");
+        if (existing != null) return existing.GetComponent<Image>();
+
+        var go = new GameObject("TypeIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(btn.transform, false);
+
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        var brt = btn.GetComponent<RectTransform>();
+        float sz = (brt != null ? Mathf.Min(brt.rect.width, brt.rect.height) : 48f) * 0.6f;
+        rt.sizeDelta = new Vector2(sz, sz);
+
+        var img = go.GetComponent<Image>();
+        img.raycastTarget = false;   // 버튼 클릭 그대로 통과
+        img.preserveAspect = true;
+        return img;
+    }
+
+    // ----------------------------------------------------------
     // 노드 클릭 처리 — RoomType 별 분기
     // ----------------------------------------------------------
     /// <summary>
@@ -585,6 +690,7 @@ public class NodeSystem : MonoBehaviour
 
         // 1) 선택된 버튼 기록
         nodeRows[row].selectedButtonIndex = col;
+        AudioManager.Instance?.PlaySfxByIdClipped(SfxId.NodeMove, 1.2f); // 노드 클릭음 — 원본 9초라 1.2초만 재생 후 끊음
 
         // 2) 클릭된 노드의 RoomType 조회
         RoomType type = GetRoomTypeAt(row, col);
@@ -627,18 +733,17 @@ public class NodeSystem : MonoBehaviour
             switch (type)
             {
                 case RoomType.Combat: tm.TryShowDialogue(TutorialManager.DialogueId.CombatIntro); break;
-                case RoomType.Elite:  tm.TryShowDialogue(TutorialManager.DialogueId.EliteIntro);  break;
                 case RoomType.Boss:   tm.TryShowDialogue(TutorialManager.DialogueId.BossIntro);   break;
                 case RoomType.Shop:   tm.TryShowDialogue(TutorialManager.DialogueId.ShopIntro);   break;
-                case RoomType.Event:  tm.TryShowDialogue(TutorialManager.DialogueId.ChurchIntro); break;
+                case RoomType.Rest:   tm.TryShowDialogue(TutorialManager.DialogueId.RestIntro);  break;
             }
         }
 
         // ============================================================
-        // 2026-06-08 노드 재설계
-        //   • 이벤트 노드(RoomType.Event) = 진입 시 교회/엘리트 1:1 랜덤. eventWeight=0 이라 현재는 생성 안 됨.
-        //   • 용병소(Shop)는 노드에서 제거 — 전투 승리 후 BattleManager 가 자동 오픈(layer1·2·3).
-        //     (Shop case 는 튜토리얼 맵 전용으로만 남김.)
+        // 2026-06-09 MVP 고정 일렬 맵 (기획 §12) + 랜덤 노드
+        //   시퀀스 = 시작 > 전투 > 랜덤노드(Event) > 전투 > 화톳불(Rest) > 보스.
+        //   Event = 용병소/교회/엘리트 통합 '클릭 시 3개 중 1개' 랜덤 노드.
+        //     발표용으로 EventOutcomeWeights = 100/0/0 → 용병소만 등장하도록 조작.
         // ============================================================
 
         switch (type)
@@ -647,8 +752,12 @@ public class NodeSystem : MonoBehaviour
             case RoomType.Combat:
             case RoomType.Elite:
             case RoomType.Boss:
+                AudioManager.Instance?.PlaySfxByIdClipped(SfxId.NodeEnter, 1.5f); // 문 열림 원본이 길어 1.5초만 재생 (보스 진입 시 계속 울리던 문제)
                 DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
-                AudioManager.Instance?.PlayBgmById(BgmId.Battle);
+                if (type == RoomType.Boss)
+                    AudioManager.Instance?.PlayBgmById(BgmId.Boss, loop: false);   // 보스 브금은 진입 시 1회만 (반복 X — 사용자 요청)
+                else
+                    AudioManager.Instance?.PlayBgmById(BgmId.Battle);
                 break;
 
             // ── 화툿불 (E 작업 완료 — RestPanel 호출) ──
@@ -660,7 +769,6 @@ public class NodeSystem : MonoBehaviour
                     restPanel.OnExit -= HandleRestExit;
                     restPanel.OnExit += HandleRestExit;
                     restPanel.OpenFromNode();
-                    AudioManager.Instance?.PlayBgmById(BgmId.Rest);
                 }
                 else
                 {
@@ -668,32 +776,32 @@ public class NodeSystem : MonoBehaviour
                 }
                 break;
 
-            // ── 용병소 (튜토리얼 맵 전용 Shop 노드) ──
+            // ── 용병소 (Shop 노드 — 튜토리얼 맵 전용 고정 용병소) ──
             case RoomType.Shop:
                 OpenMercenaryFromNode();
                 break;
 
-            // ── 이벤트 노드 (진입 시 용병소/교회/엘리트 가중 랜덤) ──
-            //   기획 §12 노드 비율(전투 70 / 이벤트 30). EventOutcomeWeights = 용병소/교회/엘리트.
-            //   현재 가중치 100/0/0 → 용병소만. (교회·엘리트는 백로그 — 가중치만 올리면 재활성)
+            // ── 랜덤 노드 (Event) — 진입 시 용병소/교회/엘리트 가중 랜덤 (MVP 고정맵 layer2) ──
+            //   EventOutcomeWeights = 용병소/교회/엘리트. 발표용 100/0/0 → 용병소만.
+            //   (교회·엘리트 가중치만 올리면 즉시 재활성)
             case RoomType.Event:
             {
                 int outcome = RollEventOutcome();
                 if (outcome == 1)        // 교회
                 {
-                    Debug.Log("[NodeSystem] 이벤트 노드 → 교회 (랜덤)");
+                    Debug.Log("[NodeSystem] 랜덤 노드 → 교회");
                     OpenChurchFromNode();
                 }
                 else if (outcome == 2)   // 엘리트 전투
                 {
                     CurrentRoomType = RoomType.Elite; // EnemySpawner 가 엘리트로 스폰
-                    Debug.Log("[NodeSystem] 이벤트 노드 → 엘리트 전투 (랜덤)");
+                    Debug.Log("[NodeSystem] 랜덤 노드 → 엘리트 전투");
                     DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
                     AudioManager.Instance?.PlayBgmById(BgmId.Battle);
                 }
                 else                     // 용병소 (기본)
                 {
-                    Debug.Log("[NodeSystem] 이벤트 노드 → 용병소 (랜덤)");
+                    Debug.Log("[NodeSystem] 랜덤 노드 → 용병소");
                     OpenMercenaryFromNode();
                 }
                 break;
@@ -706,11 +814,11 @@ public class NodeSystem : MonoBehaviour
         }
     }
 
-    // 이벤트(랜덤) 노드 진입 결과 가중치 [용병소, 교회, 엘리트]. 기획 §12.
-    // 현재 용병소만(100/0/0). 교회·엘리트는 백로그 — 값만 올리면 재활성.
+    // 랜덤 노드(Event) 진입 결과 가중치 [용병소, 교회, 엘리트]. 발표용 100/0/0 → 용병소만.
+    // 교회·엘리트는 값만 올리면 재활성 (3개 통합 랜덤노드).
     private static readonly int[] EventOutcomeWeights = { 100, 0, 0 };
 
-    /// <summary>이벤트 노드 결과를 가중 랜덤으로 결정. 0=용병소 / 1=교회 / 2=엘리트.</summary>
+    /// <summary>랜덤 노드 결과를 가중 랜덤으로 결정. 0=용병소 / 1=교회 / 2=엘리트.</summary>
     private int RollEventOutcome()
     {
         int total = 0;
@@ -726,7 +834,7 @@ public class NodeSystem : MonoBehaviour
         return 0;
     }
 
-    /// <summary>용병소(MercenaryOfficePanel) 진입 — Shop 노드 / 이벤트→용병소 공용.</summary>
+    /// <summary>용병소(MercenaryOfficePanel) 진입 — Shop 노드 / 랜덤노드→용병소 공용.</summary>
     private void OpenMercenaryFromNode()
     {
         if (mercenaryOfficePanel != null)
@@ -739,7 +847,7 @@ public class NodeSystem : MonoBehaviour
         else Debug.Log("[NodeSystem] 용병소 — MercenaryOfficePanel 미연결, 다음 층으로 진행.");
     }
 
-    /// <summary>교회(ChurchPanel) 진입 — 이벤트→교회 공용.</summary>
+    /// <summary>교회(ChurchPanel) 진입 — 랜덤노드→교회.</summary>
     private void OpenChurchFromNode()
     {
         if (churchPanel != null)
@@ -747,7 +855,6 @@ public class NodeSystem : MonoBehaviour
             churchPanel.OnExit -= HandleChurchExit;
             churchPanel.OnExit += HandleChurchExit;
             churchPanel.OpenFromNode();
-            AudioManager.Instance?.PlayBgmById(BgmId.Rest);
         }
         else Debug.Log("[NodeSystem] 교회 — ChurchPanel 미연결, 다음 층으로 진행.");
     }

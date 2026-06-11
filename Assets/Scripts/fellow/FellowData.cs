@@ -96,11 +96,16 @@ public partial class FellowData : ScriptableObject
     public int       shield          = 0;    // 데미지 흡수량; HP 감소 전에 먼저 소모됨
     public bool      isDead          = false;
     [System.NonSerialized] public bool deathHandled = false; // 사망 1회 처리 플래그(스트레스/손패 중복 방지). InitBattle 에서 리셋.
-    public bool      isFrozen        = false;    // 공포 경직: 이번 턴 행동 불가
-    public bool      isOverBreathing = false;    // 과호흡: 스킬 코스트 +1
+    // 공포경직/과호흡/중증디버프 — 프로퍼티화해 변경 시 OnStatusChanged 발행(UI 상태칩 갱신용). 게임 로직·호출부는 불변. (2026-06-09)
+    private bool _isFrozen, _isOverBreathing, _hasSevereDebuff;
+    public bool isFrozen        { get => _isFrozen;        set { if (_isFrozen == value) return;        _isFrozen = value;        OnStatusChanged?.Invoke(); } } // 공포 경직: 이번 턴 행동 불가
+    public bool isOverBreathing { get => _isOverBreathing; set { if (_isOverBreathing == value) return; _isOverBreathing = value; OnStatusChanged?.Invoke(); } } // 과호흡: 스킬 코스트 +1
     // 역할별 중증 디버프 (기획 §04) — 첫 패닉 시 부착, 전투 종료까지 유지 (InitBattle 에서 리셋).
     //   딜러: 받는 피해 +30% / 탱커: 부여 실드 -50% / 서포터: 광역힐→단일힐 강제
-    public bool      hasSevereDebuff = false;
+    public bool hasSevereDebuff  { get => _hasSevereDebuff; set { if (_hasSevereDebuff == value) return; _hasSevereDebuff = value; OnStatusChanged?.Invoke(); } }
+
+    /// <summary>공포경직/과호흡/중증디버프 등 비-스트레스 상태 변경 시 발행 — UI 상태칩 갱신용. (2026-06-09)</summary>
+    [System.NonSerialized] public System.Action OnStatusChanged;
 
     // 거합 집중 (오펜더 시그니처 패시브, 기획 §16) — 전투 한정 콤보 상태. InitBattle 에서 리셋.
     [System.NonSerialized] public int comboTargetIid = 0; // 직전 단일 공격 대상 적 InstanceID (0=없음)

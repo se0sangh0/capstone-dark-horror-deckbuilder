@@ -51,6 +51,9 @@ public abstract class PanelBase : MonoBehaviour
             return;
         }
 
+        // 열리는 팝업/패널은 같은 부모 안에서 맨 앞(마지막 sibling)으로 — 좌패널 등에 가려지는 z-순서 버그 방지
+        transform.SetAsLastSibling();
+
         if (canvasGroup != null)
         {
             // CanvasGroup 기반: SetActive 만지지 않고 alpha 페이드만으로 표시 제어

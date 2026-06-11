@@ -107,6 +107,18 @@ public class GameManager : Singleton<GameManager>
     /// <summary>현재 드로우 위치 (몇 번째 카드까지 뽑았는지)</summary>
     private int currentDrawIndex = 0;
 
+    /// <summary>남은 드로우 덱 장수 — 덱 더미 UI(DeckPileView) 표시용.</summary>
+    public int RemainingDeckCount => drawDeck != null ? Mathf.Max(0, drawDeck.Count - currentDrawIndex) : 0;
+
+    // ── 발라트로식 토글 선택 (2026-06-08) ──────────────────────────
+    // 이번 턴에 '지정'된 카드 (클릭 순서 유지 — 내부 관리).
+    private readonly List<StackCardController> _selectedOrder = new();
+    // 턴 시작 시 잔여 스택(이월분) — 선택 미리보기 재계산의 base (Dealer/Tank/Support).
+    private readonly int[] _stackBase = new int[3];
+
+    /// <summary>지정 카드 순서(읽기 전용). 향후 처리 순서 참조용.</summary>
+    public IReadOnlyList<StackCardController> SelectedOrder => _selectedOrder;
+
     // ----------------------------------------------------------
     // 드로우 페이즈 — 카드 슬롯에 카드 세팅
     // drawDeck 에서 카드를 뽑아 myCards 슬롯에 배치합니다.
@@ -119,6 +131,11 @@ public class GameManager : Singleton<GameManager>
     public void StartMyTurn()
     {
         AudioManager.Instance?.PlaySfxById(SfxId.CardDraw);
+
+        // 새 턴 — 지정 목록 초기화 + 잔여 스택을 base 로 캡처 (선택 미리보기 재계산 기준). 2026-06-08
+        _selectedOrder.Clear();
+        if (PlayerRoleCost.Instance != null)
+            for (int s = 0; s < 3; s++) _stackBase[s] = PlayerRoleCost.Instance.GetAmount((StackType)s);
 
         // 손패 동적 상한 — 기획 §03_카드_설계_프레임 §손패/드로우:
         //   "손패 유지량 = 배치된 동료의 수와 동일" (4인 → 4장, 3인 → 3장)
@@ -361,27 +378,43 @@ public class GameManager : Singleton<GameManager>
         }
     }
 
-    /// <summary>
-    /// 카드 확정 시 호출. BattleManager(PlayerRoleCost) 에 스택을 반영한다.
-    /// StackCardController.HandleConfirm() 에서 호출됩니다.
-    /// </summary>
-    public void OnCardUsed(StackCardController usedCard)
+    // ----------------------------------------------------------
+    // 카드 지정/취소 (2026-06-08 발라트로식 토글) — StackCardController 가 호출.
+    //   스택은 (턴 시작 잔여 base) + (지정 카드 합)을 재계산해 SetAmount 한다.
+    //   (RoleCostBase.Add 는 0 클램프라 증분 토글이 깨지므로 전체 재계산 방식.)
+    // ----------------------------------------------------------
+
+    /// <summary>카드 지정 시 호출 — 순서 기록 + 스택 라이브 반영.</summary>
+    public void OnCardSelected(StackCardController card)
     {
-        Debug.Log($"[GameManager] 카드 사용됨 | 역할={usedCard.stackType} 스택={usedCard.stackDelta:+#;-#;0}");
+        if (card == null) return;
+        if (!_selectedOrder.Contains(card)) _selectedOrder.Add(card);
+        RecomputeStackPreview();
+        Debug.Log($"[GameManager] 카드 지정 #{_selectedOrder.Count} | {card.stackType} {card.stackDelta:+#;-#;0}");
+    }
 
-        // 스택 관리 권한: PlayerRoleCost
-        if (PlayerRoleCost.Instance != null)
-            PlayerRoleCost.Instance.Add(usedCard.stackType, usedCard.stackDelta);
+    /// <summary>카드 지정 취소 시 호출 — 순서에서 제거 + 스택 되돌림.</summary>
+    public void OnCardDeselected(StackCardController card)
+    {
+        if (card == null) return;
+        _selectedOrder.Remove(card);
+        RecomputeStackPreview();
+        Debug.Log($"[GameManager] 카드 지정 취소 | {card.stackType} {card.stackDelta:+#;-#;0}");
+    }
 
-        // ── ✨ 자동 턴 종료 — "덱 고갈 + 손패 모두 사용" 조건일 때만 ──
-        // 평소엔 사용자가 직접 [턴 종료] 를 눌러야 함. 덱이 모두 소진된 상태에서
-        // 손패까지 다 사용했다면 누를 카드가 없으므로 자동 진행.
-        // (기획 §전투_시스템_명세 / 덱 고갈 & Hand Empty 항목 반영)
-        if (IsDeckExhausted() && AreAllActiveCardsUsed())
+    /// <summary>스택 = base(턴 시작 잔여) + 지정 카드 합, 0 이상 클램프해 SetAmount.</summary>
+    private void RecomputeStackPreview()
+    {
+        if (PlayerRoleCost.Instance == null) return;
+        int[] sum = (int[])_stackBase.Clone();
+        foreach (var c in _selectedOrder)
         {
-            Debug.Log("[GameManager] 덱 고갈 + 손패 전부 사용됨 → 자동 턴 종료");
-            EndMyTurn();
+            if (c == null) continue;
+            int idx = (int)c.stackType;
+            if (idx >= 0 && idx < 3) sum[idx] += c.stackDelta;
         }
+        for (int i = 0; i < 3; i++)
+            PlayerRoleCost.Instance.SetAmount((StackType)i, Mathf.Max(0, sum[i]));
     }
 
     /// <summary>드로우 덱이 끝까지 소진되었는지 여부.</summary>
@@ -415,6 +448,18 @@ public class GameManager : Singleton<GameManager>
     /// <summary>
     /// 내 턴 종료. BattleManager.FinishPlayerTurn() 을 호출한다.
     /// </summary>
+    /// <summary>
+    /// 지정된 카드를 소비(사용됨) 처리 — 턴 종료 공통 처리. 스택은 라이브로 이미 반영됨.
+    /// BattleManager.HandlePlayerCardPlay 가 턴 종료(버튼/스페이스바 등 모든 경로) 직후 호출한다.
+    /// </summary>
+    public void ConsumeSelectedCards()
+    {
+        if (_selectedOrder.Count == 0) return;
+        foreach (var card in _selectedOrder)
+            if (card != null) card.MarkConsumed();
+        _selectedOrder.Clear();
+    }
+
     public void EndMyTurn()
     {
         Debug.Log("[GameManager] 내 턴 종료 신호 전송.");
