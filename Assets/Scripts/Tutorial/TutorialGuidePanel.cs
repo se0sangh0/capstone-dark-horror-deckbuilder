@@ -58,10 +58,10 @@ public class TutorialGuidePanel : MonoBehaviour
             Debug.LogWarning("[TutorialGuidePanel] 중복 인스턴스 — 새로 등록");
         }
         Instance = this;
-    }
 
-    private void Start()
-    {
+        // 초기 숨김·리스너는 Awake에서 처리한다. Start에 두면 같은 씬 로드 프레임의
+        // NodeSystem.Start(NodeMapIntro Show)보다 늦게 실행될 수 있어, 방금 띄운 팝업을
+        // SetVisible(false)가 덮어 숨기는 레이스가 있었다 (NodeMapIntro 미표시 원인, 2026-06-12).
         if (nextButton != null) nextButton.onClick.AddListener(OnConfirmClicked);
         if (skipButton != null) skipButton.onClick.AddListener(OnMainMenuClicked);
         if (highlightBox != null) highlightBox.gameObject.SetActive(false);

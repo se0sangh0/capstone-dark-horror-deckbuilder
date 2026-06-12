@@ -201,6 +201,10 @@ public class LeftPanelView : MonoBehaviour
         // 덱 요약
         RefreshDeckSummary(party);
         // (파티 아코디언 기본 펼침은 사용자 요청으로 제거 — 모든 섹션 기본 접힘 상태로 시작. 2026-06-11)
+
+        // 열린 아코디언 높이 재측정 — 사망 등으로 내용이 줄어도 빈 공간이 남지 않도록 (QA ②)
+        foreach (var acc in GetComponentsInChildren<AccordionController>(true))
+            acc.RefreshHeight();
     }
 
     private void UnbindAll()

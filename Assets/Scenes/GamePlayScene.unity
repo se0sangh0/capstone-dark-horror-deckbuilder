@@ -1375,6 +1375,10 @@ PrefabInstance:
       propertyPath: m_fontColor32.rgba
       value: 4284929791
       objectReference: {fileID: 0}
+    - target: {fileID: 3940938591999328835, guid: b334512e5906f4545bd2585efee48630, type: 3}
+      propertyPath: m_OverrideSorting
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4211923801355957653, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_Pivot.y
       value: 0
@@ -1581,11 +1585,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7256862701912066426, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 180
+      value: 280
       objectReference: {fileID: 0}
     - target: {fileID: 7256862701912066426, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 50
+      value: 70
       objectReference: {fileID: 0}
     - target: {fileID: 7256862701912066426, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -1600,6 +1604,10 @@ PrefabInstance:
       value: "\uBA54\uC778 \uBA54\uB274\uB85C"
       objectReference: {fileID: 0}
     - target: {fileID: 8126390718748904337, guid: b334512e5906f4545bd2585efee48630, type: 3}
+      propertyPath: m_fontSize
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 8126390718748904337, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_fontColor.b
       value: 0.4
       objectReference: {fileID: 0}
@@ -1610,6 +1618,14 @@ PrefabInstance:
     - target: {fileID: 8126390718748904337, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_fontColor.r
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8126390718748904337, guid: b334512e5906f4545bd2585efee48630, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 8126390718748904337, guid: b334512e5906f4545bd2585efee48630, type: 3}
+      propertyPath: m_TextWrappingMode
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8126390718748904337, guid: b334512e5906f4545bd2585efee48630, type: 3}
       propertyPath: m_fontColor32.rgba
@@ -1651,10 +1667,7 @@ PrefabInstance:
       propertyPath: m_BlocksRaycasts
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 8771364103690259907, guid: b334512e5906f4545bd2585efee48630, type: 3}
-    - {fileID: 4903049905133816895, guid: b334512e5906f4545bd2585efee48630, type: 3}
-    - {fileID: 3940938591999328835, guid: b334512e5906f4545bd2585efee48630, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 4224646005921474169, guid: b334512e5906f4545bd2585efee48630, type: 3}

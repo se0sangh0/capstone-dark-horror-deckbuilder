@@ -734,7 +734,7 @@ public class NodeSystem : MonoBehaviour
             {
                 case RoomType.Combat: tm.TryShowDialogue(TutorialManager.DialogueId.CombatIntro); break;
                 case RoomType.Boss:   tm.TryShowDialogue(TutorialManager.DialogueId.BossIntro);   break;
-                case RoomType.Shop:   tm.TryShowDialogue(TutorialManager.DialogueId.ShopIntro);   break;
+                // Shop(고정 용병소) 노드는 폐지 — ShopIntro 는 Event 랜덤 결과가 용병소일 때 표시 (아래 case Event)
                 case RoomType.Rest:   tm.TryShowDialogue(TutorialManager.DialogueId.RestIntro);  break;
             }
         }
@@ -776,12 +776,7 @@ public class NodeSystem : MonoBehaviour
                 }
                 break;
 
-            // ── 용병소 (Shop 노드 — 튜토리얼 맵 전용 고정 용병소) ──
-            case RoomType.Shop:
-                OpenMercenaryFromNode();
-                break;
-
-            // ── 랜덤 노드 (Event) — 진입 시 용병소/교회/엘리트 가중 랜덤 (MVP 고정맵 layer2) ──
+            // ── 랜덤 노드 (Event) — 진입 시 용병소/교회/엘리트 가중 랜덤 (본편 layer2 + 튜토리얼 layer1 공통) ──
             //   EventOutcomeWeights = 용병소/교회/엘리트. 발표용 100/0/0 → 용병소만.
             //   (교회·엘리트 가중치만 올리면 즉시 재활성)
             case RoomType.Event:
@@ -802,6 +797,8 @@ public class NodeSystem : MonoBehaviour
                 else                     // 용병소 (기본)
                 {
                     Debug.Log("[NodeSystem] 랜덤 노드 → 용병소");
+                    // 튜토리얼: 랜덤 결과가 용병소로 확정된 시점에 안내 (1회)
+                    TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.ShopIntro);
                     OpenMercenaryFromNode();
                 }
                 break;

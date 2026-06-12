@@ -196,36 +196,44 @@ public partial class BattleManager
     // ----------------------------------------------------------
     private IEnumerator HandleBattleEnd()
     {
+        // 전투 한정 일시 상태(실드) 정리 — 종료 시 비우지 않으면 노드맵 좌패널 게이지에 남아 보인다 (QA ②)
+        foreach (var ally in allies)
+            if (ally != null && !ally.isDead) ally.ClearShield();
+
         bool allEnemiesDead = enemies.Count > 0 && enemies.All(a => a.isDead);
         // 튜토리얼 모드 분기 — 기획 §15 + 2026-05-29 5노드 시퀀스
         bool isTutorial = TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial;
 
-        // 비-튜토리얼은 새 결과 화면(BattleResultScreen) — 마지막 처치 연출 호흡(resultPopupDelay)만 두고 바로 표시.
-        // 튜토리얼은 기존 Win/Lose 팝업 흐름 유지 (1.5s → 토글 → 1.5s).
-        if (isTutorial)
-        {
-            yield return new WaitForSeconds(gameOverDelay);
-            DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
-            yield return new WaitForSeconds(gameOverDelay);
-        }
-        else
-            yield return new WaitForSeconds(resultPopupDelay);
+        // 승리는 튜토/본편 공통으로 새 결과 화면(BattleResultScreen.ShowVictory) 사용 (2026-06-12).
+        // 튜토리얼 패배 계열만 기존 Lose 팝업 연출(1.5s → 표시 → 1.5s) 유지 —
+        // 튜토 패배=자동 재시작 / 보스 전멸=완료 종료라 본편 ShowDefeat(타이틀행)와 흐름이 다르다.
         if (isTutorial)
         {
             bool isBossRoom = NodeSystem.Current != null && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
 
             if (allEnemiesDead)
             {
-                // 일반 적 전투 승리 — 다음 노드로 진행 (일반 흐름과 동일)
+                // 일반 적 전투 승리 — 본편과 동일한 승리 팝업, [다음으로] 클릭 시 노드맵 복귀
                 GameLog.Event("전투 승리!", LogCategory.Reward);
-                Debug.Log("[BattleManager] 튜토리얼 일반 전투 승리 — 다음 노드");
-                DisplayChange.Instance.ToggleResultDisplay(allEnemiesDead);
-                DisplayChange.Instance.ToggleDisplay();
-                AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
-                // 첫 전투 승리 직후 — 다음 노드 클릭 안내 (1회)
-                TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.CombatVictory);
+                Debug.Log("[BattleManager] 튜토리얼 일반 전투 승리 — 승리 팝업 후 다음 노드");
+                int tutorialSoulGained = enemies.Where(e => e != null).Sum(e => e.soulstoneDrop);
+                yield return new WaitForSeconds(resultPopupDelay);
+                BattleResultScreen.ShowVictory(tutorialSoulGained, () =>
+                {
+                    DisplayChange.Instance.ToggleDisplay();
+                    AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+                    // 첫 전투 승리 직후 — 다음 노드 클릭 안내 (1회)
+                    TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.CombatVictory);
+                });
+                yield break;
             }
-            else if (isBossRoom)
+
+            // 패배 계열 — 기존 Lose 팝업 연출
+            yield return new WaitForSeconds(gameOverDelay);
+            DisplayChange.Instance.ToggleResultDisplay(false);
+            yield return new WaitForSeconds(gameOverDelay);
+
+            if (isBossRoom)
             {
                 // 보스 노드 전멸 — 튜토리얼 완료 (1턴에 전멸시킨 시나리오 그대로 진행)
                 GameLog.Event("튜토리얼 완료!", LogCategory.Reward);
@@ -246,6 +254,8 @@ public partial class BattleManager
             yield break;
         }
 
+        // 비-튜토리얼 — 마지막 처치 연출 호흡(resultPopupDelay)만 두고 결과 화면 표시.
+        yield return new WaitForSeconds(resultPopupDelay);
         if (allEnemiesDead)
         {
             GameLog.Event("전투에서 승리했다!", LogCategory.Reward);
@@ -279,9 +289,15 @@ public partial class BattleManager
         else
         {
             GameLog.Event("전원 쓰러졌다…", LogCategory.Death);
-            Debug.Log("[BattleManager] 아군 전멸 — 게임오버 화면 후 로그라이크 루프");
-            // 게임오버 — 전체 어둡게 + 중앙 빨강 볼드 '게임오버'. 클릭 시 로그라이크 루프(마석 유지) (2026-06-11).
-            BattleResultScreen.ShowDefeat(() => StartNextRunLoop());
+            Debug.Log("[BattleManager] 아군 전멸 — 게임오버 화면 후 타이틀 복귀");
+            // 게임오버 — 전체 어둡게 + 중앙 빨강 볼드 '게임오버'. 클릭 시 런 리셋(마석 유지) 후 타이틀로 (QA ⑧, 2026-06-12).
+            // 리셋을 타이틀 진입 전에 끝내는 이유: 타이틀→[시작하기] 경로(MoveScene)는 파티만 재생성하고
+            // 예비대/영혼석은 건드리지 않으므로, 여기서 비우지 않으면 이전 런 상태가 새 런으로 샌다.
+            BattleResultScreen.ShowDefeat(() =>
+            {
+                ResetRunState();
+                SceneTransition.Go("GameStartScene");
+            });
         }
     }
 
@@ -319,10 +335,16 @@ public partial class BattleManager
     /// </summary>
     private void StartNextRunLoop()
     {
+        ResetRunState();
+        SceneManager.LoadScene("GamePlayScene");          // 새 런 (노드맵 재생성)
+    }
+
+    /// <summary>런 상태 리셋 — 예비대·파티·영혼석 초기화 (마석은 PlayerPrefs 유지). 보스 클리어 새 런·패배 타이틀행 공통.</summary>
+    private void ResetRunState()
+    {
         MercenaryService.Instance?.ResetForNewRun();      // 예비대/후보/리롤 초기화
         PartyManager.Instance?.ResetGame();               // 파티(+사망보관소) 초기화
         SoulstoneManager.Instance?.ResetCurrency();       // 영혼석 기본값 (마석은 PlayerPrefs 유지)
-        SceneManager.LoadScene("GamePlayScene");          // 새 런 (노드맵 재생성)
     }
 
     // 기획 §스트레스 §기본 회복 — 전투 승리: -10
