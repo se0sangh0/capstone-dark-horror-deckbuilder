@@ -146,7 +146,7 @@ public class TutorialManager : MonoBehaviour
     private static readonly string[] DialogueMessages = new[]
     {
         // 0 — NodeMapIntro
-        "환영합니다.\n\n화면 좌측의 노드맵에서 다음 노드를 클릭해 진행해보세요.",
+        "환영합니다.\n\n화면 우측의 노드맵에서 다음 노드를 클릭해 진행해보세요.",
 
         // 1 — CombatIntro
         "전투 노드입니다.\n\n손패의 카드를 클릭해 스택을 채우고, [턴 종료] 버튼을 눌러 진행하세요.\n동료들이 스택에 맞춰 자동으로 스킬을 사용합니다.",
