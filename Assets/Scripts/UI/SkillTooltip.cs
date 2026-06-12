@@ -40,7 +40,7 @@ public class SkillTooltipController : MonoBehaviour
         public GameObject root;
         public UnityEngine.UI.Image icon;
         public TMP_Text nameLine;   // 이름 + [타입 · 대상] (리치텍스트)
-        public TMP_Text statsLine;  // 위력 · 사거리 · 코스트
+        //public TMP_Text statsLine;  // 위력 · 사거리 · 코스트
         public TMP_Text desc;
         public GameObject divider;  // 두 번째 스킬 위 구분선
     }
@@ -149,7 +149,7 @@ public class SkillTooltipController : MonoBehaviour
             colLe.flexibleWidth = 1;
 
             e.nameLine  = NewTmp("NameLine",  textCol.transform, font, 21, Color.white, bold: true);
-            e.statsLine = NewTmp("StatsLine", textCol.transform, font, 16, new Color(0.85f, 0.78f, 0.55f, 1f), bold: false);
+            //e.statsLine = NewTmp("StatsLine", textCol.transform, font, 16, new Color(0.85f, 0.78f, 0.55f, 1f), bold: false);
 
             e.desc = NewTmp("Desc", e.root.transform, font, 17, new Color(0.82f, 0.82f, 0.86f, 1f), bold: false);
             e.desc.textWrappingMode = TextWrappingModes.Normal;
@@ -184,13 +184,13 @@ public class SkillTooltipController : MonoBehaviour
         e.icon.color   = hasSprite ? TypeColor(s.effectType) : Color.clear;
 
         string name = !string.IsNullOrEmpty(s.displayName) ? s.displayName : s.id;
-        e.nameLine.text = $"{name}  <size=70%><color=#{TypeHex(s.effectType)}>[{TypeLabel(s.effectType)} | {TargetLabel(s.targeting)}]</color></size>";   // '·' 는 NanumGothic 에 없어 □ 로 깨짐 → '|' 사용
+        e.nameLine.text = $"({s.costAmount}){name}  <size=70%><color=#{TypeHex(s.effectType)}>[{RangeLabel(s)} | {TypeLabel(s.effectType)} | {TargetLabel(s.targeting)}]</color></size>";   // '·' 는 NanumGothic 에 없어 □ 로 깨짐 → '|' 사용
 
-        string stats = $"위력 {s.power}";
-        if (s.effectType == "MixedDamageShield") stats += $" <color=#7FB2FF>+ 실드 {s.shieldPower}</color>";
-        if (s.effectType == "MixedDamageTaunt")  stats += $" <color=#FFC107>+ 도발 {s.tauntTurns}턴</color>";
-        stats += $"  /  사거리 {RangeLabel(s)}  /  코스트 {s.costAmount}";
-        e.statsLine.text = stats;
+        //string stats = $"위력 {s.power}";
+        //if (s.effectType == "MixedDamageShield") stats += $" <color=#7FB2FF>+ 실드 {s.shieldPower}</color>";
+        //if (s.effectType == "MixedDamageTaunt")  stats += $" <color=#FFC107>+ 도발 {s.tauntTurns}턴</color>";
+        //stats += $"  /  사거리 {RangeLabel(s)}  /  코스트 {s.costAmount}";
+        //e.statsLine.text = stats;
 
         bool hasDesc = !string.IsNullOrEmpty(s.description);
         e.desc.gameObject.SetActive(hasDesc);
