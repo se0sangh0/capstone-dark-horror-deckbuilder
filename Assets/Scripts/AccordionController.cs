@@ -82,4 +82,11 @@ public class AccordionController : MonoBehaviour
         else
             contentPanel.DOSizeDelta(new Vector2(contentPanel.sizeDelta.x, target), 0.4f);
     }
+
+    /// <summary>열린 상태에서 내용물이 바뀐 뒤 높이를 재측정한다 (동료 사망으로 카드 슬롯이 줄어든 경우 등).
+    /// SetOpen 이 펼칠 때 잰 높이로 고정하므로, 내용 변경 시 호출하지 않으면 빈 공간이 남는다. 닫혀 있으면 무시.</summary>
+    public void RefreshHeight()
+    {
+        if (isOpened) SetOpen(true, instant: true);
+    }
 }

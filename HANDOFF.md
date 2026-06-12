@@ -1,6 +1,8 @@
 # HANDOFF — 다음 세션 인수인계
 
-> 마지막 갱신: **2026-06-11** (12차 — 로딩/결과 화면 + Panel_1 프레임 가시화 + **색 유실 사고 복구·씬 저장 함정 3가지**(§🚨 필독) + **UI 오버사이즈 일괄 개편**(#15~#20: PanelBase z-순서·좌패널·파티편집 세로 5:5·나가기 정사각 통일·용병소 아이콘·명단보기/성장 수정))
+> 마지막 갱신: **2026-06-12** (14차 — **디코 QA 6건 + 추가 1건 처리**: ①튜토 팝업 버튼(씬 Canvas 3종 복원+overrideSorting=100) · ②좌패널 동기화(ClearShield+아코디언 RefreshHeight) · ④메인메뉴 버튼 280×70/폰트36 · ⑤파티편집 표시 반전(B안) · ⑧게임오버→타이틀+런리셋 · ➕튜토 노드맵 안내 미표시(Start 레이스 — 초기화 Awake 이동) **수정·검증 완료** + ⑥까마귀 허수아비 애니 **재현 불가 판정**(현 코드 정상 실측 — 구버전 빌드 의심). 남은 것: ③·⑥ QA 재확인 요청 / ⑦ 툴팁("위력 진하게" 의미 미확인). **§14차 에디터 함정 5건 필독**)
+> 마지막 갱신(이전): 2026-06-12 (13차 — 디코 QA 중간점검 접수·항목 정리 + ① 튜토리얼 팝업 버튼 정적 진단(파일상 정상 — 원인 미특정). 코드/씬 수정 0건, MCP 미연결 세션. §13차 — QA 원문 포함)
+> 마지막 갱신(이전): **2026-06-11** (12차 — 로딩/결과 화면 + Panel_1 프레임 가시화 + **색 유실 사고 복구·씬 저장 함정 3가지**(§🚨 필독) + **UI 오버사이즈 일괄 개편**(#15~#20: PanelBase z-순서·좌패널·파티편집 세로 5:5·나가기 정사각 통일·용병소 아이콘·명단보기/성장 수정))
 > 마지막 갱신(이전): **2026-06-10** (11차 — 상태이상 호버 툴팁 전투카드 수정 확인 + **턴종료 버튼 재배치**(8차 #7))
 > 11차 세션 요약: (1) 상태 호버 툴팁이 전투 카드에서 안 뜨던 것 → 월드캔버스 호버를 뷰포트 수동검사로 해결, 사용자 확인 완료. (2) **턴종료 버튼 재배치(최종 B안)** — 상단 바 제거, **턴카운터=스택 헤더 우측 / 턴종료 버튼=검·방패·하트 3컬럼 줄 끝(4번째)** 가로정렬, 스택창 위로(+상하 마진). (3) **스킬 이펙트** — Effect/ 10개 mp4를 ffmpeg(흰배경 키잉)로 스프라이트화→`SkillEffectFx`로 스킬 시전 시 대상/시전자에 재생. 컴파일/렌더 검증(실전 훅은 사용자 확인). 상세 §11차.
 > 마지막 갱신(이전): 2026-06-09 (10차 세션 — 노드 아이콘 검증 + 옛 아이콘 삭제 + **상태이상 표시 UI 아이콘화**(8차 #6))
@@ -11,6 +13,164 @@
 > 직전 큰 작업(2026-06-05): 기획자 피드백 15항목 전부 완료 — 상세는 아래 §6차 세션 완료.
 > 직전 큰 작업(2026-06-02~06-05): UI 전반 다크 서사톤 통일, 좌측 패널 접기 기능, 파티편집 양방향 스왑, 용병소/교회 통일 등 — 상세는 아래 §직전 세션 완료(2026-06-02~05)
 > (이전) 2026-06-01: 튜토리얼 풀 플로우 + 모달 다이얼로그 + DoT + 노드/적 보강. 모달 박스 원본(900×400) 유지 롤백.
+
+---
+
+## ✅ 14차 세션 — 디코 QA 6건 처리 (①②④⑤⑥⑧) (2026-06-12)
+
+> MCP 연결 세션. 13차 §E 미답 질문 전부 답 받음: ①재현환경=**에디터·빌드 둘 다** / ②의미=**좌패널 아코디언 동기화 버그** / ⑤=**B안** / ⑧=**타이틀행+패배 직후 리셋**. 건마다 진단→수정안 제시→OK→백업→수정→검증 워크플로우로 진행.
+
+### A. 항목별 결과 요약
+| # | 항목 | 결과 | 변경 | 백업(~/Documents/backup/) |
+|---|---|---|---|---|
+| ① | 튜토 팝업 버튼 안 눌림 (P2) | ✅ 수정·검증 | GamePlayScene.unity (코드 0) | `2026-06-12_140523_session14_tutorial_canvas_restore` |
+| ② | 좌패널 동기화 (P2) | ✅ 수정·검증 | FellowData.Hp.cs / BattleManager.Phases.cs / AccordionController.cs / LeftPanelView.cs | `2026-06-12_143826_session14_leftpanel_sync` |
+| ④ | 튜토 메인메뉴 버튼 (P3) | ✅ 수정·검증 | GamePlayScene.unity (씬 오버라이드) | `2026-06-12_153746_session14_skipbtn_resize` |
+| ⑤ | 파티 순서 역순 (P3) | ✅ 수정·검증 | PartyEditPanel.prefab (코드 0) | `2026-06-12_145742_session14_partyedit_reverse` |
+| ⑥ | 까마귀 허수아비 애니 (P3) | 🔎 **재현 불가 — 코드 정상** | 변경 없음 | — |
+| ⑧ | 게임오버→타이틀 (개선) | ✅ 수정·검증 | BattleManager.Phases.cs | `2026-06-12_150636_session14_gameover_to_title` |
+| ➕ | 튜토 노드맵 안내 미표시 (사용자 추가 요청) | ✅ 수정·검증 | TutorialGuidePanel.cs | `2026-06-12_160838_session14_nodemap_intro_race` |
+| ➕ | 튜토 승리팝업·랜덤노드 통일 (사용자 추가 요청) | ✅ 수정·검증 | MapGenerator.cs / NodeSystem.cs / BattleManager.Phases.cs / TutorialManager.cs | `2026-06-12_161957_session14_tutorial_victory_randomnode` |
+
+### B. ① 튜토 팝업 버튼 — 진짜 원인과 수정 (13차 정적 진단의 빈틈)
+- **원인**: 씬의 TutorialCanvas 프리팹 인스턴스에 **m_RemovedComponents 3종**(Canvas·CanvasScaler·GraphicRaycaster — 13차가 m_Modifications만 보고 제거 오버라이드를 놓침) → 팝업이 루트 Canvas 일반 자식[6]으로 강등 → 전투 진입 시 활성화되는 `GamePlayScene_RightMainArea`[13] 루트의 **풀스크린 투명 Image(sprite=Background, α=0, raycastTarget=true)**가 클릭 전부 흡수. RaycastAll 실측으로 확정 (최상단=RightMainArea). 노드맵에선 RMA 비활성이라 클릭 정상 — QA 증상·에디터/빌드 양쪽 재현과 전부 부합.
+- **수정**: `PrefabUtility.GetRemovedComponents().Revert()` 3종 복원 + **overrideSorting=true** (중첩 캔버스라 이것 없이는 sortingOrder=100이 무시됨 — 직렬화값 100은 살아 있었음). 씬 저장+디스크 검증.
+- **검증**: RaycastAll 최상단=NextButton + 클릭 시뮬→Hide() 실행(CanvasGroup α=0) + 씬 리로드 후 removedComponents=0. BossIntro 등 같은 캔버스 팝업도 함께 해결됨.
+
+### C. ② 좌패널 동기화 — 두 증상 두 원인
+- **쉴드 잔존**: 실드 리셋이 전투 **시작** 시에만 있고(BattleManager.cs InitBattle "일시 상태만 리셋") **종료 시 없음** + `shield`는 public 필드라 직접 할당은 OnShieldChanged 미발행 → `FellowData.ClearShield()` 신설(0+이벤트) + `HandleBattleEnd()` 진입 직후(승패/튜토 분기 전 공통) 아군 전원 호출. 실측: 실드30→전투종료 즉시 0.
+- **사망 빈 공간**: Refresh 체인(RemoveFellow→OnPartyChanged→Refresh)은 정상이나, **AccordionController가 펼침 때 잰 높이로 contentPanel.sizeDelta를 고정** → 슬롯이 꺼져도 높이 안 줄어 빈 공간(접었다 펴면 재측정돼 사라짐 — QA 표현과 일치) → `RefreshHeight()` 신설(열림 상태면 SetOpen(true,instant) 재호출 — 기존 instant 경로가 형제 아코디언 재배치까지 처리) + `LeftPanelView.Refresh()` 끝에서 하위 아코디언 전부 호출(GetComponentsInChildren — 배선 불필요). 실측: 4명 630→사망 직후 자동 470.
+
+### D. ⑤·⑧·④ 요점
+- **⑤**: PartySlots(파티편집)의 슬롯 위치는 **HorizontalLayoutGroup이 런타임 배치**(직렬화 x=0 — 라이브 416/692/968/1244는 HLG 결과) → 프리팹에서 **reverseArrangement=true** 한 속성으로 반전. slot[0](1번)=오른쪽 끝 1244 실측 + 캡처 + SwapFellows 회귀 OK. 코드/스왑 로직 무변경.
+- **⑧**: 패배 콜백 `ShowDefeat(() => StartNextRunLoop())` → `ResetRunState() + SceneTransition.Go("GameStartScene")`. 리셋 3종(예비대·파티·영혼석, 마석 유지)을 `ResetRunState()`로 추출(보스 클리어 새 런과 공유). **패배 직후 리셋이 필수인 이유**: 타이틀→[시작하기](MoveScene)는 ForceReinitParty만 호출 — 예비대/영혼석 안 비움(§D 우려가 실제 빈틈이었음). 실측: 영혼석77→20(PlayerPrefs 영속)+새 파티+타이틀 캡처+[시작하기] 재진입 루프 정상. 보스 클리어 엔딩→새 런 직행은 범위 밖 유지.
+- **④**: SkipButton(메인 메뉴로) 180×50/폰트54 → **280×70/폰트36+NoWrap** (텍스트가 버튼 밖 두 줄로 깨지던 것 → 한 줄). 우상단 위치 유지(A안). 씬 오버라이드로 저장, 라이브 튜닝→씬 적용→리로드 검증→최종 캡처.
+
+### E. ⑥ 까마귀 허수아비 애니 — 재현 불가 (13차 가설 기각)
+- 13차 가설("Summon 분기가 시전 모션 안 탐")의 근거였던 EnemyAction.cs 101행 주석("Summon/Teleport는 즉시 효과 — 모션 없음")이 **낡은 것** — 실제 모션 트리거(OnSkillCast)는 분기 **전**(86행)에서 전 스킬 공통 발행.
+- 실측(보스전 강제 진입 + `ExecuteEnemySkillCast(boss, summon)` 직접 실행): 보스 _hasAttack=[T,T,T,T] / 까마귀 2마리 소환 / **Attack2 애니 상태 진입·재생 확인** / Animator 리바인드 없음. **현 코드에서 정상.**
+- 판단: 보스 스킬 애니는 12차(6/11) 작업 — QA가 그 이전 빌드로 테스트했을 가능성 유력. **③(순간이동)과 함께 최신 빌드로 QA 재확인 요청 권장.** (선택) 101행 낡은 주석 현행화는 미진행 — 다음 세션 1줄 작업.
+
+### E-2. ➕ 튜토 노드맵 안내("노드를 클릭하세요") 미표시 — Start 레이스
+- 사용자 요청 "튜토 진입 시 노드 클릭 안내 추가" → 조사 결과 **이미 구현돼 있었음**: `NodeMapIntro`(DialogueId 0, "환영합니다… 다음 노드를 클릭해 진행해보세요") + NodeSystem.Start() 호출. 안 보인 원인 = **Start 실행 순서 레이스** — NodeSystem.Start()의 Show(SetVisible true) 후에 TutorialGuidePanel.Start()의 초기화 `SetVisible(false)`가 실행되면 방금 띄운 팝업이 덮임. `_shownDialogues`에 이미 기록돼 재시도도 없음. 씬 로드 직후에 뜨는 NodeMapIntro만 해당 (CombatIntro 등은 한참 뒤라 무사).
+- **수정**: TutorialGuidePanel 초기화(숨김+리스너+하이라이트 숨김)를 Start→**Awake로 이동** (Awake는 모든 Start보다 먼저 — 호출측 무수정).
+- **검증**: 실경로(GameStartScene Play→[처음이신가요?] 클릭→GamePlayScene) — 팝업 alpha=1·메시지 정확·캡처 확인 + [확인] 클릭 닫힘. 컴파일 0.
+
+### E-3. ➕ 튜토 승리팝업 + 용병소 랜덤노드 통일 (사용자 요청)
+- **승리 팝업**: 튜토 일반 전투 승리가 옛 Win 팝업(ToggleResultDisplay 1.5s×2)이던 것 → **본편과 동일 `BattleResultScreen.ShowVictory(영혼석, 콜백)`** (콜백=노드맵 복귀+BGM+CombatVictory 모달). **패배 계열(일반 패배 자동 재시작 / 보스 전멸 완료 종료)은 기존 Lose 팝업 연출 유지** — 본편 ShowDefeat(타이틀행)와 흐름이 달라 통일 불가. 튜토 승리에 스트레스 회복(GrantStressRecovery)은 기존대로 미적용(고정 시나리오 보존).
+- **랜덤노드**: 튜토 맵 `[Combat, Shop(고정), Rest, Boss]` → **`[Combat, Event, Rest, Boss]`** — 본편과 동일한 물음표 랜덤노드(EventOutcomeWeights 100/0/0 → 용병소 확정). ShopIntro 트리거를 모달 스위치(case Shop — 제거)에서 **Event 랜덤 결과=용병소 분기 안으로 이동**. Dispatch의 `case RoomType.Shop`(고정 용병소, 사용 0)도 제거.
+- **대화 수정**: CombatVictory에 "다음 물음표 노드는 들어가기 전까지 무엇이 나올지 모르는 랜덤 노드예요" 추가 / ShopIntro 첫 줄 "용병소입니다..." → "랜덤 노드에서 용병소가 나왔습니다!".
+- **검증(실경로 풀 플로우)**: [처음이신가요?] → 맵 4노드(Combat/Event/Rest/Boss) 확인 → 1층 승리 → **새 승리팝업(영혼석 +8) 캡처** → [다음으로] → CombatVictory 새 문구 → 2층 Event 클릭 → **용병소 열림+ShopIntro 새 문구 캡처**. 컴파일·스크립트 에러 0.
+
+### F. ⚠️ 14차 발견 — 에디터/MCP 함정 5건 (다음 세션 필독)
+1. **비포커스 시 stop도 펜딩** — manage_editor stop이 success를 반환해도 `isPlayingOrWillChangePlaymode=True`로 남음. 그 상태의 "에디트 모드 진단"은 전부 플레이 모드에서 실행된 것. 해결: `osascript -e 'tell application "System Events" to set frontmost of first application process whose name is "Unity" to true'` 후 stop 재요청.
+2. **플레이 모드에선 프리팹 API 무력** — IsPartOfPrefabInstance=False/NotAPrefab/handle=null 반환. 프리팹 진단·수정은 반드시 에디트 모드 확인(isPlaying=False) 후.
+3. **EditorApplication.Step()** — 비포커스 프레임 정지를 뚫고 프레임 강제 진행(코루틴/WaitUntil/애니 검증에 유효). 단 `EditorApplication.update` 펌프 등록은 비포커스 idle에서 안 불림(무효).
+4. **LoadingScreen은 실시간 기반** — 한 execute 안의 Step 폴링으론 안 걷힘(벽시계 시간 필요). 다음 execute에서 재폴링하면 통과(호출 간 간격이 시간을 채움). 첫 폴링 타임아웃은 정상 현상.
+5. **FinishPlayerTurn 레이스** — currentPhase=PlayerCardPlay 폴링 직후 호출하면 HandlePlayerCardPlay 진입(59행 `isPlayerTurnFinishing=false`)이 플래그를 덮음 → 다음 execute에서 재호출하면 통과. (실플레이는 버튼 활성 타이밍상 발생 불가 — 게임 버그 아님)
+- 비고: Screen.width/height는 비포커스 시 게임뷰가 아닌 값(3024×72 등) 반환 — RaycastAll 좌표 검증 전 `GetWindow(GameView).Focus()` + Screen 값 확인 필수.
+
+### G. 다음 세션
+1. **⑦ 툴팁 상세설명** — 스킬 이름 밑으로 + 폰트 색 조정 + 약간 키움 (`UI/SkillTooltip.cs` 구조화 엔트리). **"위력 부분 폰트 진하게" 의미는 사용자/QA에 확인 필요**(위력 줄은 삭제된 상태).
+2. **③·⑥ QA 재확인 요청** — 최신 빌드(12차 보스 애니+14차 수정 포함)로. ②와 ①도 수정 빌드로 함께 재검증 받으면 좋음.
+3. (1줄) EnemyAction.cs 101행 낡은 주석 현행화.
+
+### H. 14차 백업 목록
+```
+2026-06-12_140523_session14_tutorial_canvas_restore  (GamePlayScene.unity — ① 수정 전)
+2026-06-12_143826_session14_leftpanel_sync           (FellowData.Hp/Phases/Accordion/LeftPanelView.cs — ② 수정 전)
+2026-06-12_145742_session14_partyedit_reverse        (PartyEditPanel.prefab — ⑤ 수정 전)
+2026-06-12_150636_session14_gameover_to_title        (BattleManager.Phases.cs — ⑧ 수정 전, ② 수정 후 버전)
+2026-06-12_153746_session14_skipbtn_resize           (GamePlayScene.unity — ④ 수정 전)
+2026-06-12_154314_session14_handoff                  (HANDOFF.md — 14차 갱신 전)
+2026-06-12_160838_session14_nodemap_intro_race       (TutorialGuidePanel.cs — ➕ 수정 전)
+2026-06-12_161957_session14_tutorial_victory_randomnode (MapGenerator/NodeSystem/Phases/TutorialManager.cs — ➕➕ 수정 전)
+```
+
+---
+
+## 🔍 13차 세션 — 디코 QA 중간점검 접수 + ① 튜토리얼 팝업 버튼 정적 진단 (2026-06-12)
+
+> **수정 0건 세션** — QA 항목 정리와 ① 정적 진단까지만 진행. **Unity MCP 미연결**(ToolSearch 0건)이라 런타임 진단을 못 하고 인수인계. 12차 작업 상세는 하단 §2026-06-11 섹션들 참조.
+> ⚠️ **작업 방식(사용자 재확인 2026-06-12)**: "진행하고 할때마다 질문해줘 임의로 하지말고" — **건마다** 진단 결과·수정안 제시 → OK 받고 → 백업 → 수정 → 검증. 여러 건 묶음 일괄 진행 금지. (메모리 feedback_workflow §7에도 반영됨)
+
+### A. 디코 QA 원문 (2026-06-12 중간 점검) — 보존용
+- **우선순위 1 (진행에 심각)**: 없음
+- **우선순위 2 (영향 O, 진행 가능)**
+  - ① 타이틀 "처음이신가요?" 클릭 → 전투 노드 클릭 → 전투 화면 **튜토리얼 팝업 내 버튼 안 눌림**
+  - ② **좌측 UI와 현재 상태 상이함**
+  - ③ 순간이동 로직 잘못된 듯? (**QA 작성자가 재확인 예정**)
+- **우선순위 3 (영향 X)**
+  - ④ 튜토리얼 팝업 내 **메인메뉴 버튼 크기·위치** 수정
+  - ⑤ **파티 편집 배치 순서 역순** 적용 (파티편집: 왼쪽이 1번 / 전투: 오른쪽이 1번)
+  - ⑥ **까마귀 소환 시 허수아비 애니메이션 안 나옴**
+- **개선사항**
+  - 스킬 툴팁 — (수정 완료) 코스트를 이름 옆·같은 폰트 / (수정 완료) 위력 삭제 / (수정 완료) [공격|광역 적|사거리] 형식. **남은 1건**: ⑦ **상세 설명 폰트 색 조정 + 스킬 이름 밑으로 위치 + 폰트 약간 키움** (+"위력 부분 폰트 진하게 가능하면 좋을 듯" — 위력 줄은 삭제된 상태라 어디를 말하는지 확인 필요)
+  - (수정 완료) 용병소 닫기 버튼 빨간 계열
+  - ⑧ **게임 오버 시 타이틀 화면으로** (현재: 노드맵 새 런으로 감)
+
+### B. 항목별 상태·다음 행동
+| # | 항목 | 상태 | 다음 행동 |
+|---|---|---|---|
+| ① | 튜토 팝업 버튼 안 눌림 (P2) | **정적 진단 완료 — 파일상 정상, 원인 미특정** | MCP 연결 후 런타임 진단 (§C 절차 그대로) |
+| ② | 좌측 UI 상이 (P2) | 의미 불명확 | **사용자에게 구체 상황 재질문** (미답) |
+| ③ | 순간이동 의심 (P2) | 보류 | QA측 재확인 대기. 맥락: 12차 §텔레포트 순서(모션 후 배치)·§보스 스킬 애니(Reverse+슬롯재할당+잔상) 개편 직후임 |
+| ④ | 튜토 메인메뉴 버튼 크기/위치 (P3) | 구조 파악 완료 | ①과 같은 화면 — 묶어 처리. SkipButton은 씬 오버라이드로 우상단 배치됨 (§C 구조 참조) |
+| ⑤ | 파티 순서 역순 (P3) | **방향 결정 대기** | A안=전투 배치 반전(왼쪽=1번, 직관 일치) vs B안=파티편집 표시 반전(오른쪽=1번, 1번=선봉 의미 유지). 전투 아군 x=2,0,-2,-4 — 1번(allies[0])이 x=2로 적측(오른쪽) (12차 검증 기준). 적은 x≈7.75 오른쪽 |
+| ⑥ | 까마귀 소환 허수아비 애니 (P3) | 가설 수립 | 12차 보스 검증이 `ExecuteSummonSkill` **직접 호출**이라 시전 모션 경로를 안 탔을 가능성 → 실전 경로 `ExecuteEnemySkillCast`(BattleManager.EnemyAction.cs)에서 Summon 타입일 때 Attack2 트리거(까마귀 부름=Attack2 매핑, 12차 §보스 스킬별 애니) 호출 여부 코드 점검부터 |
+| ⑦ | 툴팁 상세설명 색/위치/크기 | 대상 파악 완료 | `UI/SkillTooltip.cs` 구조화 엔트리(12차 §#11 재설계) 수정. 위력 스탯줄은 189행 주석 처리로 이미 삭제 확인. "위력 진하게" 의미는 사용자에게 확인 |
+| ⑧ | 게임오버→타이틀 | 경로 파악 완료 + 사전 분석 §D | **사용자 확정 대기** (미답) |
+
+### C. ① 튜토리얼 팝업 버튼 — 정적 진단 상세 (이번 세션 결과, 재조사 불필요)
+**증상**: 타이틀 [처음이신가요?] → 노드맵(클릭 **정상**) → 전투 노드 클릭 → CombatIntro 팝업 표시됨 → [다음]/[스킵] 버튼 무반응. P2(진행 가능)인 걸로 보아 모달이 게임 전체를 막지는 않는 듯.
+
+**확인된 구조** (파일 직접 확인 — 그대로 신뢰 가능):
+- 팝업 = `Assets/Prefab/UI/TutorialCanvas.prefab` 인스턴스. 씬 부모 = 루트 `Canvas`(fileID 2001003227) — **부모에 CanvasGroup 없음**(간섭 불가)
+- 프리팹 루트 TutorialCanvas: Canvas **Overlay sortingOrder=100** + CanvasScaler(**ConstantPixelSize** scale=1) + GraphicRaycaster + TutorialGuidePanel + CanvasGroup(기본 alpha1/inter1/blocks1)
+  - └ GuidePanel(Image) — 씬 오버라이드 중앙 900×400. └ MessageText(TMP) / NextButton(1000×100, y=-200, Label "다음")
+  - └ SkipButton(루트 직속, Label "스킵") — 씬 오버라이드 pivot(1,1)·anchor(1,1)계 우상단 (씬 GamePlayScene.unity ≈1480~1600행 m_Modifications)
+- 배선: `TutorialGuidePanel.cs` Start() 65-66행 리스너(확인=Hide / 메인메뉴=EndTutorial+`SceneTransition.Go("GameStartScene")`). 프리팹 내 nextButton/skipButton 참조 정상
+- 표시 시퀀스: `NodeSystem.DispatchByRoomType()` 735행 `TryShowDialogue(CombatIntro)` → popup.Show() → **그 다음** DisplayChanger(SetActive 토글) → `BattleManager.OnEnable()` 218행 `LoadingScreen.Cover()` → BattleLoop [yield→재배치→hold 0.6s→UncoverRoutine(0.4s)]
+- 씬 캔버스 정렬: 0×2 / 50 / 80 / **100(튜토 = 씬 내 최상단)**. 런타임 자가생성 오버레이(전부 DDOL): LoadingScreen 10000 / SceneTransition 9999 / BattleResultScreen 9990
+
+**배제된 원인**:
+| 가설 | 배제 근거 |
+|---|---|
+| 버튼 배선 누락 | 프리팹 참조 + Start() 리스너 확인 |
+| 다른 캔버스가 위(z) | 튜토=100 씬 최상단. 노드맵 클릭이 됐으므로 SceneTransition 잔존 차단도 아님 |
+| 부모 CanvasGroup 간섭 | 부모(루트 Canvas)에 CanvasGroup 없음 |
+| LoadingScreen 잔존 차단 | FadeOut 종료 시 blocksRaycasts=false + 자식 이미지 전부 raycastTarget=false(TMP Label 900×90 중앙 띠만 true) |
+| DisplayChanger 간섭 | SetActive 반전 토글만, 팝업 캔버스 안 건드림 |
+| PanelBase z-개편(#16) 영향 | 팝업은 PanelBase 미상속 + 전투 진입 시 열리는 PanelBase 없음 |
+
+**남은 가설(우선순위순)**:
+1. **런타임 가로채기/상태 꼬임** — 정적으로 안 보이는 것. 라이브 RaycastAll 로 특정해야 함
+2. **에디터 고DPI 좌표 불일치**(10차 §전투 카드 호버 함정 계열) — 단 튜토 캔버스는 Overlay+ConstantPixelSize라 이론상 무관. **QA 재현 환경(에디터/빌드) 미확인 — 질문해 둔 상태(미답)**
+3. Show()가 Start() 전 호출되는 타이밍 류 — CombatIntro는 씬 로드 한참 뒤라 가능성 낮음
+
+**다음 진단 절차(MCP 연결 후 그대로 실행)**:
+1. Play → 튜토리얼 재현([처음이신가요?] 경로 또는 TutorialManager.StartTutorial 강제) → 전투 노드 클릭
+2. 팝업 표시 상태에서 execute_code: NextButton 스크린좌표에 `PointerEventData` 만들어 `EventSystem.current.RaycastAll()` 덤프 → **최상단 히트가 무엇인지 특정**
+3. 동시 점검: LoadingScreen._group.blocksRaycasts 값 / TutorialCanvas CanvasGroup 상태 / EventSystem 활성 InputModule / TutorialGuidePanel.Instance 중복 여부
+4. ⚠️ 에디터 비포커스 프레임 정지·`refresh_unity(compile=request)` 함정 — §12차(2026-06-11 까마귀 카운트다운) 참조
+
+### D. ⑧ 게임오버→타이틀 — 사전 분석 메모
+- 현재 비튜토 패배: `BattleManager.Phases.cs` 284행 `BattleResultScreen.ShowDefeat(() => StartNextRunLoop())` — 노드맵에서 새 런(마석 유지)
+- 참고 패턴: **튜토리얼 보스 전멸 경로**(같은 파일 230~236행)가 이미 `SceneTransition.Go("GameStartScene")` 사용 — 콜백 교체 모델로 쓸 수 있음
+- ⚠️ 단순 교체 금지: `StartNextRunLoop()`가 하던 **런 리셋**(파티/덱/노드 진행, 마석 유지)이 타이틀 경유 시 어디서 일어나는지 추적 필요 — `MoveScene.InGameSceneLoaded`는 `ForceReinitParty()`만 호출. 노드 진행(층)/영혼석 등 리셋 누락 가능성 → 코드 추적 후 수정안 제시할 것
+- 사용자 확정 필요: 타이틀행 확정 여부 + 리셋 시점(패배 직후 vs 다음 [시작하기] 시)
+
+### E. 사용자 미답 질문 5개 — **다음 세션 첫 질문으로 그대로 사용**
+1. Unity 에디터 실행 + **MCP for Unity 연결** 부탁 (이번 세션 내내 미연결)
+2. QA ①의 재현 환경: **에디터 플레이였는지 빌드였는지?**
+3. ② "좌측 UI와 현재 상태 상이함" — 구체적으로 어떤 화면/어떤 차이?
+4. ⑤ 파티 순서 통일 방향: **A안**(전투 반전 — 왼쪽=1번) vs **B안**(파티편집 표시 반전 — 오른쪽=1번)
+5. ⑧ 게임오버 → 타이틀 확정 + 런 리셋 시점
+
+### F. 13차 백업
+```
+~/Documents/backup/2026-06-12_134133_session13_handoff/   (HANDOFF.md — 13차 갱신 전 원본)
+```
 
 ---
 

@@ -75,6 +75,15 @@ public partial class FellowData
         OnShieldChanged?.Invoke();
     }
 
+    /// <summary>실드를 0으로 비우고 OnShieldChanged 이벤트를 발생시킨다.
+    /// 전투 종료 등 일시 상태 정리용 — shield 필드 직접 할당은 이벤트가 발행되지 않아 UI 게이지가 남는다.</summary>
+    public void ClearShield()
+    {
+        if (shield == 0) return;
+        shield = 0;
+        OnShieldChanged?.Invoke();
+    }
+
     // ── 런타임 전용 (NonSerialized) ──────────────────────────────
     [System.NonSerialized] public System.Action<int>        OnHpChanged;
     [System.NonSerialized] public System.Action             OnDied;
