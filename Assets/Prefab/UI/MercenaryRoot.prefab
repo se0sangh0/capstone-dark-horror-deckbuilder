@@ -99,7 +99,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &960206971445703021
 RectTransform:
   m_ObjectHideFlags: 0
@@ -147,8 +147,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a8e760a3e95d5407b8df5bea4f34d9dc, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: -7848458735700046232, guid: 9bb36cfff4a2f479e96c0847690628d6, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -697,6 +697,7 @@ GameObject:
   - component: {fileID: 5239777183813455570}
   - component: {fileID: 677721893226188602}
   - component: {fileID: 7919750066449599112}
+  - component: {fileID: 8839897848035598164}
   m_Layer: 5
   m_Name: MercenaryOfficePanel
   m_TagString: Untagged
@@ -760,6 +761,14 @@ MonoBehaviour:
   exitButton: {fileID: 256302651933759084}
   recruitPanel: {fileID: 8014490552254713065}
   growthPanel: {fileID: 5922807442052959653}
+--- !u!222 &8839897848035598164
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2674129950994628240}
+  m_CullTransparentMesh: 1
 --- !u!1 &3486606538706127765
 GameObject:
   m_ObjectHideFlags: 0
@@ -834,7 +843,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
+    rgba: 4284929791
   m_fontColor: {r: 1, g: 0.84, b: 0.4, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -965,7 +974,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 3ed54726422b14bfe91b7d39f00748c1, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 09d0667133ab9433288299551246dbd2, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1682,7 +1691,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 3ed54726422b14bfe91b7d39f00748c1, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 09d0667133ab9433288299551246dbd2, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1810,7 +1819,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
+    rgba: 4284929791
   m_fontColor: {r: 1, g: 0.84, b: 0.4, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -2296,7 +2305,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
+    rgba: 4284929791
   m_fontColor: {r: 1, g: 0.84, b: 0.4, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -2570,7 +2579,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
+    rgba: 4284929791
   m_fontColor: {r: 1, g: 0.84, b: 0.4, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -3229,7 +3238,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -3353,7 +3362,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
+    rgba: 4284929791
   m_fontColor: {r: 1, g: 0.84, b: 0.4, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -3644,6 +3653,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8127235660655870187, guid: ca34956369890401bacc8af5627aa58a, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4284929791
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3772,6 +3785,10 @@ PrefabInstance:
     - target: {fileID: 7683383781621330952, guid: ca34956369890401bacc8af5627aa58a, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8127235660655870187, guid: ca34956369890401bacc8af5627aa58a, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4284929791
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3902,6 +3919,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8127235660655870187, guid: ca34956369890401bacc8af5627aa58a, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4284929791
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4030,6 +4051,10 @@ PrefabInstance:
     - target: {fileID: 7683383781621330952, guid: ca34956369890401bacc8af5627aa58a, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8127235660655870187, guid: ca34956369890401bacc8af5627aa58a, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4284929791
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
