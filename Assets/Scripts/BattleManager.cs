@@ -127,6 +127,9 @@ public partial class BattleManager : Singleton<BattleManager>
     [Tooltip("전투 진입 로딩 커버 유지 시간(초) — 스폰/정렬 후 이만큼 머문 뒤 페이드로 전투 공개. 기본 0.6초.")]
     public float battleEntryLoadingHold = 0.6f;
 
+    [Tooltip("첫 드로우(스택카드 로딩)를 커버 뒤에서 실행한 뒤, 드로우 애니메이션이 끝날 때까지 커버를 더 유지하는 시간(초). 기본 0.9초.")]
+    public float battleEntryDrawHold = 0.9f;
+
     [Tooltip("10층 보스 클리어 시 표시할 엔딩 패널. 미할당 시 콘솔 로그만.")]
     [SerializeField] private GameObject endingPanel;
 
@@ -359,8 +362,16 @@ public partial class BattleManager : Singleton<BattleManager>
     /// <summary>전투 종료 전까지 페이즈를 반복 실행하는 코루틴</summary>
     private IEnumerator BattleLoop()
     {
-        // 전투 진입 로딩 커버(OnEnable 에서 띄움)를 잠깐 유지 후 페이드로 전투를 공개한다.
+        // 전투 진입 로딩 커버(OnEnable 에서 띄움)를 유지한 채 첫 드로우(스택카드 로딩)까지 끝낸 뒤 공개한다 (2026-06-13).
         if (battleEntryLoadingHold > 0f) yield return new WaitForSecondsRealtime(battleEntryLoadingHold);
+
+        // 첫 드로우를 커버 뒤에서 실행 + 드로우 애니메이션이 끝날 때까지 대기 → 카드 스폰/드로우 과정을 가린다.
+        if (currentPhase == BattlePhase.DrawPhase)
+        {
+            yield return StartCoroutine(ExecutePhase(BattlePhase.DrawPhase));
+            if (battleEntryDrawHold > 0f) yield return new WaitForSecondsRealtime(battleEntryDrawHold);
+        }
+
         yield return LoadingScreen.UncoverRoutine(0.4f);
 
         while (currentPhase != BattlePhase.BattleEnd)
