@@ -92,7 +92,7 @@ public class MagicStoneShopPanel : MonoBehaviour
         foreach (var row in _rows)
         {
             bool unlocked = MetaPassiveManager.IsUnlocked(row.id);
-            int  cost     = MetaPassiveManager.CostOf(row.id);
+            int  cost     = MetaPassiveManager.EffectiveCostOf(row.id);   // 누진 할증가 (2026-06-13 QA)
             bool canAfford = mana >= cost;
 
             if (unlocked)

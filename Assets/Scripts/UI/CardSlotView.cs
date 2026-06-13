@@ -286,17 +286,11 @@ public class CardSlotView : MonoBehaviour
     private static string FormatHpScore(int hp, int shield)
         => shield > 0 ? $"{hp}(+{shield})" : hp.ToString();
 
-    // 포켓몬식 HP 색상: >50% 초록 / 25~50% 노랑 / ≤25% 빨강
+    // HP 바 색상 — 체력 비례 색 변경 제거, 빨강 통일 (2026-06-13 QA)
     private void UpdateHpColor(int hp)
     {
-        if (_hpFillImage == null || _fellow == null) return;
-        int maxHp = _fellow.maxHp > 0 ? _fellow.maxHp : 100;
-        float ratio = (float)hp / maxHp;
-
-        _hpFillImage.color =
-              ratio > 0.5f  ? new Color(0.30f, 0.78f, 0.30f)   // 초록
-            : ratio > 0.25f ? new Color(0.95f, 0.80f, 0.20f)   // 노랑
-            :                 new Color(0.85f, 0.25f, 0.25f);  // 빨강
+        if (_hpFillImage == null) return;
+        _hpFillImage.color = new Color(0.85f, 0.25f, 0.25f);
     }
 
     /// <summary>칸보다 큰 폰트로 텍스트 밑이 잘리지 않도록 오토사이즈(축소) 적용 (#12).</summary>

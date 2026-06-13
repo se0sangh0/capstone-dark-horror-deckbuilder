@@ -87,9 +87,6 @@ public partial class EnemyData : ScriptableObject
     /// <summary>남은 생존 턴 (summonLifeTurns > 0 일 때만 유효). 0 도달 시 만료.</summary>
     [System.NonSerialized] public int currentLifeTurns = 0;
 
-    /// <summary>보스 상태머신용 — 까마귀 만료 후 다음 턴에 순간이동 강제 발동.</summary>
-    [System.NonSerialized] public bool pendingTeleport = false;
-
     /// <summary>도발 — 남은 턴. 0 보다 크면 SingleEnemy/FrontFirst/BackLast 타겟팅 시 taunter 우선.</summary>
     [System.NonSerialized] public int tauntTurnsLeft = 0;
 

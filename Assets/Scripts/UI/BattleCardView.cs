@@ -424,11 +424,8 @@ public class BattleCardView : MonoBehaviour
             Debug.LogWarning($"[BattleCardView] '{name}' Slider.fillRect 미할당 — HP 색 변화 동작 불가. Slider 인스펙터 확인.", this);
             return;
         }
-        float ratio = maxHp > 0 ? (float)hp / maxHp : 0f;
-        _fillImage.color =
-              ratio > 0.5f  ? new Color(0.30f, 0.78f, 0.30f)   // 녹
-            : ratio > 0.25f ? new Color(0.95f, 0.80f, 0.20f)   // 노랑
-            :                 new Color(0.85f, 0.25f, 0.25f);  // 빨강
+        // 체력 비례 색 변경 제거 — 빨강 통일 (2026-06-13 QA)
+        _fillImage.color = new Color(0.85f, 0.25f, 0.25f);
     }
 
     // 카드 본체 시작 오프셋 (월드/캔버스 단위). 상태 영역(이름·HP) 보다 아래에서 출발.

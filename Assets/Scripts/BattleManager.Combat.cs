@@ -191,17 +191,6 @@ public partial class BattleManager
     /// </summary>
     private void ApplyDamageToAlly(FellowData target, int damage, bool allowBondRedirect = true)
     {
-        // 튜토리얼 보스전 — 보스는 절대 못 죽이고 첫 행동에 아군 전멸 시나리오.
-        // 기획: 보스 압도감 체험 + 자연스러운 튜토리얼 종료.
-        bool isTutorialBossRoom = TutorialManager.Instance != null
-                                  && TutorialManager.Instance.IsTutorial
-                                  && NodeSystem.Current != null
-                                  && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
-        if (isTutorialBossRoom)
-        {
-            damage = target.maxHp > 0 ? target.maxHp : 9999; // 즉사
-        }
-
         // ── 딜러 중증 디버프 (기획 §04) — 받는 피해 +30% ──
         if (target.role == CompanionRole.Dealer && target.hasSevereDebuff)
         {

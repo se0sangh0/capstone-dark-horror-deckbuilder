@@ -139,8 +139,7 @@ public class TutorialManager : MonoBehaviour
         ResultIntro     = 3,   // 결과 처리 첫 진입 (미행동 보상)
         CombatVictory   = 4,   // 첫 전투 승리 → 다음 노드 안내
         ShopIntro       = 5,   // 용병소 (튜토리얼 2층)
-        RestIntro       = 6,   // 화톳불 (튜토리얼 3층)
-        BossIntro       = 7,   // 보스 (튜토리얼 4층)
+        RestIntro       = 6,   // 화톳불 (튜토리얼 마지막 — 다음 층에서 종료)
     }
 
     private static readonly string[] DialogueMessages = new[]
@@ -167,13 +166,9 @@ public class TutorialManager : MonoBehaviour
         "[성장]: 같은 직업, 성급 동료 3명을 합성해 별을 올려 강화합니다.\n" +
         "[나가기]: 다음 노드로 진행합니다.",
 
-        // 6 — RestIntro (화톳불)
-        "화톳불입니다. 다음 전투를 위해 정비할 수 있어요.\n\n" +
-        "HP / 스트레스를 회복하고, 파티를 점검한 뒤 [다음 층]으로 진행하세요.",
-
-        // 7 — BossIntro
-        "마지막... 거두는 자입니다.\n\n보스는 매우 강력해 한 번에 처치하기 어렵습니다.\n" +
-        "튜토리얼에서는 보스의 압도감을 체험하는 것이 목표예요. 행운을 빕니다."
+        // 6 — RestIntro (화톳불 — 튜토리얼 마지막 노드)
+        "화톳불입니다. 여기서 HP / 스트레스를 회복하고 파티를 점검할 수 있어요.\n\n" +
+        "정비를 마치고 [다음 층]을 누르면 튜토리얼이 끝나고 본 게임이 시작됩니다.",
     };
 
     private readonly System.Collections.Generic.HashSet<DialogueId> _shownDialogues = new System.Collections.Generic.HashSet<DialogueId>();

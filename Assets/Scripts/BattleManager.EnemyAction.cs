@@ -61,6 +61,9 @@ public partial class BattleManager
     /// 선택된 스킬 1개의 실제 시전 — 사운드/쿨다운/모션 트리거/효과(데미지·소환·순간이동·수확) 전부.
     /// ExecuteEnemyTurn(스킬 자동선택) 과 DebugCastAllEnemySkills(인덱스 지정) 가 공유한다. (2026-06-11 분리)
     /// </summary>
+    // 2026-06-13(QA): 소환 모션을 다 취한 뒤 까마귀가 등장하도록 대기할 시간(보스 공격 모션 attackHoldDuration ~1.0s 기준).
+    private const float SummonMotionDelay = 1.0f;
+
     private IEnumerator ExecuteEnemySkillCast(EnemyData enemy, EnemySkillData skill)
     {
         // 적 스킬음 — 도끼 던지기(약탈자)는 전용음, 그 외는 일반 적 스킬음. (2026-06-09)
@@ -98,9 +101,11 @@ public partial class BattleManager
             yield break;
         }
 
-        // ── 2) effectType 별 분기 — Summon/Teleport 는 즉시 효과 (모션 없음, 타격 대기 불필요)
+        // ── 2) effectType 별 분기 — Teleport 는 즉시 효과. Summon 은 모션 재생 후 소환 (2026-06-13 QA).
         if (skill.effectType == "Summon")
         {
+            // 소환 모션(원거리 제자리)을 다 취한 뒤 까마귀가 등장하도록 모션 길이만큼 대기 후 소환.
+            yield return new WaitForSeconds(SummonMotionDelay);
             ExecuteSummonSkill(enemy, skill);
             yield break;
         }
@@ -208,8 +213,7 @@ public partial class BattleManager
             };
         }
 
-        // TODO[K]: 보스 상태머신 — 까마귀 소환했으므로 다음 만료까지 추적.
-        //          pendingTeleport 는 까마귀 만료 시 ProcessSummonExpiration 에서 켠다.
+        // 까마귀 소환 완료. 순간이동은 '까마귀 부름 실패'(까마귀 생존/쿨다운으로 소환 불가) 시 PickBossBaseSkill 에서 선택 (2026-06-13).
     }
 
     // ============================================================
@@ -224,6 +228,13 @@ public partial class BattleManager
             enemy.usedOnceSkills.Add(forced.id);
             Debug.Log($"[적 행동/강제] {enemy.displayName} → {forced.displayName} 발동 (1회 한정)");
             return forced;
+        }
+
+        // ── 1.5) 보스(거두는 자) 전용 상태머신 — 휘두르기/까마귀부름 룰렛, 소환 실패 시 순간이동 (기획 §11 §3, 2026-06-13) ──
+        if (enemy.tier == EnemyTier.Boss)
+        {
+            var bossPick = PickBossBaseSkill(enemy);
+            if (bossPick != null) return bossPick;
         }
 
         // ── 2) 가중치 룰렛 (1회 스킬·weight 0 스킬 제외) ──────────
@@ -284,14 +295,62 @@ public partial class BattleManager
     }
 
     // ============================================================
+    // 보스(거두는 자) 기본 상태 행동 — 기획 §11 §3 상태머신 (2026-06-13)
+    //   휘두르기/까마귀 부름 가중치 룰렛(JSON weight). 까마귀 부름이 막히면(까마귀 생존 or 쿨다운)
+    //   "까마귀 부름 실패" → 순간이동으로 대체 (기획 비고 "까마귀 부름 실패 후에만 발동").
+    //   데이터 미비 시 null → 일반 룰렛 폴백.
+    // ============================================================
+    private EnemySkillData PickBossBaseSkill(EnemyData boss)
+    {
+        var db = EnemySkillDatabase.Instance;
+        if (db == null) return null;
+
+        var swing    = db.GetSkill("enemy_skill_reaper_swing");
+        var summon   = db.GetSkill("enemy_skill_reaper_summon");
+        var teleport = db.GetSkill("enemy_skill_reaper_teleport");
+        if (swing == null || summon == null) return null;
+
+        int wSwing  = Mathf.Max(0, swing.weight);
+        int wSummon = Mathf.Max(0, summon.weight);
+        int total   = wSwing + wSummon;
+        if (total <= 0) return null;
+
+        int roll = Random.Range(0, total);
+        if (roll < wSwing)
+        {
+            Debug.Log($"[보스 상태머신] {boss.displayName} → 휘두르기 (룰렛 {roll}/{total})");
+            return swing;
+        }
+
+        // 까마귀 부름 시도 — 까마귀 생존 중이거나 쿨다운이면 "실패" → 순간이동
+        bool crowsAlive = !string.IsNullOrEmpty(summon.summonEnemyId)
+                          && enemies.Any(e => e != null && !e.isDead && e.id == summon.summonEnemyId);
+        bool onCooldown = boss.GetSkillCooldown(summon.id) > 0;
+        if (!crowsAlive && !onCooldown)
+        {
+            Debug.Log($"[보스 상태머신] {boss.displayName} → 까마귀 부름 (소환 가능)");
+            return summon;
+        }
+
+        // 까마귀 부름 실패 → 순간이동 (기획 §11 §3 "까마귀 부름 실패 후에만 발동")
+        if (teleport != null)
+        {
+            Debug.Log($"[보스 상태머신] {boss.displayName} → 까마귀 부름 실패(생존={crowsAlive}/쿨={onCooldown}) → 순간이동");
+            return teleport;
+        }
+        Debug.LogWarning("[보스 상태머신] 순간이동 스킬 데이터 없음 — 휘두르기 폴백");
+        return swing;
+    }
+
+    // ============================================================
     // 소환체 수명 카운터 + 만료 처리 — HandleResultProcessing 에서 매 턴 호출
     // ============================================================
     //   기획 §11 §3 보스 까마귀:
     //     소환 후 3턴 카운터, 0 도달 시:
     //       1) 패널티 발동 — 1마리당 expirePenaltyPower 데미지를 파티 전체에 분산 적용
     //       2) 까마귀 사망 처리
-    //       3) 보스에 pendingTeleport 플래그 → 다음 보스 턴에 K(순간이동) 강제 발동
-    //   까마귀가 hit-count 로 처치된 경우는 만료가 아니므로 패널티/플래그 안 발동.
+    //   까마귀가 hit-count 로 처치된 경우는 만료가 아니므로 패널티 안 발동.
+    //   (2026-06-13: 만료→순간이동 연결 제거 — 순간이동은 '까마귀 부름 실패'(PickBossBaseSkill)에서 처리)
     // ============================================================
     private void ProcessSummonExpiration()
     {
@@ -326,16 +385,7 @@ public partial class BattleManager
 
             // CurrentHp=0 setter 가 isDead=true + OnDied 자동 발동 → 시각 침몰 트윈 트리거
             summon.CurrentHp = 0;
-
-            // 소환체 만료 → 보스(거두는 자)에 순간이동 예약 플래그
-            //   기획 §11 §3: "3턴 내 처치 실패 시 → 까마귀 패널티 발동 → 순간이동 상태 진입"
-            var boss = enemies.FirstOrDefault(e =>
-                e != null && !e.isDead && e.tier == EnemyTier.Boss);
-            if (boss != null)
-            {
-                boss.pendingTeleport = true;
-                Debug.Log($"[상태머신] {boss.displayName} — 다음 턴 순간이동 예약됨 (pendingTeleport=true)");
-            }
+            // 2026-06-13: 만료는 기획대로 40 패널티만. 순간이동은 '까마귀 부름 실패' 시 PickBossBaseSkill 에서 처리.
         }
     }
 
@@ -375,20 +425,8 @@ public partial class BattleManager
         // [J] (폐기, 2026-06-11) "필드에 까마귀 없으면 확정 소환" 규칙 제거 — 사용자 결정으로 기획 §11 §3 원안 복귀:
         //     기본 상태 매 턴 60% 휘두르기 / 40% 까마귀 부름 룰렛. (생존 중·쿨다운 중 제외는 룰렛 가드가 처리)
 
-        // [K] 보스 — 까마귀 부름 실패(수명 만료) 후 다음 턴 순간이동 강제 발동
-        //     기획 §11 §3 거두는 자 §행동 패턴 [순간이동 상태]
-        if (enemy.tier == EnemyTier.Boss && enemy.pendingTeleport)
-        {
-            const string TELEPORT = "enemy_skill_reaper_teleport";
-            var skill = EnemySkillDatabase.Instance.GetSkill(TELEPORT);
-            if (skill != null)
-            {
-                enemy.pendingTeleport = false; // 1회 발동 후 플래그 해제 → 기본 상태 복귀
-                return skill;
-            }
-            Debug.LogWarning($"[K·Teleport] {TELEPORT} 스킬 데이터 없음 — 플래그 해제 후 일반 행동.");
-            enemy.pendingTeleport = false;
-        }
+        // [K] (제거, 2026-06-13) 만료→pendingTeleport→순간이동 강제분기 폐기 — 기획 §11 §3 재해석.
+        //     순간이동은 '까마귀 부름 실패'(까마귀 생존/쿨다운으로 소환 불가) 시 PickBossBaseSkill 에서 직접 선택.
 
         return null;
     }

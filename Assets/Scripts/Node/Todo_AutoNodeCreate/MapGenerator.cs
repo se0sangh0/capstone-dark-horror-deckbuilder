@@ -63,18 +63,18 @@ public class MapGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// 튜토리얼 전용 맵 — 4개 노드 일렬 (분기 없음). 사용자가 게임 전체 흐름 체험.
-    /// 1층 Combat(고블린) → 2층 Event(랜덤 노드 — 본편과 동일, 가중치 조작으로 용병소 100%) → 3층 Rest(화톳불) → 4층 Boss(즉사 시나리오)
+    /// 튜토리얼 전용 맵 — 3개 노드 일렬 (분기 없음). 사용자가 게임 전체 흐름 체험.
+    /// 1층 Combat(고블린) → 2층 Event(랜덤 노드 — 본편과 동일, 가중치 조작으로 용병소 100%) → 3층 Rest(화톳불) → 화톳불 "다음 층"에서 튜토리얼 종료 (2026-06-13 QA: 보스 노드 제거)
     /// </summary>
     private MapData GenerateTutorialMap()
     {
         var sequence = new[]
         {
-            RoomType.Combat, RoomType.Event, RoomType.Rest, RoomType.Boss,
+            RoomType.Combat, RoomType.Event, RoomType.Rest,
         };
 
         mapData = BuildLinearMap(sequence);
-        Debug.Log("[MapGenerator] 튜토리얼 맵 생성 — 4노드 일렬 (Combat→Event(랜덤)→Rest→Boss)");
+        Debug.Log("[MapGenerator] 튜토리얼 맵 생성 — 3노드 일렬 (Combat→Event(랜덤)→Rest, 화톳불에서 종료)");
         return mapData;
     }
 
