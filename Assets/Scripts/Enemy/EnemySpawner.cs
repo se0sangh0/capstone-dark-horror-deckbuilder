@@ -32,10 +32,10 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        // 튜토리얼 모드 — RoomType 별 적 1마리 고정 (기획 §15 + 5노드 시퀀스 확장)
-        //   · Boss  → 까마귀 보스 (즉사 연출용 — 실제 보스를 보여준 뒤 1턴에 전멸)
+        // 튜토리얼 모드 — RoomType 별 적 1마리 고정 (기획 §15)
         //   · Elite → 약탈자 (엘리트답게 고블린보다 강한 단일 적)
         //   · 그 외(Combat 등) → 고블린 (기획 §3-2 학습용 기본 적)
+        //   (2026-06-13 QA: 튜토리얼 보스 노드 제거 — Boss 분기 삭제. 본편 보스 스폰은 아래 일반 흐름에서 유지)
         if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
         {
             string tutId = "enemy_goblin_01";
@@ -45,7 +45,6 @@ public class EnemySpawner : MonoBehaviour
                 tutRoom = NodeSystem.Current.CurrentRoomType;
                 switch (tutRoom)
                 {
-                    case RoomType.Boss:  tutId = "enemy_reaper_boss"; break;
                     case RoomType.Elite: tutId = "enemy_raider_01";   break;
                 }
             }

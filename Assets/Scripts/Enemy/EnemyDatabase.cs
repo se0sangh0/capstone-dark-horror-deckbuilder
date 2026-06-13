@@ -71,7 +71,6 @@ public class EnemyDatabase : Singleton<EnemyDatabase>
         e.soulstoneDrop       = def.soulstoneDrop;
         e.currentHits         = 0;
         e.currentLifeTurns    = def.summonLifeTurns; // 생성 시 만수명으로 시작
-        e.pendingTeleport     = false;
         e.usedOnceSkills      = new System.Collections.Generic.HashSet<string>();
 
         // ⭐ 핵심: enemySprite 를 Resources.Load 로 자동 채움

@@ -110,6 +110,19 @@ public class GameManager : Singleton<GameManager>
     /// <summary>남은 드로우 덱 장수 — 덱 더미 UI(DeckPileView) 표시용.</summary>
     public int RemainingDeckCount => drawDeck != null ? Mathf.Max(0, drawDeck.Count - currentDrawIndex) : 0;
 
+    /// <summary>손패에 낼 수 있는 카드(살아있는 owner의 활성·미사용 카드)가 1장이라도 있는지. (2026-06-13 자동진행 판정용)</summary>
+    public bool HasPlayableCards()
+    {
+        if (myCards == null) return false;
+        for (int i = 0; i < myCards.Length; i++)
+        {
+            var c = myCards[i];
+            if (c != null && c.gameObject.activeSelf && c.owner != null && !c.owner.isDead && !c.isUsed)
+                return true;
+        }
+        return false;
+    }
+
     // ── 발라트로식 토글 선택 (2026-06-08) ──────────────────────────
     // 이번 턴에 '지정'된 카드 (클릭 순서 유지 — 내부 관리).
     private readonly List<StackCardController> _selectedOrder = new();

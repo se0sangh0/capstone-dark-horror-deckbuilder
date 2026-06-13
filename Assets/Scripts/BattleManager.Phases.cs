@@ -58,6 +58,16 @@ public partial class BattleManager
         Debug.Log("--- [2] 플레이어 카드 플레이 (입력 대기 중) ---");
         isPlayerTurnFinishing = false;
 
+        // 손패에 낼 카드가 없고 덱도 0장이면 — 할 게 없으므로 [턴 종료] 없이 자동 진행 (2026-06-13 QA)
+        var gm = GameManager.Instance;
+        if (gm != null && gm.RemainingDeckCount == 0 && !gm.HasPlayableCards())
+        {
+            Debug.Log("[BattleManager] 손패·덱 모두 0 — 자동 턴 진행");
+            yield return new WaitForSeconds(0.6f); // 짧은 안내 텀
+            currentPhase = BattlePhase.InitiativeCheck;
+            yield break;
+        }
+
         // 플레이어가 턴 종료를 누르거나 스페이스바를 누를 때까지 대기
         yield return new WaitUntil(() =>
             isPlayerTurnFinishing ||
@@ -209,8 +219,6 @@ public partial class BattleManager
         // 튜토 패배=자동 재시작 / 보스 전멸=완료 종료라 본편 ShowDefeat(타이틀행)와 흐름이 다르다.
         if (isTutorial)
         {
-            bool isBossRoom = NodeSystem.Current != null && NodeSystem.Current.CurrentRoomType == RoomType.Boss;
-
             if (allEnemiesDead)
             {
                 // 일반 적 전투 승리 — 본편과 동일한 승리 팝업, [다음으로] 클릭 시 노드맵 복귀
@@ -228,29 +236,17 @@ public partial class BattleManager
                 yield break;
             }
 
-            // 패배 계열 — 기존 Lose 팝업 연출
+            // 패배 계열 — 기존 Lose 팝업 연출 → 자동 재시작 (튜토리얼 처음부터)
+            // (2026-06-13 QA: 보스 노드 제거 — 튜토리얼 종료는 화톳불 NodeSystem.HandleRestExit 에서 처리)
             yield return new WaitForSeconds(gameOverDelay);
             DisplayChange.Instance.ToggleResultDisplay(false);
             yield return new WaitForSeconds(gameOverDelay);
 
-            if (isBossRoom)
-            {
-                // 보스 노드 전멸 — 튜토리얼 완료 (1턴에 전멸시킨 시나리오 그대로 진행)
-                GameLog.Event("튜토리얼 완료!", LogCategory.Reward);
-                Debug.Log("[BattleManager] 튜토리얼 보스 노드 전멸 — 완료 플래그 저장 후 메뉴 복귀");
-                yield return new WaitForSeconds(gameOverDelay);
-                TutorialManager.Instance.EndTutorial(markComplete: true);
-                SceneTransition.Go("GameStartScene");
-            }
-            else
-            {
-                // 일반 노드 패배 — 자동 재시작 (튜토리얼 처음부터)
-                GameLog.Event("다시 도전!", LogCategory.Status);
-                Debug.Log("[BattleManager] 튜토리얼 일반 노드 패배 — 파티 재생성 후 같은 씬 리로드");
-                yield return new WaitForSeconds(gameOverDelay);
-                PartyManager.Instance?.ForceReinitParty();
-                SceneTransition.Go("GamePlayScene");
-            }
+            GameLog.Event("다시 도전!", LogCategory.Status);
+            Debug.Log("[BattleManager] 튜토리얼 노드 패배 — 파티 재생성 후 같은 씬 리로드");
+            yield return new WaitForSeconds(gameOverDelay);
+            PartyManager.Instance?.ForceReinitParty();
+            SceneTransition.Go("GamePlayScene");
             yield break;
         }
 

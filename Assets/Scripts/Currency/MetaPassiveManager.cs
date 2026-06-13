@@ -150,12 +150,35 @@ public static class MetaPassiveManager
         return 0;
     }
 
+    // ── 누진 할증 (2026-06-13, QA) ──────────────────────────────
+    // 해금할수록 남은 항목 가격이 오른다: 유효가 = 기본가 × (1 + 해금수 × 10%).
+    // "활성화 갯수" = 현재 해금된 항목 전체 수(패시브+스킬 통합).
+    public const float SurchargePerUnlock = 0.10f;
+
+    /// <summary>현재까지 해금된 항목 수(패시브+스킬 전체).</summary>
+    public static int UnlockedCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (var i in All) if (IsUnlocked(i.id)) n++;
+            return n;
+        }
+    }
+
+    /// <summary>누진 할증이 반영된 유효 해금가 = 기본가 × (1 + 해금수 × 10%).</summary>
+    public static int EffectiveCostOf(string id)
+    {
+        return Mathf.RoundToInt(CostOf(id) * (1f + UnlockedCount * SurchargePerUnlock));
+    }
+
     public static bool TryUnlock(string id)
     {
         // 해금 비용 = 마석(ManaStone) — 영구 메타 재화. 기획 §16. (2026-06-08: 영혼석→마석 정정)
         // 마석 상점 패널이 마석 잔액을 표시/검사하므로 차감도 마석으로 일치시킨다.
+        // 2026-06-13(QA): 정액 CostOf → 누진 EffectiveCostOf 로 차감(구매할수록 비싸짐).
         if (IsUnlocked(id)) return false;
-        int cost = CostOf(id);
+        int cost = EffectiveCostOf(id);
         if (ManastoneManager.Instance == null || ManastoneManager.Instance.Amount < cost) return false;
         ManastoneManager.Instance.Use(cost);
         Unlock(id);

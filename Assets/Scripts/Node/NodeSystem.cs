@@ -733,8 +733,8 @@ public class NodeSystem : MonoBehaviour
             switch (type)
             {
                 case RoomType.Combat: tm.TryShowDialogue(TutorialManager.DialogueId.CombatIntro); break;
-                case RoomType.Boss:   tm.TryShowDialogue(TutorialManager.DialogueId.BossIntro);   break;
                 // Shop(고정 용병소) 노드는 폐지 — ShopIntro 는 Event 랜덤 결과가 용병소일 때 표시 (아래 case Event)
+                // Boss 노드는 튜토리얼에서 제거됨 (2026-06-13 QA) — 화톳불에서 종료
                 case RoomType.Rest:   tm.TryShowDialogue(TutorialManager.DialogueId.RestIntro);  break;
             }
         }
@@ -867,11 +867,21 @@ public class NodeSystem : MonoBehaviour
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
     }
 
-    /// <summary>화툿불 패널의 "다음 층" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
+    /// <summary>화툿불 패널의 "다음 층" 클릭 시 호출 — 노드맵 화면 복귀.
+    /// 단, 튜토리얼에서는 화톳불이 마지막 노드 → 여기서 튜토리얼 종료 후 시작 화면으로 (2026-06-13 QA: 보스 노드 제거).</summary>
     private void HandleRestExit()
     {
         if (restPanel != null)
             restPanel.OnExit -= HandleRestExit;
+
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
+        {
+            Debug.Log("[NodeSystem] 튜토리얼 화톳불 종료 — 완료 플래그 저장 후 시작 화면 복귀");
+            TutorialManager.Instance.EndTutorial(markComplete: true);
+            SceneTransition.Go("GameStartScene");
+            return;
+        }
+
         UpdateNodeStates();
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
     }
