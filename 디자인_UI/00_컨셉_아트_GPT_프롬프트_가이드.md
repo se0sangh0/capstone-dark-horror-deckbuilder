@@ -1,7 +1,7 @@
 # GPT 컨셉 아트 프롬프트 가이드
 
 > **문서 역할**: 컨셉 아트의 그래픽 풍을 고정하는 비주얼 마스터
-> **기준일**: 2026-07-28
+> **기준일**: 2026-07-29
 > **적용 대상**: GPT 이미지 생성, 키 아트, 환경 컨셉, 장면 삽화
 > **비적용 대상**: 실제 게임용 초상·스프라이트·애니메이션 시트
 
@@ -17,14 +17,19 @@
 | 기준 문서 | **이 문서** | [캐릭터 프롬프트](00_캐릭터_디자인_프롬프트.md) · [적 프롬프트](00_적_캐릭터_디자인_프롬프트.md) |
 
 **기존 스타일 레퍼런스**
-- [탐험 컨셉 아트](컨셉%20아트/탐험%20컨셉%20아트.jpeg): 심연형 여백, 작은 조사관, 청록 랜턴, 다세계 건축 파편
-- [화톳불 이벤트 컨셉 아트](컨셉%20아트/화툿불%20이벤트%20컨셉아트.jpeg): 높은 시점, 황동색 화광, 파티 실루엣, 검은 외곽부
+- [탐험 컨셉 아트](컨셉%20아트/탐험%20컨셉아트.png): 심연형 여백, 작은 조사관, 청록 랜턴, 다세계 건축 파편
+- [잘못된 그림자 화톳불 이벤트](컨셉%20아트/잘못된%20그림자%20화툿불%20이벤트%20컨셉아트.png): 높은 시점, 황동색 화광, 파티 실루엣, 검은 외곽부
+- [잘못 붙여진 복도](컨셉%20아트/잘못%20붙여진%20복도%20컨셉아트.png): 서로 다른 건축 재질의 봉합 방식
+- [거두는 자](컨셉%20아트/거두는자%20컨셉아트.png): 초기 농경 신앙 토착신의 크기와 위계
+- [우상숭배 이벤트](컨셉%20아트/우상숭배%20이벤트%20컨셉아트.png): 단일 이상 현상과 의식 공간의 연출
+
+> 기존 이미지에 남아 있는 후기 중세 예배당·판금 갑옷·기사풍 요소는 **그래픽 풍과 구도만 참고**한다. 최초 테마의 현행 시대 기준은 [13 §3B-5](../기획_통합/13_서사_설정_확정.md)의 고대 말기~중세 초기이며, 새 이미지에서는 목석 성소·원형 방패·겹가죽·사슬·비늘 갑주로 교체한다.
 
 ---
 
 ## 1. 그래픽 풍 한 줄
 
-> **행정적 통제로 정상처럼 보이게 만든 다세계의 폐허를, 작은 조사관이 단 하나의 빛에 의지해 걷는 고밀도 시네마틱 픽셀 호러.**
+> **행정적 통제가 타 세계의 일상과 방어를 적대적인 폐허와 괴이로 보이게 만든 공간을, 작은 조사관이 단 하나의 빛에 의지해 걷는 고밀도 시네마틱 픽셀 호러.**
 
 ### 반드시 반복되는 시각 문법
 
@@ -51,6 +56,8 @@
 
 런의 차원 테마가 달라져도 아래 항목은 바뀌지 않는다.
 
+> 테마별 실제 세계 원형·기본 인게임 왜곡·진실 시야 의미는 [기획_통합/13 §3B-0·§3B-5](../기획_통합/13_서사_설정_확정.md)를 기준으로 한다.
+
 - 픽셀 밀도
 - 암부 비율
 - 조명 낙차
@@ -58,14 +65,31 @@
 - 작은 인물과 거대한 공간의 대비
 - 영혼석 청록과 경고 적색의 의미
 
-테마별로 바뀌는 것은 동료 복식, 토착 건축, 보스의 신앙 도상이다.
+테마별로 바뀌는 것은 동료 복식, 토착 건축, 보스의 신앙 도상과 이벤트 괴담 문법이다. 아래 실제 원형은 디자인 근거이며, 일반 컨셉 아트는 반드시 FILTERED 열처럼 왜곡해 출력한다.
 
-| 테마 | 주된 외형 언어 | 피해야 할 과장 |
+| 테마 | 실제 세계 원형 `TRUE_BASELINE` | 기본 인게임 왜곡 `FILTERED` | 피해야 할 과장 |
+|---|---|---|---|
+| 초기 농경 신앙 | 흙성벽, 목석 성소, 원형 방패, 토착 농경 의례 | 곡창은 시체 저장고, 경계 기둥은 제물 말뚝, 주민은 수확 괴이로 보임 | 고딕 성당·완성형 판금·왕궁·MMORPG 장식 |
+| 무협 변경 항전 | 볏짚 우의, 죽창·도검, 낡은 군기와 격문, 민초·임협 | 피난처는 약탈자 소굴, 군기와 봉화는 저주 의식, 항전자는 전쟁 귀신으로 보임 | 지맥·경락 도상, 선협식 비행, 귀족 문파, 과도한 금빛 신기 |
+| 일본 신사 토착신 | 목조 신사, 도리이, 금줄, 등롱, 토착신과 요괴·귀신의 규칙 | 도리이는 감옥문, 금줄은 제물 봉인, 수호자는 통행을 막는 괴이로 보임 | 관광 엽서 같은 선명한 풍경, 닌자 판타지, 요괴 도감식 나열 |
+| 현대 경계도시 | 학교, 병원, 지하철, 통제선, 재난대응 설비 | 대피소는 실험시설, 통제선은 감금 구역, 구조대원은 얼굴 없는 통제 괴이로 보임 | 사이버펑크 네온·미래 도시·좀비 아포칼립스 |
+
+### 인식 레이어 사용 규칙
+
+| 레이어 | 이미지 용도 | 표현 |
 |---|---|---|
-| 중세 판타지 | 석조 예배당, 성소, 갑옷, 로브, 농경 신앙 | 화려한 왕궁·MMORPG 장식 |
-| 무협 | 산문, 사당, 먹선, 부적, 협객 복식 | 선협식 비행·과도한 금빛 신기 |
-| 일본식 | 목조 신사, 도리이, 종이 부적, 순례 복식 | 관광 엽서 같은 선명한 풍경 |
-| 현대 | 학교, 휴게실, 도로, 산업 표지, 사무 설비 | 사이버펑크 네온·미래 도시 |
+| `FILTERED` | 일반 컨셉 아트·기본 인게임 화면 | 실제 문화 실루엣은 유지하되 모든 방어·생활 행위를 적대 의식과 괴이로 오독 |
+| `LEAK` | 오염·회차 암시 이미지 | FILTERED 장면에 실제 얼굴·표식·생활 흔적을 한두 곳만 겹침 |
+| `TRUE_VIEW` | 내부 스포일러·엔딩 장면 | 괴물화를 제거하고 현지 수호자와 탐사국이 남긴 피해를 드러냄 |
+
+별도 지정이 없는 모든 장면 모듈은 `FILTERED`다. `TRUE_BASELINE`은 일반 플레이용 완성 이미지가 아니라 설정 원본이며, `CA-07`만 `TRUE_VIEW`를 요청한다.
+
+**가상 역사 원칙**
+
+- 초기 농경 신앙 세계는 특정 고대·중세 국가나 종교를 재현하지 않고 여러 생활 재질·도구를 혼합한다.
+- 무협 변경 항전 세계는 가상 왕조를 사용하며, 침략군은 별도 국가가 아니라 균열을 넘어온 **탐사국 원정대와 플레이어**다.
+- 실제 국기·군기·왕조 문장·민족 복식·종교 상징을 그대로 복제하지 않는다.
+- 별도의 침략 민족이나 적국 복식을 만들지 않는다. 현지 민초·임협은 생활 도구를 개조한 무기와 가상의 항전 표식으로 구분한다.
 
 ---
 
@@ -102,9 +126,16 @@ The visual identity is bureaucratic liminal horror: ordinary physical places fro
 incompatible worlds are fused together at structurally wrong angles, as if reality
 was repaired by an institution that cared more about hiding the seam than restoring
 the world. Show believable transitions between materials instead of a random collage:
-cracked school tiles becoming chapel stone, a shrine pillar growing through a ruined
-office wall, dry roots sewing masonry together, or old road signs embedded in sacred
-architecture.
+cracked school tiles becoming the rough stone of an early harvest sanctuary, a shrine
+pillar growing through a ruined office wall, dry roots sewing masonry together, or
+old road signs embedded in sacred architecture.
+
+PERCEPTION LAYER: Unless the scene module explicitly requests TRUE_VIEW, render the
+FILTERED in-game perception imposed by the Inspector institution. Preserve each
+world's historical materials and silhouettes, but make inhabited places appear
+abandoned and hostile, defensive boundaries appear ritualistic or imprisoning, local
+protectors appear monstrous, and damage caused by the expedition appear to be the
+world's own corruption. Do not show the normal world at face value.
 
 Composition: one dominant focal anomaly, monumental environment, tiny vulnerable
 human figures placed in the lower third, strong negative space, controlled asymmetry,
@@ -122,6 +153,17 @@ corroded signage, fog, dust, and paper records. Horror comes from absence, repet
 incorrect records, impossible shadows, and architecture that almost makes sense.
 Avoid graphic gore and avoid a visible attacking monster unless the scene explicitly
 requires one.
+
+For the early harvest and wuxia border-resistance dimensions, use fictional composite
+cultures only. Do not reproduce a recognizable real-world flag, dynastic emblem,
+military insignia, ethnic caricature, sacred symbol, or exact historical uniform.
+Differentiate fictional groups through practical equipment, material wear, formation,
+and invented abstract markings.
+
+In the wuxia border-resistance dimension, the invading force is the player's own
+Inspector expedition crossing the rift. Do not invent a separate foreign nation,
+ethnic army, or off-screen invader faction. Show local farmers and wandering heroes
+defending homes, granaries, graves, and evacuation routes from the player.
 
 No readable text, no letters, no numbers, no logo, no UI, no border, no watermark,
 no contact sheet, and no multiple panels. No glossy 3D render, no anime illustration,
@@ -148,7 +190,7 @@ networks, and no generic medieval castle vista.
 | 1 | 균열 탐험 키 아트 | 세계 봉합·인물 크기·암부 |
 | 2 | 다섯 번째 그림자의 화톳불 | 조명·은근한 공포 |
 | 3 | 복귀 브리핑실 | 행정적 호러·탐사국 정체성 |
-| 4 | 거두는 자의 버려진 성소 | 보스·토착 신앙·전투 절정 |
+| 4 | 거두는 자의 왜곡된 성소 | 보스·토착 신앙·전투 절정 |
 
 ---
 
@@ -167,11 +209,11 @@ The investigator wears a practical dark survey coat, a small field satchel, glov
 and no heroic ornament. The figure must occupy less than 8% of the frame.
 
 The rift is not a natural cave. On the left, a ruined school corridor bends downward
-and its tiled wall gradually becomes the stone arch of a chapel. On the right, a
-weathered shrine gate and a broken roadside barrier are half-swallowed by black roots
-that stitch them into the same cliff. The structures continue downward at impossible
-angles but remain physically believable. Far below, one tiny red inspection light
-glows with no visible device attached to it.
+and its tiled wall gradually becomes the rough stone-and-timber frame of an early
+harvest sanctuary. On the right, a weathered shrine gate and a broken roadside barrier
+are half-swallowed by black roots that stitch them into the same cliff. The structures
+continue downward at impossible angles but remain physically believable. Far below,
+one tiny red inspection light glows with no visible device attached to it.
 
 Camera: very wide establishing shot, slightly elevated behind the investigator.
 Focal order: investigator's teal lantern, impossible architectural seam, distant red
@@ -185,16 +227,20 @@ No party, no visible monster, no machinery, no fantasy castle, no readable signs
 ```text
 SCENE: ONE SHADOW TOO MANY
 
-Four small companions rest around a modest campfire on a broken stone floor suspended
-at the edge of darkness. Use the current medieval-dimension set: a shield-bearing
-defender, a lightly armored attacker, a robed caster, and a modest priest. Their faces
-must remain unreadable; identify them by silhouette, equipment, and posture only.
+Four small companions rest around an undying campfire beneath an enormous old tree.
+The FILTERED perception makes the well-maintained communal stone shelter look
+abandoned and neglected: cracked benches, false moss stains, dead-looking branches,
+and soot that appears decades old. Use the current early-harvest-dimension set: a
+round-shield defender in layered leather and scale armor, a lightly equipped
+hunter-attacker, a ritual caster, and a modest healer carrying herbs and a small
+brazier. Their faces must remain unreadable; identify them by silhouette, equipment,
+and posture only.
 
-Behind them stands a cracked wall where old chapel masonry changes halfway into
-painted school brick. The campfire projects exactly five human shadows across that
-wall. Four shadows correspond clearly to the seated companions. The fifth is taller,
-standing upright slightly apart, with no body casting it. None of the companions is
-looking at the extra shadow.
+The fire projects exactly five human shadows across a broad standing stone beneath
+the tree. Four shadows correspond clearly to the seated companions. The fifth is
+taller, standing upright slightly apart, with no body casting it. This extra shadow
+belongs to a random event and must be the single anomaly of the scene. None of the
+companions is looking at it.
 
 Camera: elevated three-quarter view, wide enough to show the complete group and the
 entire shadow wall. Warm brass firelight is the only strong light; one closed satchel
@@ -214,12 +260,12 @@ look small and observed. On the desk: a stack of nearly identical field reports,
 ink stamp, a sealed soul-stone container emitting weak teal light, and an old task
 lamp casting a narrow warm cone. All paper content must be abstract and unreadable.
 
-The room combines an ordinary records office with the remains of a chapel: dented
-filing cabinets sink into old stone columns, frosted observation glass cuts through
-a bricked arch, and black root-like seams hold the incompatible wall materials
-together. Behind the glass are only vague human-shaped silhouettes, too soft to count.
-An inactive analog terminal reflects one small warning-red indicator even though no
-device appears powered.
+The room combines an ordinary records office with the remains of an early
+stone-and-timber harvest sanctuary: dented filing cabinets sink into rough standing
+stones, frosted observation glass cuts through a charred timber frame, and black
+root-like seams hold the incompatible wall materials together. Behind the glass are
+only vague human-shaped silhouettes, too soft to count. An inactive terminal reflects
+one small warning-red indicator even though no device appears powered.
 
 Camera: wide, slightly high, with the desk in the lower third and a large dark ceiling
 above. Mood: routine paperwork that quietly resembles an interrogation and memory
@@ -234,15 +280,17 @@ SCENE: RECONSTRUCTED COMPANIONS
 
 Inside a cold recruitment hall, three incomplete humanoid companion forms stand on a
 low stone platform. They are being assembled from translucent teal fragments drawn
-toward a soul-stone suspended at each chest. The forms belong to the current medieval
-dimension: one armored defender, one weathered caster, and one priest, but their faces
-remain absent or obscured as if identity is the last part to load.
+toward a soul-stone suspended at each chest. The forms belong to the current early
+harvest dimension: one round-shield defender in layered leather and scale, one
+weathered ritual caster, and one herb-bearing healer, but their faces remain absent
+or obscured as if identity is the last part to load.
 
 An investigator stands before the platform holding a closed registry folder. The hall
-looks like a worn civic registry office built inside an older sanctuary: wooden queue
-rails terminate inside stone prayer steps, a service counter grows into an altar, and
-paper storage drawers are fused with devotional niches. One old brass lamp provides
-warm light; the materialization provides the restrained teal accent.
+looks like a worn civic registry office built inside an older timber-and-stone harvest
+sanctuary: wooden queue rails terminate inside packed-earth ritual steps, a service
+counter grows into a communal offering table, and paper storage drawers are fused
+with clay votive niches. One old brass lamp provides warm light; the materialization
+provides the restrained teal accent.
 
 Camera: wide frontal three-quarter view with the investigator small in the foreground
 and the three forms clearly separated. Mood: a transaction presented as recruitment,
@@ -250,21 +298,21 @@ with something human reduced to inventory. Do not show a laboratory, cloning tub
 robot parts, holographic UI, readable forms, or friendly shop decoration.
 ```
 
-### CA-05. 거두는 자의 버려진 성소
+### CA-05. 거두는 자의 왜곡된 성소
 
 ```text
-SCENE: THE ABANDONED HARVEST SANCTUARY
+SCENE: THE REAPER'S FILTERED NEST
 
-At the far end of a ruined agricultural sanctuary stands the Reaper, a tall hollow
-scarecrow figure wrapped in a tattered off-white hooded robe. Its face is a deep
-faceless shadow with two restrained dark-red points. It holds a weathered scythe as
-tall as its body. Two black crows perch nearby rather than flying dramatically.
+At the far end of what appears to be a hostile nest stands the Reaper, a towering
+hollow scarecrow figure wrapped in a tattered off-white hooded robe. Its face is a
+deep faceless shadow with two restrained dark-red points. It holds a weathered scythe
+as tall as its body. Two black crows perch nearby rather than flying dramatically.
 
-The battlefield is a dry harvest field growing through the floor of a collapsed
-chapel. Broken pews are half-buried in soil; sheaves of dead grain are arranged like
-old offerings; a cracked circular harvest emblem is visible behind the figure. The
-space must suggest that this was once a place of worship and livelihood before it was
-classified as a hostile zone.
+The FILTERED battlefield distorts an open timber-and-stone agricultural sanctuary.
+Black roots, bone-like shapes, and dead straw seem to bind its low pillars, communal
+altar, grain storage, and sealed refuge entrance into one organic den. Preserve enough
+practical architecture to suggest that this hostile structure was once a place of
+worship, food storage, and livelihood. Do not show the hidden residents.
 
 In the lower left, four tiny party silhouettes face the Reaper in a restrained battle
 formation. A faint teal rim light separates them from the dark. The Reaper is backlit
@@ -305,14 +353,21 @@ machinery, no readable text.
 
 ```text
 SCENE: WHEN RE-IDENTIFICATION FAILS
+PERCEPTION LAYER: TRUE_VIEW. This explicitly overrides the default FILTERED layer.
 
-Show the same abandoned harvest sanctuary after the investigator refuses the
-re-identification process. The supposed Reaper is now perceived as the exhausted
-guardian deity of a rural world: still tall and robed, still carrying the same
-harvest scythe, but its posture is protective rather than predatory. It kneels beside
-an extinguished offering fire, one open hand asking for mercy. The red eye-points are
-gone. Its hood reveals no human face, only a soft darkness framed by woven straw and
-weathered ritual cloth.
+Show the same damaged open timber-and-stone harvest sanctuary after the investigator
+refuses the re-identification process. Do not restore it into a pristine place:
+retain damage caused by the expedition, but remove the false roots, bones, and
+monstrous nest cues. Reveal ordinary grain storage, a communal altar, a sealed refuge
+entrance, defensive boundary markers, family offerings, and signs of evacuation.
+
+The supposed Reaper is now perceived as an exhausted child-shaped guardian deity of
+a rural world. The deity resembles an ordinary village child wearing a worn ritual
+robe and straw mantle, holding a small harvest sickle rather than a giant scythe.
+Ancient, tired eyes and posture convey a life far older than the youthful form. The
+deity stands protectively between the investigator and the refuge entrance while
+offering one final chance to leave. No wounds, no gore, no sexualization, and no
+helpless victim framing.
 
 The party's companion forms are partially transparent around their teal soul-stones.
 Within the fragments are brief silhouettes of ordinary local people, implying that
@@ -354,8 +409,9 @@ warm practical light and the single restrained teal or red accent light.
 ```text
 Keep the mood and camera unchanged. Replace generic castle architecture and ornate
 fantasy decoration with ordinary lived-in structures fused incorrectly: school tile,
-chapel masonry, shrine timber, roadside signs, worn office walls, and practical field
-equipment. The horror must feel institutional and familiar, not epic.
+rough harvest-sanctuary stone and timber, shrine pillars, roadside signs, worn office
+walls, and practical field equipment. The horror must feel institutional and familiar,
+not epic.
 ```
 
 ### 스팀펑크·사이버펑크로 치우친 경우
