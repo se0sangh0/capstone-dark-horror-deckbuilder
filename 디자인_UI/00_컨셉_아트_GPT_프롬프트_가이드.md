@@ -67,9 +67,13 @@
 
 테마별로 바뀌는 것은 동료 복식, 토착 건축, 보스의 신앙 도상과 이벤트 괴담 문법이다. 아래 실제 원형은 디자인 근거이며, 일반 컨셉 아트는 반드시 FILTERED 열처럼 왜곡해 출력한다.
 
+> CA-01·CA-03·CA-06은 서로 다른 차원과 탐사국 공간이 봉합된 **다세계 키 아트**이므로 테마 재질을 의도적으로 섞는다. 반면 최초 런 내부를 직접 묘사하는 CA-02·CA-04·CA-05·CA-07은 초기 농경 신앙 재질과 역할 명세만 사용한다.
+
+> 제작 상태는 동일하지 않다. **초기 농경 신앙만 최초 런의 확정 제작 기준**이며, 무협 변경 항전·일본 신사 토착신·현대 경계도시는 제작 수·순서·가중치가 미정인 후보 테마다.
+
 | 테마 | 실제 세계 원형 `TRUE_BASELINE` | 기본 인게임 왜곡 `FILTERED` | 피해야 할 과장 |
 |---|---|---|---|
-| 초기 농경 신앙 | 흙성벽, 목석 성소, 원형 방패, 토착 농경 의례 | 곡창은 시체 저장고, 경계 기둥은 제물 말뚝, 주민은 수확 괴이로 보임 | 고딕 성당·완성형 판금·왕궁·MMORPG 장식 |
+| 초기 농경 신앙 | 흙성벽, 목석 성소, 원형 방패, 토착 농경 의례 | 곡창은 괴이가 무언가를 축적한 저장고, 경계 기둥은 제물 말뚝, 주민은 수확 괴이로 보임 | 고딕 성당·완성형 판금·왕궁·MMORPG 장식 |
 | 무협 변경 항전 | 볏짚 우의, 죽창·도검, 낡은 군기와 격문, 민초·임협 | 피난처는 약탈자 소굴, 군기와 봉화는 저주 의식, 항전자는 전쟁 귀신으로 보임 | 지맥·경락 도상, 선협식 비행, 귀족 문파, 과도한 금빛 신기 |
 | 일본 신사 토착신 | 목조 신사, 도리이, 금줄, 등롱, 토착신과 요괴·귀신의 규칙 | 도리이는 감옥문, 금줄은 제물 봉인, 수호자는 통행을 막는 괴이로 보임 | 관광 엽서 같은 선명한 풍경, 닌자 판타지, 요괴 도감식 나열 |
 | 현대 경계도시 | 학교, 병원, 지하철, 통제선, 재난대응 설비 | 대피소는 실험시설, 통제선은 감금 구역, 구조대원은 얼굴 없는 통제 괴이로 보임 | 사이버펑크 네온·미래 도시·좀비 아포칼립스 |
@@ -130,8 +134,8 @@ cracked school tiles becoming the rough stone of an early harvest sanctuary, a s
 pillar growing through a ruined office wall, dry roots sewing masonry together, or
 old road signs embedded in sacred architecture.
 
-PERCEPTION LAYER: Unless the scene module explicitly requests TRUE_VIEW, render the
-FILTERED in-game perception imposed by the Inspector institution. Preserve each
+PERCEPTION LAYER: Unless the scene module explicitly requests LEAK or TRUE_VIEW,
+render the FILTERED in-game perception imposed by the Inspector institution. Preserve each
 world's historical materials and silhouettes, but make inhabited places appear
 abandoned and hostile, defensive boundaries appear ritualistic or imprisoning, local
 protectors appear monstrous, and damage caused by the expedition appear to be the
@@ -231,10 +235,13 @@ Four small companions rest around an undying campfire beneath an enormous old tr
 The FILTERED perception makes the well-maintained communal stone shelter look
 abandoned and neglected: cracked benches, false moss stains, dead-looking branches,
 and soot that appears decades old. Use the current early-harvest-dimension set: a
-round-shield defender in layered leather and scale armor, a lightly equipped
-hunter-attacker, a ritual caster, and a modest healer carrying herbs and a small
-brazier. Their faces must remain unreadable; identify them by silhouette, equipment,
-and posture only.
+blockade soldier with a normal round wooden shield and removable wooden mask; an
+executioner with a hunting spear, repaired leather mantle, and stitched leather mask;
+an elementalist with a wooden observation staff, bronze rings, weather cords, and a
+cracked round clay seasonal mask; and a healer with medicinal herbs, bandages, a
+wooden water bowl, a short medicine-cloth veil, and a treatment mask. Keep all tools
+at practical scale. Their faces must remain unreadable; identify them by silhouette,
+equipment, removable censorship, and posture only.
 
 The fire projects exactly five human shadows across a broad standing stone beneath
 the tree. Four shadows correspond clearly to the seated companions. The fifth is
@@ -281,9 +288,12 @@ SCENE: RECONSTRUCTED COMPANIONS
 Inside a cold recruitment hall, three incomplete humanoid companion forms stand on a
 low stone platform. They are being assembled from translucent teal fragments drawn
 toward a soul-stone suspended at each chest. The forms belong to the current early
-harvest dimension: one round-shield defender in layered leather and scale, one
-weathered ritual caster, and one herb-bearing healer, but their faces remain absent
-or obscured as if identity is the last part to load.
+harvest dimension: one blockade soldier with a normal round wooden shield and wooden
+mask, one elementalist with a wooden observation staff and cracked clay seasonal
+mask, and one healer carrying herbs and bandages beneath a short medicine-cloth veil.
+Each form retains practical local clothing and tools with only a small Inspector tag
+and teal coupling added. Their faces remain absent or obscured as if identity is the
+last part to load.
 
 An investigator stands before the platform holding a closed registry folder. The hall
 looks like a worn civic registry office built inside an older timber-and-stone harvest
@@ -347,9 +357,10 @@ should have ended long ago. No ghost, no monster, no blood, no dramatic portal, 
 machinery, no readable text.
 ```
 
-### CA-07. 내부 스포일러용 진실 시야
+### CA-07. 내부 스포일러용 진실 시야 — 초기 농경 신앙 테마 전용 예시
 
 > 🔴 팀 내부 전용. 발표·공개 컨셉에는 사용하지 않는다.
+> 다른 차원 테마의 재인식 거부 엔딩에는 같은 구도 규칙만 계승하고, 해당 회차 테마의 수호자·공간·생활 도구로 교체한다.
 
 ```text
 SCENE: WHEN RE-IDENTIFICATION FAILS
@@ -375,7 +386,7 @@ the companions were reconstructed from stolen souls. Keep this subtle and symbol
 not anatomical or graphic.
 
 Camera: wide from behind the investigator, who stands between the translucent party
-and the kneeling guardian. Warm light comes from a dawn that reaches only the far
+and the standing guardian. Warm light comes from a dawn that reaches only the far
 field; the foreground retains the established near-black palette. Mood: moral horror,
 recognition, and the terrible stillness before choosing whether to continue the
 attack. No combat action, no villain pose, no triumphant hero framing, no text, no UI.
