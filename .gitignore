@@ -79,3 +79,5 @@ AssetBundles/
 
 # ===== 개인 AI 도구 상태 =====
 .commandcode/
+/_workspace
+/docs/handoff-history
