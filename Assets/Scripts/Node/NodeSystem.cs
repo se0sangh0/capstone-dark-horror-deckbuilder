@@ -150,6 +150,10 @@ public class NodeSystem : MonoBehaviour
     [Tooltip("Event 노드(용병소/교회/엘리트 랜덤) 결과가 교회일 때 열릴 패널. 비어있으면 안내 로그만 출력하고 다음 층 진행.")]
     [SerializeField] private ChurchPanel churchPanel;
 
+    // 선택지 이벤트 팝업 (기획 §06_이벤트_노드) — `?`(Event) 노드 클릭 시 런타임 생성/재사용.
+    // 별도 프리팹/인스펙터 연결 없이 EventPanel.CreateUnder 로 캔버스 아래에 즉석 생성한다.
+    private EventPanel _eventPanel;
+
     // ----------------------------------------------------------
     // 초기화
     // ----------------------------------------------------------
@@ -776,33 +780,24 @@ public class NodeSystem : MonoBehaviour
                 }
                 break;
 
-            // ── 랜덤 노드 (Event) — 진입 시 용병소/교회/엘리트 가중 랜덤 (본편 layer2 + 튜토리얼 layer1 공통) ──
-            //   EventOutcomeWeights = 용병소/교회/엘리트. 발표용 100/0/0 → 용병소만.
-            //   (교회·엘리트 가중치만 올리면 즉시 재활성)
+            // ── `?` 노드 (Event) — 선택지 이벤트 팝업 (기획 §06_이벤트_노드) ──
+            //   사용자 결정(2026-08-20): `?` 노드는 선택지 이벤트 팝업으로 완전 교체.
+            //   기존 용병소/교회/엘리트 랜덤 분기는 각 전용 노드로 분리 예정(RollEventOutcome/
+            //   OpenMercenaryFromNode/OpenChurchFromNode 는 재사용을 위해 남겨둠).
+            //   단, 튜토리얼은 본편 선택지 이벤트를 생성하지 않으므로(§2) 기존 용병소 안내를 유지한다.
             case RoomType.Event:
-            {
-                int outcome = RollEventOutcome();
-                if (outcome == 1)        // 교회
+                if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
                 {
-                    Debug.Log("[NodeSystem] 랜덤 노드 → 교회");
-                    OpenChurchFromNode();
-                }
-                else if (outcome == 2)   // 엘리트 전투
-                {
-                    CurrentRoomType = RoomType.Elite; // EnemySpawner 가 엘리트로 스폰
-                    Debug.Log("[NodeSystem] 랜덤 노드 → 엘리트 전투");
-                    DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
-                    AudioManager.Instance?.PlayBgmById(BgmId.Battle);
-                }
-                else                     // 용병소 (기본)
-                {
-                    Debug.Log("[NodeSystem] 랜덤 노드 → 용병소");
-                    // 튜토리얼: 랜덤 결과가 용병소로 확정된 시점에 안내 (1회)
+                    Debug.Log("[NodeSystem] 튜토리얼 `?` 노드 → 용병소 (선택지 이벤트 제외, 기획 §2)");
                     TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.ShopIntro);
                     OpenMercenaryFromNode();
                 }
+                else
+                {
+                    Debug.Log("[NodeSystem] `?` 노드 → 선택지 이벤트 팝업");
+                    OpenEventFromNode();
+                }
                 break;
-            }
 
             default:
                 Debug.LogWarning($"[NodeSystem] 미지원 RoomType={type} — 폴백으로 전투 화면 호출.");
@@ -893,6 +888,46 @@ public class NodeSystem : MonoBehaviour
             churchPanel.OnExit -= HandleChurchExit;
         UpdateNodeStates();
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+    }
+
+    // ----------------------------------------------------------
+    // `?` 노드 선택지 이벤트 (기획 §06) — 팝업 진입/복귀
+    // ----------------------------------------------------------
+    /// <summary>`?`(Event) 노드 — 선택지 이벤트 팝업을 런타임 생성/재사용해 무작위로 띄운다.</summary>
+    private void OpenEventFromNode()
+    {
+        if (_eventPanel == null)
+            _eventPanel = EventPanel.CreateUnder(ResolveUiCanvas());
+
+        if (_eventPanel == null)
+        {
+            Debug.LogWarning("[NodeSystem] 선택지 이벤트 팝업 생성 실패 — 캔버스를 찾지 못해 다음 층으로 진행.");
+            return;
+        }
+
+        _eventPanel.OnExit -= HandleEventExit;
+        _eventPanel.OnExit += HandleEventExit;
+        _eventPanel.OpenRandom();
+    }
+
+    /// <summary>선택지 이벤트 팝업 "다음 층" 클릭 시 호출 — 노드맵 화면 복귀.</summary>
+    private void HandleEventExit()
+    {
+        if (_eventPanel != null) _eventPanel.OnExit -= HandleEventExit;
+        UpdateNodeStates();
+        AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+    }
+
+    /// <summary>팝업을 붙일 UI 캔버스 Transform (노드 UI 의 상위 Canvas 우선, 없으면 씬 전체 검색).</summary>
+    private Transform ResolveUiCanvas()
+    {
+        if (nodeRows != null && nodeRows.Count > 0 && nodeRows[0].rowParent != null)
+        {
+            var c = nodeRows[0].rowParent.GetComponentInParent<Canvas>();
+            if (c != null) return c.transform;
+        }
+        var any = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+        return any != null ? any.transform : null;
     }
 
     /// <summary>인덱스 안전한 RoomType 조회. 범위 밖이면 Combat 폴백.</summary>
