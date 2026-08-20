@@ -20,9 +20,9 @@
 //   - BattleManager.cs : GetAmount(), Use(), SetAmount() 호출
 //   - GameManager.cs : OnCardUsed 에서 Add() 호출
 //
-// [PlayerPrefs 저장]
-//   스택 값은 PlayerPrefs 에 저장됩니다.
-//   저장 키: "{OwnerPrefix}{StackType}" 형식 (예: "PlayerDealer")
+// [저장 정책 — P0-01]
+//   스택은 전투 중에만 쓰는 휘발성 상태이므로 저장하지 않습니다.
+//   (과거 "{OwnerPrefix}{StackType}" PlayerPrefs 키는 Start 에서 1회 정리)
 // ============================================================
 
 using System;
@@ -76,7 +76,7 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
     // Awake — 싱글톤 등록 + UI 이벤트 구독
     // 씬 전환 시 _costTexts 등 인스펙터 참조가 깨지지 않도록
     // DontDestroyOnLoad 를 쓰지 않고 매 씬마다 새 인스턴스를 사용한다.
-    // PlayerPrefs 로 값은 영구 저장되므로 데이터 손실 없음.
+    // 스택은 씬 수명의 휘발성 상태 — 씬 전환 시 시작값에서 다시 시작한다.
     // ----------------------------------------------------------
     protected virtual void Awake()
     {
@@ -100,15 +100,16 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
     }
 
     // ----------------------------------------------------------
-    // Start — 초기화: PlayerPrefs 에서 값 로드 + UI 세팅
+    // Start — 초기화: 시작값 세팅 + UI 반영
+    // [P0-01] 스택은 전투 휘발성 상태 — PlayerPrefs 영속화 제거 (16 §3:
+    // 상태 계약 밖 임의 키 금지). 과거 빌드가 남긴 키는 1회 정리한다.
     // ----------------------------------------------------------
     protected virtual void Start()
     {
         foreach (StackType role in Enum.GetValues(typeof(StackType)))
         {
-            // TODO: 아래 줄은 테스트 코드 — 실제 게임에서는 삭제하세요!
-            PlayerPrefs.SetInt(GetSaveKey(role), 0);
-            LoadCost(role);
+            PlayerPrefs.DeleteKey(GetSaveKey(role)); // 레거시 키 정리
+            _costs[role] = StartingAmounts.GetValueOrDefault(role);
         }
 
         // 초기 UI 반영
@@ -131,7 +132,6 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
     {
         int newAmount = GetAmount(role) + value;
         SetAmount(role, Mathf.Max(0, newAmount));
-        SaveCost(role);
     }
 
     /// <summary>
@@ -142,7 +142,6 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
     {
         if (value <= 0 || GetAmount(role) < value) return false;
         SetAmount(role, GetAmount(role) - value);
-        SaveCost(role);
         return true;
     }
 
@@ -163,21 +162,7 @@ public abstract class RoleCostBase<T> : MonoBehaviour where T : RoleCostBase<T>
     // ----------------------------------------------------------
     protected abstract void UpdateUI();
 
-    // ----------------------------------------------------------
-    // 저장/로드 (PlayerPrefs)
-    // ----------------------------------------------------------
-
-    private void SaveCost(StackType role)
-    {
-        PlayerPrefs.SetInt(GetSaveKey(role), GetAmount(role));
-        PlayerPrefs.Save();
-    }
-
-    private void LoadCost(StackType role)
-    {
-        int defaultVal = StartingAmounts.GetValueOrDefault(role);
-        _costs[role] = PlayerPrefs.GetInt(GetSaveKey(role), defaultVal);
-    }
+    // [P0-01] SaveCost/LoadCost 제거 — 스택은 씬 수명의 휘발성 상태로만 관리.
 
     // ----------------------------------------------------------
     // [ContextMenu] 무결성 테스트

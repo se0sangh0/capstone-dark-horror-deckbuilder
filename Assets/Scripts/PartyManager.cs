@@ -144,17 +144,66 @@ public class PartyManager : Singleton<PartyManager>
         OnPartyChanged?.Invoke();
     }
 
+    // ----------------------------------------------------------
+    // P0 고정 초기 파티 (16-B §4 새 런 기준선)
+    // ----------------------------------------------------------
+
+    /// <summary>P0 초기 파티 고정 구성 — 정식 시작 파티 확정 아님 (16-B §4).</summary>
+    private static readonly string[] InitialPartyIds =
+        { "ally_caster_01", "ally_offender_01", "ally_defender_01", "ally_priest_01" };
+
     /// <summary>
-    /// 게임을 리셋한다. 사망 보관소를 지우고 4명의 랜덤 파티를 새로 생성한다.
-    /// BattleManager 가 아군 전멸 시 게임 오버 씬 전환 직전에 호출한다.
+    /// 새 런의 초기 파티를 재생성한다. RunSessionManager.StartNewRun 이 호출.
+    /// 파티·사망 보관소를 비우고 고정 4인을 생성하며, 성향은 prototype_demo_v1
+    /// 전용 시드로 매 런 동일하게 재현한다.
+    /// 정의를 하나라도 찾지 못하면 false — 런 시작을 중단해야 한다 (16-B §4).
     /// </summary>
-    public void ResetGame()
+    public bool SetupInitialParty()
     {
-        _deadFellowArchive.Clear();
+        if (FellowDatabase.Instance == null)
+        {
+            Debug.LogError("[PartyManager] SetupInitialParty 실패 — FellowDatabase 없음");
+            return false;
+        }
+
         _activeFellows.Clear();
-        GenerateRandomParty(4);
-        Debug.Log($"[PartyManager] 게임 리셋 완료. 새 파티 {_activeFellows.Count}명 생성.");
+        _deadFellowArchive.Clear();
+
+        var rng = RunSessionManager.CreateSeededRng(salt: 1);
+        foreach (var id in InitialPartyIds)
+        {
+            var def = FellowDatabase.Instance.GetFellow(id);
+            if (def == null)
+            {
+                Debug.LogError($"[PartyManager] SetupInitialParty 실패 — 동료 정의 '{id}' 없음");
+                _activeFellows.Clear();
+                return false;
+            }
+            _activeFellows.Add(FellowDatabase.CreateRuntimeFellow(def, SeededAffinity(rng)));
+        }
+
+        Debug.Log($"[PartyManager] 초기 파티 생성 — {string.Join(", ", InitialPartyIds)}");
         OnPartyChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>
+    /// 런 마감 시 파티·사망 보관소를 비운다. RunSessionManager.FinalizeRun 이 호출.
+    /// 다음 파티 구성은 StartNewRun → SetupInitialParty 가 수행한다.
+    /// </summary>
+    public void ClearForRunEnd()
+    {
+        _activeFellows.Clear();
+        _deadFellowArchive.Clear();
+        Debug.Log("[PartyManager] 런 마감 — 파티·사망 보관소 초기화");
+        OnPartyChanged?.Invoke();
+    }
+
+    // 시드 RNG 로 성향 결정 — None 제외 4종 (매 런 동일 순서 재현)
+    private static CardAffinity SeededAffinity(System.Random rng)
+    {
+        var values = new[] { CardAffinity.Gambler, CardAffinity.Safety, CardAffinity.Opportunist, CardAffinity.Optimist };
+        return values[rng.Next(values.Length)];
     }
 
     /// <summary>
@@ -245,7 +294,15 @@ public class PartyManager : Singleton<PartyManager>
         }
 
         if (_activeFellows.Count > 0) return;
-        GenerateRandomParty(4);
+
+        // 정상 경로는 RunSessionManager.StartNewRun → SetupInitialParty.
+        // 여기 도달 = 에디터에서 GamePlayScene 직접 재생 등 세션 밖 진입 — 고정 파티 시도 후 폴백.
+        if (!SetupInitialParty())
+        {
+            Debug.LogWarning("[PartyManager] 초기 파티 생성 실패 — 개발용 폴백 파티 4명 생성");
+            for (int i = 0; i < 4; i++) _activeFellows.Add(CreateFallbackFellow(i));
+            OnPartyChanged?.Invoke();
+        }
     }
 
     /// <summary>
@@ -281,49 +338,7 @@ public class PartyManager : Singleton<PartyManager>
         OnPartyChanged?.Invoke();
     }
 
-    // ----------------------------------------------------------
-    // 랜덤 파티 생성 — FellowDatabase 에서 count 명을 랜덤 선택.
-    // 각 동료의 성향은 생성 시 랜덤으로 고정된다.
-    // ----------------------------------------------------------
-    private void GenerateRandomParty(int count)
-    {
-        bool dbReady = FellowDatabase.Instance != null;
-
-        if (dbReady)
-        {
-            // 전체 동료 목록을 섞어서 count 명 선택
-            var allDefs = new List<FellowDef>();
-            foreach (var role in new[] { "Dealer", "Tanker", "Support" })
-                allDefs.AddRange(FellowDatabase.Instance.GetFellowsByRole(role));
-
-            Shuffle(allDefs);
-            
-            int added = 0;
-            for (int i = 0; i < allDefs.Count && added < count; i++)
-            {
-                var def    = allDefs[i];
-                var fellow = FellowDatabase.CreateRuntimeFellow(def, RandomAffinity());
-                _activeFellows.Add(fellow);
-                added++;
-            }
-
-            // DB 에 동료가 부족하면 폴백으로 채움
-            while (_activeFellows.Count < count)
-            {
-                _activeFellows.Add(CreateFallbackFellow(_activeFellows.Count));
-            }
-        }
-        else
-        {
-            // FellowDatabase 없음: 최소 폴백
-            for (int i = 0; i < count; i++)
-                _activeFellows.Add(CreateFallbackFellow(i));
-            Debug.LogWarning("[PartyManager] FellowDatabase 없음 — 폴백 파티 생성.");
-        }
-
-        Debug.Log($"[PartyManager] 랜덤 파티 생성 완료: {_activeFellows.Count}명");
-        OnPartyChanged?.Invoke();
-    }
+    // [P0-01] 랜덤 파티 생성 제거 — 초기 파티는 SetupInitialParty 고정 4인만 사용 (16-B §4).
 
     /// <summary>FellowDatabase 가 없거나 동료가 부족할 때 쓰는 최소 폴백 동료.</summary>
     private static FellowData CreateFallbackFellow(int index)
@@ -341,17 +356,8 @@ public class PartyManager : Singleton<PartyManager>
         f.positionStack = StackType.Dealer;
         f.role          = CompanionRole.Dealer;
         f.CurrentHp     = f.maxHp; // 풀피로 시작 (LeftPanel 전투 외 UI 에서 0 표시 방지)
+        f.runtimeFellowId = RunSessionManager.IssueFellowId(f.id); // 폴백 동료도 고유 ID 발급
         return f;
-    }
-
-    // Fisher-Yates 셔플
-    private static void Shuffle<T>(List<T> list)
-    {
-        for (int i = list.Count - 1; i > 0; i--)
-        {
-            int j = UnityEngine.Random.Range(0, i + 1);
-            (list[i], list[j]) = (list[j], list[i]);
-        }
     }
 
     // 랜덤 성향 — None 제외 4종 중 균등 선택

@@ -104,10 +104,13 @@ public class DebugToolPanel : MonoBehaviour
 
     private static void NewRun()
     {
-        // BattleManager.StartNextRunLoop 와 동일 절차 (노드맵에서도 동작하도록 독립 구현)
-        MercenaryService.Instance?.ResetForNewRun();
-        PartyManager.Instance?.ResetGame();
-        SoulstoneManager.Instance?.ResetCurrency();
+        // 새 런 초기화는 RunSessionManager 단일 창구 (16-B §4).
+        // 진행 중이던 런은 포기 처리되며 완료 런 수는 증가하지 않는다.
+        if (RunSessionManager.Instance == null || !RunSessionManager.Instance.StartNewRun())
+        {
+            Debug.LogError("[디버그] 새 런 초기화 실패 — 씬 이동 취소");
+            return;
+        }
         SceneManager.LoadScene("GamePlayScene");
     }
 

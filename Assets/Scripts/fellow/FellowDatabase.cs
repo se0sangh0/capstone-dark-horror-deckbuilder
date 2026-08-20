@@ -200,7 +200,9 @@ public class FellowDatabase : Singleton<FellowDatabase>
         var f = ScriptableObject.CreateInstance<FellowData>();
 
         // ── 정의 데이터 복사 ──
-        f.id            = def.id;
+        f.id              = def.id;
+        // 런타임 고유 ID — 런 내 재사용 없음, 다음 런엔 같은 정의도 새 ID (16-B §4)
+        f.runtimeFellowId = RunSessionManager.IssueFellowId(def.id);
         f.jobClass      = def.jobClass;
         f.role          = ParseRole(def.role);
         f.gender        = ParseGender(def.gender);

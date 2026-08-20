@@ -269,8 +269,11 @@ public partial class BattleManager
                 Debug.Log("[BattleManager] 🎉 보스 클리어 — 엔딩 진입");
                 ShowEndingPanel("보스 처치\n\n엔딩");
                 yield return new WaitForSeconds(endingDisplayDuration);
-                Debug.Log("[BattleManager] 보스 클리어 — 로그라이크 루프: 리셋 후 새 런 시작 (마석 유지)");
-                StartNextRunLoop();
+
+                // 런 마감 — 정확히 1회 (16-B §4). 엔딩 패널이 현재의 임시 '보고서 확인' 역할.
+                // P0-05 에서 탐사 보고서 화면 확인 시점으로 FinalizeRun 호출이 이동한다.
+                RunSessionManager.Instance?.FinalizeRun(RunResult.Victory);
+                StartNextRun();
             }
             else
             {
@@ -286,12 +289,12 @@ public partial class BattleManager
         {
             GameLog.Event("전원 쓰러졌다…", LogCategory.Death);
             Debug.Log("[BattleManager] 아군 전멸 — 게임오버 화면 후 타이틀 복귀");
-            // 게임오버 — 전체 어둡게 + 중앙 빨강 볼드 '게임오버'. 클릭 시 런 리셋(마석 유지) 후 타이틀로 (QA ⑧, 2026-06-12).
-            // 리셋을 타이틀 진입 전에 끝내는 이유: 타이틀→[시작하기] 경로(MoveScene)는 파티만 재생성하고
-            // 예비대/영혼석은 건드리지 않으므로, 여기서 비우지 않으면 이전 런 상태가 새 런으로 샌다.
+            // 게임오버 — 클릭(= 현재의 임시 '보고서 확인') 시 런 마감 후 타이틀로.
+            // 런 상태 초기화·완료 런 수 증가는 FinalizeRun 이 정확히 1회 수행 (16-B §4).
+            // P0-05 에서 탐사 보고서 화면 확인 시점으로 FinalizeRun 호출이 이동한다.
             BattleResultScreen.ShowDefeat(() =>
             {
-                ResetRunState();
+                RunSessionManager.Instance?.FinalizeRun(RunResult.Defeat);
                 SceneTransition.Go("GameStartScene");
             });
         }
@@ -325,22 +328,22 @@ public partial class BattleManager
     }
 
     /// <summary>
-    /// 로그라이크 메타 루프 (기획 §16) — 보스 클리어/전멸 공통.
-    /// 예비대·파티·영혼석 초기화(마석은 유지) → GamePlayScene 재로드(노드맵 재생성).
-    /// 마석 해금은 노드 화면 우측 상단 [마석 상점] 버튼으로 언제든 연다 (자동 표시 폐지, 2026-06-07).
+    /// 보스 클리어 뒤 다음 탐사 진입 (FinalizeRun 이후에만 호출).
+    /// 초기화는 RunSessionManager.StartNewRun 이 단일 창구로 수행하며 (16-B §4),
+    /// 성공했을 때만 GamePlayScene 을 로드한다. 실패 시 타이틀로 복귀.
     /// </summary>
-    private void StartNextRunLoop()
+    private void StartNextRun()
     {
-        ResetRunState();
-        SceneManager.LoadScene("GamePlayScene");          // 새 런 (노드맵 재생성)
-    }
-
-    /// <summary>런 상태 리셋 — 예비대·파티·영혼석 초기화 (마석은 PlayerPrefs 유지). 보스 클리어 새 런·패배 타이틀행 공통.</summary>
-    private void ResetRunState()
-    {
-        MercenaryService.Instance?.ResetForNewRun();      // 예비대/후보/리롤 초기화
-        PartyManager.Instance?.ResetGame();               // 파티(+사망보관소) 초기화
-        SoulstoneManager.Instance?.ResetCurrency();       // 영혼석 기본값 (마석은 PlayerPrefs 유지)
+        bool ok = RunSessionManager.Instance != null && RunSessionManager.Instance.StartNewRun();
+        if (ok)
+        {
+            SceneManager.LoadScene("GamePlayScene");      // 새 런 (노드맵 재생성)
+        }
+        else
+        {
+            Debug.LogError("[BattleManager] 새 런 초기화 실패 — 1층 입력을 열지 않고 타이틀로 복귀");
+            SceneTransition.Go("GameStartScene");
+        }
     }
 
     // 기획 §스트레스 §기본 회복 — 전투 승리: -10
