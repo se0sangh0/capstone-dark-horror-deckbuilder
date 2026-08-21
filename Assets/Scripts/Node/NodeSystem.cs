@@ -756,6 +756,17 @@ public class NodeSystem : MonoBehaviour
             case RoomType.Combat:
             case RoomType.Elite:
             case RoomType.Boss:
+                // P0-03 현장 관찰 예약 — 지정 인카운터(일반 전투 노드)에만 관찰을 붙인다.
+                // 같은 전투 프로필의 다른 전투에 자동 부여 금지 (16-B §3) — 노드(행) 단위 바인딩.
+                // OnNodeClicked 에서 currentRowIndex++ 가 선행되므로 클릭된 행 = currentRowIndex - 1.
+                // 엘리트·보스·튜토리얼은 관찰 없음 (null 예약 = 이전 예약도 정리).
+                if (tm == null || !tm.IsTutorial)
+                {
+                    string obsId = type == RoomType.Combat
+                        ? FieldObservationCatalog.IdForLegacyCombatRow(currentRowIndex - 1)
+                        : null;
+                    RunSessionManager.Instance?.SetPendingObservation(obsId);
+                }
                 AudioManager.Instance?.PlaySfxByIdClipped(SfxId.NodeEnter, 1.5f); // 문 열림 원본이 길어 1.5초만 재생 (보스 진입 시 계속 울리던 문제)
                 DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
                 if (type == RoomType.Boss)
@@ -780,10 +791,9 @@ public class NodeSystem : MonoBehaviour
                 }
                 break;
 
-            // ── `?` 노드 (Event) — 선택지 이벤트 팝업 (기획 §06_이벤트_노드) ──
-            //   사용자 결정(2026-08-20): `?` 노드는 선택지 이벤트 팝업으로 완전 교체.
-            //   기존 용병소/교회/엘리트 랜덤 분기는 각 전용 노드로 분리 예정(RollEventOutcome/
-            //   OpenMercenaryFromNode/OpenChurchFromNode 는 재사용을 위해 남겨둠).
+            // ── `?` 노드 (Event) — 진입 시 결과 가중 추첨 (03 §1-3 이벤트 노드 세부 결과) ──
+            //   사용자 결정(2026-08-21): 용병소 40 / 교회 20 / 엘리트 10 / 선택지 이벤트 30.
+            //   교회·엘리트 전용 노드 이미지는 추후 — 진입 전에는 `?` 로 통일 표시 (진입 전 비공개).
             //   단, 튜토리얼은 본편 선택지 이벤트를 생성하지 않으므로(§2) 기존 용병소 안내를 유지한다.
             case RoomType.Event:
                 if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial)
@@ -794,8 +804,25 @@ public class NodeSystem : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("[NodeSystem] `?` 노드 → 선택지 이벤트 팝업");
-                    OpenEventFromNode();
+                    switch (RollEventOutcome())
+                    {
+                        case 0:
+                            Debug.Log("[NodeSystem] `?` 노드 → 용병소");
+                            OpenMercenaryFromNode();
+                            break;
+                        case 1:
+                            Debug.Log("[NodeSystem] `?` 노드 → 교회");
+                            OpenChurchFromNode();
+                            break;
+                        case 2:
+                            Debug.Log("[NodeSystem] `?` 노드 → 엘리트 전투");
+                            OpenEliteBattleFromNode();
+                            break;
+                        default:
+                            Debug.Log("[NodeSystem] `?` 노드 → 선택지 이벤트 팝업");
+                            OpenEventFromNode();
+                            break;
+                    }
                 }
                 break;
 
@@ -806,11 +833,12 @@ public class NodeSystem : MonoBehaviour
         }
     }
 
-    // 랜덤 노드(Event) 진입 결과 가중치 [용병소, 교회, 엘리트]. 발표용 100/0/0 → 용병소만.
-    // 교회·엘리트는 값만 올리면 재활성 (3개 통합 랜덤노드).
-    private static readonly int[] EventOutcomeWeights = { 100, 0, 0 };
+    // 랜덤 노드(Event) 진입 결과 가중치 [용병소, 교회, 엘리트, 선택지 이벤트].
+    // 03. 노드·용병소·보상·메타 §1-1 이벤트 노드 내부 가중치(초안): 40/20/10/30.
+    // 정확한 생성 비율과 런당 상한은 미결(15) — 플레이테스트 후 조정.
+    private static readonly int[] EventOutcomeWeights = { 40, 20, 10, 30 };
 
-    /// <summary>랜덤 노드 결과를 가중 랜덤으로 결정. 0=용병소 / 1=교회 / 2=엘리트.</summary>
+    /// <summary>랜덤 노드 결과를 가중 랜덤으로 결정. 0=용병소 / 1=교회 / 2=엘리트 / 3=선택지 이벤트.</summary>
     private int RollEventOutcome()
     {
         int total = 0;
@@ -837,6 +865,20 @@ public class NodeSystem : MonoBehaviour
             AudioManager.Instance?.PlayBgmById(BgmId.Mercenary);
         }
         else Debug.Log("[NodeSystem] 용병소 — MercenaryOfficePanel 미연결, 다음 층으로 진행.");
+    }
+
+    /// <summary>
+    /// 엘리트 전투 진입 — 랜덤노드→엘리트 (03 §1-3).
+    /// 액션 화면 활성화 전에 CurrentRoomType 을 Elite 로 바꿔 EnemySpawner 가
+    /// 약탈자를 스폰하게 한다. 엘리트 전투에는 현장 관찰을 붙이지 않는다 (16-B §3).
+    /// </summary>
+    private void OpenEliteBattleFromNode()
+    {
+        CurrentRoomType = RoomType.Elite;
+        RunSessionManager.Instance?.SetPendingObservation(null);
+        AudioManager.Instance?.PlaySfxByIdClipped(SfxId.NodeEnter, 1.5f);
+        DisplayChange.Instance.DisplayChanger(nodeDisplay, actionDisplay);
+        AudioManager.Instance?.PlayBgmById(BgmId.Battle);
     }
 
     /// <summary>교회(ChurchPanel) 진입 — 랜덤노드→교회.</summary>

@@ -92,6 +92,23 @@ public class RunSessionManager : MonoBehaviour
     /// <summary>영속 — 보고서 확인까지 마친 런 수.</summary>
     public int CompletedRunCount => PlayerPrefs.GetInt(RunCompletedCountKey, 0);
 
+    // ── 사건 기록·현장 관찰 (P0-03) — RunSession 소유 (16-B §4 상태 소유권) ──
+
+    /// <summary>이번 런의 사건 기록 (추가 전용). 조사관 수첩·탐사 보고서가 읽는다.</summary>
+    public RunRecord Records { get; private set; } = new RunRecord();
+
+    /// <summary>
+    /// 다음 전투 승리 뒤 표시할 현장 관찰 ID. 전투 진입 시 노드/경로가 예약하고
+    /// 전투 결과 처리에서 1회 소비된다. 지정 인카운터에만 붙는다 (16-B §3).
+    /// </summary>
+    public string PendingObservationId { get; private set; }
+
+    // 층별 BattleResolved 1건 가드 (16-B §3: 전투 한 번당 BattleResolved 한 번)
+    private readonly System.Collections.Generic.HashSet<int> _battleRecordedFloors = new();
+
+    // RunResolved 1건 가드
+    private bool _runResolvedRecorded;
+
     // 이번 런에서 발급한 동료 ID 수 (런 내 재사용 금지 카운터)
     private int _fellowIdCounter;
 
@@ -156,8 +173,11 @@ public class RunSessionManager : MonoBehaviour
             else
                 PlayerPrefs.DeleteKey(SoulstoneManager.PrefsKey);
 
-            // ④ RunSession 경로·수첩 기록 초기화
-            //    (경로 기록은 P0-02, 수첩 RunRecord 는 P0-05 에서 이 자리에 추가)
+            // ④ RunSession 경로·수첩 기록 초기화 (경로 기록은 P0-02 에서 이 자리에 추가)
+            Records = new RunRecord();
+            PendingObservationId = null;
+            _battleRecordedFloors.Clear();
+            _runResolvedRecorded = false;
 
             // ⑤ 세션 활성화 — 1층 생성은 호출자의 GamePlayScene 로드가 수행
             IsRunActive = true;
@@ -229,8 +249,88 @@ public class RunSessionManager : MonoBehaviour
         else
             PlayerPrefs.DeleteKey(SoulstoneManager.PrefsKey);
 
+        // ④ 사건 기록·관찰 예약 폐기 (보고서 생성 뒤 초기화 — 16-B §4)
+        Records = new RunRecord();
+        PendingObservationId = null;
+        _battleRecordedFloors.Clear();
+        _runResolvedRecorded = false;
+
         Debug.Log($"[RunSession] 런 #{finishedRunNumber} 마감 ({result}) — 완료 런 수 {CompletedRunCount}");
         return true;
+    }
+
+    // ----------------------------------------------------------
+    // 전투 결과·현장 관찰 기록 (P0-03, 16-B §3 진행 확정 시점)
+    // 순서: 승리 확정 → 영혼석 반영(처치 시) → BattleResolved 1건 생성
+    //       → 조건부 현장 관찰 표시 → 다음 이동
+    // ----------------------------------------------------------
+
+    /// <summary>
+    /// 다음 전투의 현장 관찰을 예약한다 (전투 진입 시 호출, null = 관찰 없음).
+    /// 관찰은 지정 인카운터에만 붙는다 — 같은 전투 프로필의 다른 전투에
+    /// 자동으로 붙이지 않는다 (16-B §3).
+    /// </summary>
+    public void SetPendingObservation(string observationId)
+    {
+        PendingObservationId = observationId;
+        if (!string.IsNullOrEmpty(observationId))
+            Debug.Log($"[RunSession] 현장 관찰 예약 — {observationId}");
+    }
+
+    /// <summary>
+    /// 예약된 현장 관찰을 1회 소비해 반환한다 (없으면 null).
+    /// 재호출·재표시로 같은 관찰이 두 번 처리되지 않는다.
+    /// </summary>
+    public FieldObservation ConsumePendingObservation()
+    {
+        var obs = FieldObservationCatalog.GetById(PendingObservationId);
+        PendingObservationId = null;
+        return obs;
+    }
+
+    /// <summary>
+    /// 전투 결과 확정 기록 — 전투 한 번당 BattleResolved 정확히 1건.
+    /// 영혼석은 처치 시 이미 반영된 상태여야 한다 (영혼석 먼저 → 기록).
+    /// 현장 관찰이 있으면 표시 전에 사후 관찰 필드로 포함한다 (16-A §2).
+    /// 활성 런이 없으면(세션 밖 직접 플레이) 기록하지 않는다.
+    /// </summary>
+    public bool RecordBattleResolved(int floor, string enemySummary, bool victory, int soulstoneGained, string observationNotebookText)
+    {
+        if (!IsRunActive) return false;
+        if (!_battleRecordedFloors.Add(floor))
+        {
+            Debug.Log($"[RunSession] BattleResolved 중복 무시 — {floor}층");
+            return false;
+        }
+
+        var entry = new RunRecordEntry
+        {
+            type  = RunRecordType.BattleResolved,
+            floor = floor,
+            title = victory ? "전투 승리" : "전멸",
+        };
+        if (!string.IsNullOrEmpty(enemySummary))
+            entry.lines.Add(enemySummary);
+        if (victory && soulstoneGained > 0)
+            entry.lines.Add($"영혼석 {soulstoneGained}개 획득");
+        if (victory && !string.IsNullOrEmpty(observationNotebookText))
+            entry.lines.Add(observationNotebookText); // 사후 관찰 — 표시 전에 기록에 포함
+
+        return Records.Add(entry, dedupKey: $"battle_F{floor}");
+    }
+
+    /// <summary>런 종료 기록 — 클리어/전멸과 최종 도달 구역. 런당 1건만 생성.</summary>
+    public bool RecordRunResolved(bool victory, int reachedFloor)
+    {
+        if (!IsRunActive || _runResolvedRecorded) return false;
+        _runResolvedRecorded = true;
+        return Records.Add(new RunRecordEntry
+        {
+            type  = RunRecordType.RunResolved,
+            floor = reachedFloor,
+            title = victory ? "클리어" : "전멸",
+            lines = { $"최종 도달: {reachedFloor}층" },
+        }, dedupKey: "run_resolved");
     }
 
     // ----------------------------------------------------------
