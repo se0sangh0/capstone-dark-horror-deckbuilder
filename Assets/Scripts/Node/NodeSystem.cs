@@ -52,6 +52,10 @@ public class NodeSystem : MonoBehaviour
 
         // 각 버튼에 매핑된 RoomType (MapGenerator 결과). buttons 와 인덱스 1:1.
         [HideInInspector] public List<RoomType> roomTypes = new();
+
+        // `?`(Event) 노드가 진입 후 공개한 실제 결과. buttons 와 인덱스 1:1.
+        // None = 미공개(`?` 유지). 공개되면 아이콘·색을 결과로 교체해 이력을 남긴다.
+        [HideInInspector] public List<EncounterKind> encounterKinds = new();
     }
 
     // ----------------------------------------------------------
@@ -83,16 +87,44 @@ public class NodeSystem : MonoBehaviour
     public RoomType CurrentRoomType { get; private set; } = RoomType.Combat;
 
     // ----------------------------------------------------------
-    // [선 렌더링 — 현재 주석 처리됨 (추후 활성화)]
+    // [선 렌더링 — 레거시 슬롯 (미사용)]
+    // 연결선은 아래 [노드 연결선] 이 UI Image 로 런타임 생성한다.
+    // LineRenderer 프리팹 방식은 월드 스페이스 전용이라 사용하지 않는다.
     // ----------------------------------------------------------
     [Header("선 설정 (Line Settings)")]
     [SerializeField]
-    [Tooltip("LineRenderer 컴포넌트가 붙은 선 프리팹")]
+    [Tooltip("(레거시 — 미사용) LineRenderer 컴포넌트가 붙은 선 프리팹")]
     private GameObject linePrefab;
 
     [SerializeField]
-    [Tooltip("생성된 선들을 모아둘 부모 오브젝트")]
+    [Tooltip("(레거시 — 미사용) 생성된 선들을 모아둘 부모 오브젝트")]
     private Transform lineParent;
+
+    // ----------------------------------------------------------
+    // [노드 연결선] — 층 사이 진행 가능 경로 시각화 (2026-08-21)
+    //   진행 가능한 경우의 수가 있는 모든 노드 쌍(현재 층 → 다음 층)을 연결한다.
+    //   같은 층 노드끼리는 연결하지 않는다.
+    //   상태 표현은 노드 진행 규칙을 따른다:
+    //     지나온 경로 = 초록(BorderPassed) × passedAlpha
+    //     현재 선택 가능 = 금색(BorderCurrent) × currentAlpha
+    //     나머지 = 밝은 회색 × lockedAlpha
+    //   스타일: 밝은 회색 기본, 검은 테두리(Outline).
+    // ----------------------------------------------------------
+    [Header("노드 연결선 (Node Links)")]
+    [Tooltip("연결선 굵기(px). 미관에 따라 조정.")]
+    [SerializeField] private float lineThickness = 5f;
+
+    private class NodeLink
+    {
+        public int fromRow, fromCol, toRow, toCol;
+        public Image   img;
+        public Outline outline;
+    }
+    private readonly List<NodeLink> _links = new();
+    private RectTransform _lineLayer;
+
+    private static readonly Color LineBaseColor    = new Color(0.80f, 0.80f, 0.82f, 1f); // 밝은 회색
+    private static readonly Color LineOutlineColor = Color.black;
 
     // ----------------------------------------------------------
     // [버튼 시각 상태]
@@ -125,6 +157,7 @@ public class NodeSystem : MonoBehaviour
     [SerializeField] private Color restColor   = new Color(1.00f, 0.30f, 0.30f); // 빨강
     [SerializeField] private Color bossColor   = new Color(0.62f, 0.30f, 1.00f); // 보라
     [SerializeField] private Color eventColor  = new Color(0.85f, 0.85f, 0.85f); // 회색
+    [SerializeField] private Color churchColor = new Color(0.93f, 0.88f, 0.66f); // 미색 — `?` 공개 후 교회 표시용
 
     [Header("진행 상태별 알파 (RoomType 색상에 곱해짐)")]
     [SerializeField, Range(0f, 1f)] private float currentAlpha = 1.00f;
@@ -193,6 +226,152 @@ public class NodeSystem : MonoBehaviour
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
         // 튜토리얼 첫 노드맵 진입 시 인트로 모달 (1회만)
         TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.NodeMapIntro);
+
+        // 노드 연결선 — 레이아웃 그룹이 버튼 위치를 확정한 뒤 생성
+        if (isActiveAndEnabled) StartCoroutine(BuildNodeLinksAfterLayout());
+    }
+
+    // ----------------------------------------------------------
+    // 노드 연결선 — 생성/상태 갱신
+    // ----------------------------------------------------------
+
+    /// <summary>레이아웃 1프레임 대기 후 연결선 생성 (버튼 위치 확정 필요).</summary>
+    private IEnumerator BuildNodeLinksAfterLayout()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        BuildNodeLinks();
+        UpdateLineStates();
+    }
+
+    /// <summary>
+    /// 활성 층 사이의 모든 노드 쌍을 선으로 연결한다 (같은 층 연결 없음).
+    /// 선 레이어는 노드 행들의 공통 부모(ScrollRect content) 맨 뒤에 놓여 노드 아래에 그려진다.
+    /// </summary>
+    private void BuildNodeLinks()
+    {
+        if (nodeRows == null || nodeRows.Count == 0 || nodeRows[0].rowParent == null) return;
+        var content = nodeRows[0].rowParent.transform.parent as RectTransform;
+        if (content == null) return;
+
+        if (_lineLayer == null)
+        {
+            var go = new GameObject("NodeLinkLayer", typeof(RectTransform));
+            go.transform.SetParent(content, false);
+            go.transform.SetAsFirstSibling(); // 노드 행들보다 먼저 렌더 = 뒤에 깔림
+            go.layer = content.gameObject.layer;
+            _lineLayer = (RectTransform)go.transform;
+            _lineLayer.anchorMin = Vector2.zero;
+            _lineLayer.anchorMax = Vector2.one;
+            _lineLayer.offsetMin = Vector2.zero;
+            _lineLayer.offsetMax = Vector2.zero;
+            // content 에 LayoutGroup 이 있어도 선 레이어는 배치 대상에서 제외
+            var le = go.AddComponent<LayoutElement>();
+            le.ignoreLayout = true;
+        }
+
+        foreach (var l in _links)
+            if (l.img != null) Destroy(l.img.gameObject);
+        _links.Clear();
+
+        for (int r = 0; r < nodeRows.Count - 1; r++)
+        {
+            if (!IsRowActive(r) || !IsRowActive(r + 1)) continue;
+            var fromBtns = ActiveButtonsOf(r);
+            var toBtns   = ActiveButtonsOf(r + 1);
+            foreach (var (fromBtn, fromCol) in fromBtns)
+                foreach (var (toBtn, toCol) in toBtns)
+                    _links.Add(CreateLink(r, fromCol, fromBtn, r + 1, toCol, toBtn));
+        }
+
+        Debug.Log($"[NodeSystem] 노드 연결선 {_links.Count}개 생성");
+    }
+
+    private bool IsRowActive(int row)
+        => row >= 0 && row < nodeRows.Count
+        && nodeRows[row].rowParent != null && nodeRows[row].rowParent.activeSelf;
+
+    /// <summary>해당 층의 활성 버튼 목록 (잉여 숨김 버튼 제외).</summary>
+    private List<(Button btn, int col)> ActiveButtonsOf(int row)
+    {
+        var result = new List<(Button, int)>();
+        var btns = nodeRows[row].buttons;
+        for (int b = 0; b < btns.Count; b++)
+            if (btns[b] != null && btns[b].gameObject.activeSelf)
+                result.Add((btns[b], b));
+        return result;
+    }
+
+    /// <summary>두 노드 버튼 중심을 잇는 UI 선 1개 생성 — 밝은 회색 + 검은 테두리.</summary>
+    private NodeLink CreateLink(int fromRow, int fromCol, Button from, int toRow, int toCol, Button to)
+    {
+        var go = new GameObject($"Link_{fromRow}.{fromCol}-{toRow}.{toCol}",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(_lineLayer, false);
+        go.layer = _lineLayer.gameObject.layer;
+
+        Vector2 a   = LocalPosOf((RectTransform)from.transform);
+        Vector2 b   = LocalPosOf((RectTransform)to.transform);
+        Vector2 dir = b - a;
+
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = (a + b) * 0.5f;
+        rt.sizeDelta        = new Vector2(dir.magnitude, lineThickness);
+        rt.localRotation    = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+
+        var img = go.GetComponent<Image>();
+        img.color = LineBaseColor;
+        img.raycastTarget = false; // 노드 클릭 방해 금지
+
+        var ol = go.AddComponent<Outline>();
+        ol.effectColor     = LineOutlineColor;
+        ol.effectDistance  = new Vector2(1.5f, 1.5f);
+        ol.useGraphicAlpha = false;
+
+        return new NodeLink { fromRow = fromRow, fromCol = fromCol, toRow = toRow, toCol = toCol, img = img, outline = ol };
+    }
+
+    /// <summary>버튼 중심의 선 레이어 로컬 좌표. 선 레이어는 content 전체를 덮으므로 (0,0)=중앙.</summary>
+    private Vector2 LocalPosOf(RectTransform target)
+        => _lineLayer.InverseTransformPoint(target.TransformPoint(target.rect.center));
+
+    /// <summary>
+    /// 연결선 상태 갱신 — 노드 진행 상태 규칙(색상·알파)을 따른다.
+    /// 지나온 경로(선택 노드 → 선택 노드) = 초록 / 현재 선택 가능 = 금색 / 나머지 = 회색 흐림.
+    /// </summary>
+    private void UpdateLineStates()
+    {
+        if (_links.Count == 0) return;
+        bool startIsMarker = !(TutorialManager.Instance != null && TutorialManager.Instance.IsTutorial);
+
+        foreach (var link in _links)
+        {
+            bool fromSelected = SelectedColOf(link.fromRow, startIsMarker) == link.fromCol;
+            bool toSelected   = SelectedColOf(link.toRow, startIsMarker) == link.toCol;
+
+            bool traveled  = link.toRow < currentRowIndex && fromSelected && toSelected;
+            bool available = link.toRow == currentRowIndex && link.fromRow == currentRowIndex - 1 && fromSelected;
+
+            Color tint;
+            float alpha;
+            if (traveled)       { tint = BorderPassed;  alpha = passedAlpha;  }
+            else if (available) { tint = BorderCurrent; alpha = currentAlpha; }
+            else                { tint = LineBaseColor; alpha = lockedAlpha;  }
+
+            if (link.img != null)
+                link.img.color = new Color(tint.r, tint.g, tint.b, alpha);
+            if (link.outline != null)
+                link.outline.effectColor = new Color(LineOutlineColor.r, LineOutlineColor.g, LineOutlineColor.b, alpha);
+        }
+    }
+
+    /// <summary>해당 층에서 실제 선택(통과)한 노드 열. 아직 선택하지 않은 층은 -1. 시작 마커 층은 0.</summary>
+    private int SelectedColOf(int row, bool startIsMarker)
+    {
+        if (row == 0 && startIsMarker) return 0;
+        if (row < 0 || row >= nodeRows.Count) return -1;
+        return row < currentRowIndex ? nodeRows[row].selectedButtonIndex : -1;
     }
 
     // ----------------------------------------------------------
@@ -233,6 +412,7 @@ public class NodeSystem : MonoBehaviour
             // rowParent 아래 Button 들을 미리 모음 (SetupNodeData 도 같은 일을 하므로 중복 안전)
             var row = nodeRows[r];
             row.roomTypes.Clear();
+            row.encounterKinds.Clear();
 
             if (row.rowParent == null) continue;
 
@@ -250,6 +430,7 @@ public class NodeSystem : MonoBehaviour
                 else type = RoomType.Combat;
 
                 row.roomTypes.Add(type);
+                row.encounterKinds.Add(EncounterKind.None); // 진입 전 미공개
             }
 
             // 단일 노드 층(시작/화톳불/보스)인데 씬 버튼이 더 많으면 잉여 버튼 숨김 → 선택지 1개 (2026-06-08).
@@ -283,9 +464,14 @@ public class NodeSystem : MonoBehaviour
         {
             var row = nodeRows[r];
             row.roomTypes.Clear();
+            row.encounterKinds.Clear();
             if (row.rowParent == null) continue;
             var btns = row.rowParent.GetComponentsInChildren<Button>(true);
-            for (int b = 0; b < btns.Length; b++) row.roomTypes.Add(RoomType.Combat);
+            for (int b = 0; b < btns.Length; b++)
+            {
+                row.roomTypes.Add(RoomType.Combat);
+                row.encounterKinds.Add(EncounterKind.None);
+            }
         }
     }
 
@@ -333,7 +519,10 @@ public class NodeSystem : MonoBehaviour
                 Outline ol  = EnsureNodeOutline(btn);
 
                 RoomType type      = GetRoomTypeAt(r, b);
-                Color    baseColor = GetRoomColor(type);
+                // `?` 노드가 진입 후 공개된 경우 — 색·아이콘을 실제 결과로 교체 (기획 유지안:
+                // 진입 전 비공개(03 §1-1B) + 지나온 맵에는 공개된 이력 표시)
+                EncounterKind kind = GetEncounterKindAt(r, b);
+                Color    baseColor = kind != EncounterKind.None ? RevealedColorFor(kind) : GetRoomColor(type);
 
                 float alpha;
                 bool  interactable;
@@ -392,7 +581,9 @@ public class NodeSystem : MonoBehaviour
                 Image icon = EnsureNodeTypeIcon(btn);
                 if (icon != null)
                 {
-                    Sprite ic = NodeInnerIconFor(type, isStart);
+                    Sprite ic = kind != EncounterKind.None
+                        ? RevealedIconFor(kind)
+                        : NodeInnerIconFor(type, isStart);
                     if (ic != null)
                     {
                         icon.sprite  = ic;
@@ -404,7 +595,8 @@ public class NodeSystem : MonoBehaviour
             }
         }
 
-        FocusCurrentRow(); // 현재 층을 노드맵 화면 중앙으로 자동 스크롤 (#3)
+        UpdateLineStates(); // 연결선도 노드와 같은 진행 상태 규칙으로 갱신
+        FocusCurrentRow();  // 현재 층을 노드맵 화면 중앙으로 자동 스크롤 (#3)
     }
 
     /// <summary>노드 버튼에 상태 표시용 Outline(테두리)을 보장. 없으면 추가. (2026-06-08)</summary>
@@ -620,12 +812,60 @@ public class NodeSystem : MonoBehaviour
         switch (type)
         {
             case RoomType.Combat: return IconSprite("node_combat");   // 십자검 = 전투
+            case RoomType.Elite: return IconSprite("node_elite");   // 엘리트 = 드래곤
+            case RoomType.Shop: return IconSprite("node_shop");     // 용병소 = 모루
             case RoomType.Boss:   return IconSprite("node_boss");     // 해골 = 보스
             case RoomType.Rest:   return IconSprite("node_rest");     // 모닥불 = 화톳불
             case RoomType.Event:  return IconSprite("node_event");    // 물음표 = 랜덤노드(엘리트/용병소/교회)
-            default:              return null;                        // Shop(튜토리얼)/엘리트 등 = 비움
+            default: return null;
         }
     }
+
+    // ----------------------------------------------------------
+    // `?` 노드 결과 공개 — 아이콘·색 이력 표시 (기획 유지안, 2026-08-21)
+    //   진입 전에는 `?` 유지(03 §1-1B 비공개). 진입해 결과가 확정된 노드만
+    //   실제 결과의 아이콘·색으로 교체해 지나온 맵에 이력을 남긴다.
+    // ----------------------------------------------------------
+
+    /// <summary>방금 클릭한 `?` 노드에 공개된 결과를 기록한다 (OnNodeClicked 에서 currentRowIndex++ 선행됨).</summary>
+    private void RevealEventOutcome(EncounterKind kind)
+    {
+        int row = currentRowIndex - 1;
+        if (row < 0 || row >= nodeRows.Count) return;
+        var kinds = nodeRows[row].encounterKinds;
+        int col = nodeRows[row].selectedButtonIndex;
+        if (kinds == null || col < 0 || col >= kinds.Count) return;
+        kinds[col] = kind;
+    }
+
+    /// <summary>인덱스 안전한 EncounterKind 조회. 범위 밖이면 None(미공개).</summary>
+    private EncounterKind GetEncounterKindAt(int row, int col)
+    {
+        if (row < 0 || row >= nodeRows.Count) return EncounterKind.None;
+        var kinds = nodeRows[row].encounterKinds;
+        if (kinds == null || col < 0 || col >= kinds.Count) return EncounterKind.None;
+        return kinds[col];
+    }
+
+    /// <summary>공개된 `?` 결과의 아이콘. 선택지 이벤트는 `?` 를 유지한다.</summary>
+    private static Sprite RevealedIconFor(EncounterKind kind) => kind switch
+    {
+        EncounterKind.Mercenary   => IconSprite("node_shop"),    // 모루 = 용병소
+        EncounterKind.Church      => IconSprite("node_church"),  // 교회
+        EncounterKind.EliteBattle => IconSprite("node_elite"),   // 드래곤 = 엘리트
+        EncounterKind.ChoiceEvent => IconSprite("node_event"),   // 물음표 유지
+        _                         => null,
+    };
+
+    /// <summary>공개된 `?` 결과의 노드 색.</summary>
+    private Color RevealedColorFor(EncounterKind kind) => kind switch
+    {
+        EncounterKind.Mercenary   => shopColor,
+        EncounterKind.Church      => churchColor,
+        EncounterKind.EliteBattle => eliteColor,
+        EncounterKind.ChoiceEvent => eventColor,
+        _                         => eventColor,
+    };
 
     /// <summary>노드 버튼 중앙에 타입 마커 아이콘 Image 를 보장(없으면 생성). 클릭 방해 안 함.</summary>
     private static Image EnsureNodeTypeIcon(Button btn)
@@ -808,18 +1048,22 @@ public class NodeSystem : MonoBehaviour
                     {
                         case 0:
                             Debug.Log("[NodeSystem] `?` 노드 → 용병소");
+                            RevealEventOutcome(EncounterKind.Mercenary);
                             OpenMercenaryFromNode();
                             break;
                         case 1:
                             Debug.Log("[NodeSystem] `?` 노드 → 교회");
+                            RevealEventOutcome(EncounterKind.Church);
                             OpenChurchFromNode();
                             break;
                         case 2:
                             Debug.Log("[NodeSystem] `?` 노드 → 엘리트 전투");
+                            RevealEventOutcome(EncounterKind.EliteBattle);
                             OpenEliteBattleFromNode();
                             break;
                         default:
                             Debug.Log("[NodeSystem] `?` 노드 → 선택지 이벤트 팝업");
+                            RevealEventOutcome(EncounterKind.ChoiceEvent);
                             OpenEventFromNode();
                             break;
                     }

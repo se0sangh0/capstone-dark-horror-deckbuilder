@@ -17,3 +17,15 @@ public class RoomNode
 //   오픈 노드(진입 전 공개)   : Combat / Rest(화툿불) / Boss
 //   이벤트 노드(진입 전 비공개): Shop(용병소) / Event(교회·백로그) / Elite(엘리트 전투·백로그)
 public enum RoomType { Combat, Elite, Shop, Rest, Event, Boss }
+
+// `?`(Event) 노드가 진입 후 공개한 실제 결과 — 지나온 맵에 이력 표시(아이콘·색 교체)용.
+// 16-B §6: RoomType 직렬화 번호는 재정렬하지 않는다 — 세분화는 별도 EncounterKind 로.
+// 진입 전에는 항상 None(= `?` 표시 유지, 03 §1-1B 비공개 계약).
+public enum EncounterKind
+{
+    None        = 0,  // 미공개 (안전 기본값)
+    Mercenary   = 1,  // 용병소
+    Church      = 2,  // 교회
+    EliteBattle = 3,  // 엘리트 전투
+    ChoiceEvent = 4,  // 선택지 이벤트 (`?` 아이콘 유지)
+}
