@@ -23,6 +23,13 @@ using UnityEngine;
 
 public static class EventService
 {
+    // 이번 선택으로 적용된 변화의 '집계' 요약 (예: "생존 동료 스트레스 +5", "영혼석 +15").
+    // 결과 창(EventPanel)에 표시하는 상세이며, 조사관 수첩에는 넣지 않는다 (수첩은 12 §1-5 기본 양식).
+    private static readonly List<string> _effectSummary = new();
+
+    /// <summary>직전 ResolveChoice 에서 적용된 효과 집계 요약. EventPanel 결과 창 표시용.</summary>
+    public static IReadOnlyList<string> LastEffectSummary => _effectSummary;
+
     /// <summary>영혼석 코스트를 지불할 수 있는지. (HP/스트레스 코스트는 항상 지불 가능으로 본다)</summary>
     public static bool CanAfford(EventChoice choice)
     {
@@ -33,12 +40,15 @@ public static class EventService
     }
 
     /// <summary>
-    /// 선택지를 확정한다. 코스트 지불 → 결과 추첨 → 효과 적용 → 선택된 결과 반환.
+    /// 선택지를 확정한다. 코스트 지불 → 결과 추첨 → 효과 적용(effects 순서대로) →
+    /// ChoiceResolved 사건 1건 기록 → 선택된 결과 반환 (16-B §3: 상태 적용과 기록은 같은 트랜잭션).
     /// 코스트를 못 내면 null 반환(패널에서 사전 차단되지만 안전용).
+    /// 재클릭·연타는 EventPanel 이 선택지를 숨겨 차단하고, 기록은 dedupKey 가 최종 안전망.
     /// </summary>
     public static EventOutcome ResolveChoice(EventDefinition evt, EventChoice choice)
     {
         if (choice == null) return null;
+        _effectSummary.Clear(); // 시작에서만 비운다 — 반환 후 EventPanel 이 LastEffectSummary 를 읽는다
         if (!PayCost(choice)) return null;
 
         var outcome = RollOutcome(choice);
@@ -47,8 +57,31 @@ public static class EventService
             foreach (var eff in outcome.effects) ApplyEffect(eff);
             if (!string.IsNullOrEmpty(outcome.resultText))
                 GameLog.Event(outcome.resultText, LogCategory.Status);
+            RecordChoiceResolved(evt, choice, outcome);
         }
         return outcome;
+    }
+
+    /// <summary>
+    /// 조사관 수첩 사건 기록 1건 — 탐사국 공식 현장 기록 양식 (12 §1-5): 확인 장소 / 조치 / 결과.
+    /// 내부 이벤트 ID·동료별 수치 상세는 넣지 않는다(그건 결과 창·GameLog 담당).
+    /// </summary>
+    private static void RecordChoiceResolved(EventDefinition evt, EventChoice choice, EventOutcome outcome)
+    {
+        var session = RunSessionManager.Instance;
+        if (session == null || !session.IsRunActive) return;
+
+        var lines = new List<string>
+        {
+            $"확인 장소: {(evt != null ? evt.title : "미상")}",
+            $"조치: {choice.label}",
+        };
+        if (!string.IsNullOrEmpty(outcome.resultText))
+            lines.Add($"결과: {outcome.resultText}");
+
+        // 표제는 비운다 — 헤더 [O층 | 제 N구역] 아래 확인 장소/조치/결과 항목만 표시.
+        session.AddRecord(RunRecordType.ChoiceResolved, "", lines,
+            dedupKey: evt != null ? $"choice_{evt.id}" : null);
     }
 
     // ── 코스트 지불 ─────────────────────────────────────────────
@@ -113,6 +146,8 @@ public static class EventService
             case EventEffectType.SoulStone:
                 if (eff.value > 0) { SoulstoneManager.Instance?.Add(eff.value); GameLog.Event($"영혼석 +{eff.value}", LogCategory.Reward); }
                 else if (eff.value < 0) { SoulstoneManager.Instance?.Use(-eff.value); GameLog.Event($"영혼석 {eff.value}", LogCategory.Reward); }
+                if (eff.value != 0)
+                    _effectSummary.Add($"영혼석 {(eff.value > 0 ? "+" : "")}{eff.value}");
                 break;
 
             case EventEffectType.Stress:
@@ -121,6 +156,15 @@ public static class EventService
 
             case EventEffectType.Hp:
                 ApplyHp(eff.value, eff.target);
+                break;
+
+            // ── P0-04 (16-A §4 EVT-01 계약) ────────────────────────
+            case EventEffectType.HpLossNoKill:
+                ApplyHpLossNoKill(Mathf.Abs(eff.value), eff.target);
+                break;
+
+            case EventEffectType.StressCapped:
+                ApplyStressCapped(Mathf.Abs(eff.value), eff.target);
                 break;
 
             // ── 미결/별도 연동 필요 — 로그만 남긴다 (TODO) ──
@@ -163,6 +207,7 @@ public static class EventService
         if (targets.Count == 0) return;
         foreach (var f in targets) f.currentStress += delta;
         string sign = delta >= 0 ? "+" : "";
+        _effectSummary.Add($"{TargetLabel(target, targets.Count)} 스트레스 {sign}{delta}");
         GameLog.Event($"{targets.Count}명 스트레스 {sign}{delta}", LogCategory.Status);
     }
 
@@ -174,8 +219,40 @@ public static class EventService
         if (targets.Count == 0) return;
         foreach (var f in targets) f.CurrentHp += delta;
         string sign = delta >= 0 ? "+" : "";
+        _effectSummary.Add($"{TargetLabel(target, targets.Count)} HP {sign}{delta}");
         GameLog.Event($"{targets.Count}명 HP {sign}{delta}", delta >= 0 ? LogCategory.Heal : LogCategory.Damage);
     }
+
+    // ── EVT-01 계약형 HP 피해 — 적용 후 HP = max(1, HP - amount) (16-A §4) ──
+    //    이 결과로 동료 사망·전멸을 만들지 않는다. HP 1 동료도 스트레스 증가는 별도 적용된다.
+    private static void ApplyHpLossNoKill(int amount, EventTarget target)
+    {
+        if (amount <= 0) return;
+        var targets = ResolveTargets(target);
+        if (targets.Count == 0) return;
+        foreach (var f in targets)
+            f.CurrentHp = Mathf.Max(1, f.CurrentHp - amount); // setter 가 0 도달 시 사망 처리하므로 최소 1 보장
+        _effectSummary.Add($"{TargetLabel(target, targets.Count)} HP -{amount} (사망 없음)");
+        GameLog.Event($"{targets.Count}명 HP -{amount} (사망 없음)", LogCategory.Damage);
+    }
+
+    // ── EVT-01 계약형 스트레스 증가 — 적용 후 = min(99, +amount) (16-A §4) ──
+    //    stressResist 미적용. 이 이벤트에서는 패닉 판정과 스트레스 재설정을 실행하지 않는다
+    //    (패닉은 전투 결과 처리에서만 판정되므로 필드 증가만으로 충분).
+    private static void ApplyStressCapped(int amount, EventTarget target)
+    {
+        if (amount <= 0) return;
+        var targets = ResolveTargets(target);
+        if (targets.Count == 0) return;
+        foreach (var f in targets)
+            f.currentStress = Mathf.Min(99, f.currentStress + amount);
+        _effectSummary.Add($"{TargetLabel(target, targets.Count)} 스트레스 +{amount}");
+        GameLog.Event($"{targets.Count}명 스트레스 +{amount}", LogCategory.Status);
+    }
+
+    /// <summary>효과 대상 표기 — 전원/1명 등 집계 라벨 (결과 창 요약용).</summary>
+    private static string TargetLabel(EventTarget target, int count)
+        => target == EventTarget.All ? "생존 동료" : $"동료 {count}명";
 
     /// <summary>효과 대상 동료 목록. ChosenOne 은 (선택 UI 미구현) RandomOne 으로 폴백.</summary>
     private static List<FellowData> ResolveTargets(EventTarget target)

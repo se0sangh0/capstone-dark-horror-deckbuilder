@@ -47,6 +47,10 @@ public enum EventEffectType
     ObtainObject,       // 오브제 획득 (EVT-18) — §09 연계
     Corruption,         // 오염도 ±value (EVT-18/19) — §10 백로그
     NarrativeHint,      // 암시/서사 텍스트 획득 (기계 효과 없음)
+
+    // ── P0-04 추가 (16-A §4 EVT-01 계약) — 끝에만 추가 (직렬화 번호 유지) ──
+    HpLossNoKill,       // ❤️ HP -value, 적용 후 HP = max(1, HP-value) — 사망·전멸을 만들지 않음
+    StressCapped,       // 🧠 스트레스 +value, 적용 후 = min(99, +value) — stressResist·패닉 판정 미적용
 }
 
 /// <summary>효과 적용 대상.</summary>

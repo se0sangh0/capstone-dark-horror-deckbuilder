@@ -86,6 +86,10 @@ public class NodeSystem : MonoBehaviour
     /// <summary>현재 노드의 RoomType — EnemySpawner 등이 노드 타입 기반 결정에 사용.</summary>
     public RoomType CurrentRoomType { get; private set; } = RoomType.Combat;
 
+    /// <summary>가장 최근 선택한 노드의 위치 번호 — 왼쪽 1 / 중앙 2 / 오른쪽 3.
+    /// 조사관 수첩 헤더 '제 N구역'에 사용 (기획자: 노드 선택 위치를 숫자로 변환).</summary>
+    public int CurrentNodeNumber { get; private set; } = 1;
+
     // ----------------------------------------------------------
     // [선 렌더링 — 레거시 슬롯 (미사용)]
     // 연결선은 아래 [노드 연결선] 이 UI Image 로 런타임 생성한다.
@@ -226,6 +230,15 @@ public class NodeSystem : MonoBehaviour
         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
         // 튜토리얼 첫 노드맵 진입 시 인트로 모달 (1회만)
         TutorialManager.Instance?.TryShowDialogue(TutorialManager.DialogueId.NodeMapIntro);
+
+        // 조사관 수첩 열기 버튼 — 노드맵 상시 접근 (P0-05, 16-A §5). 본편 런에서만.
+        // 노드 화면(nodeDisplay)에 종속시켜 전투 화면 전환 시 함께 숨는다.
+        if (!isTutorial)
+        {
+            Transform notebookHost = (nodeDisplay != null && nodeDisplay.Length > 0 && nodeDisplay[0] != null)
+                ? nodeDisplay[0].transform : ResolveUiCanvas();
+            InvestigatorNotebookController.EnsureOpenButton(notebookHost);
+        }
 
         // 노드 연결선 — 레이아웃 그룹이 버튼 위치를 확정한 뒤 생성
         if (isActiveAndEnabled) StartCoroutine(BuildNodeLinksAfterLayout());
@@ -934,6 +947,7 @@ public class NodeSystem : MonoBehaviour
 
         // 1) 선택된 버튼 기록
         nodeRows[row].selectedButtonIndex = col;
+        CurrentNodeNumber = col + 1; // 왼1 / 중2 / 오3 — 조사관 수첩 '제 N구역'
         AudioManager.Instance?.PlaySfxByIdClipped(SfxId.NodeMove, 1.2f); // 노드 클릭음 — 원본 9초라 1.2초만 재생 후 끊음
 
         // 2) 클릭된 노드의 RoomType 조회

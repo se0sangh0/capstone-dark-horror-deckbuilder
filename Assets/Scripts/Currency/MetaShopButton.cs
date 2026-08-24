@@ -22,7 +22,15 @@ public class MetaShopButton : MonoBehaviour
 
     private void Awake()
     {
+        // [P0 제외 범위] 마석·영구 성장(파워업)은 이번 프로토타입 제외 항목.
+        // 16. 프로토타입 개발 사양서 §1: "제외 항목은 잠긴 버튼이나 빈 화면으로 미리 보여 주지 않습니다."
+        // → 노드 화면의 [파워업/마석 상점] 진입 버튼을 숨긴다 (마석 시스템 복귀 시 이 가드만 제거).
+        gameObject.SetActive(false);
+        return;
+
+#pragma warning disable CS0162 // 마석 복귀 시 위 2줄 제거하면 살아나는 원 배선 (의도적 보존)
         GetComponent<Button>().onClick.AddListener(OnClick);
+#pragma warning restore CS0162
     }
 
     private void OnClick()

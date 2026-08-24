@@ -62,7 +62,7 @@ public partial class BattleManager
         var gm = GameManager.Instance;
         if (gm != null && gm.RemainingDeckCount == 0 && !gm.HasPlayableCards())
         {
-            Debug.Log("[BattleManager] 손패·덱 모두 0 — 자동 턴 진행");
+            Debug.Log("[BattleManager] 손패/덱 모두 0 — 자동 턴 진행");
             yield return new WaitForSeconds(0.6f); // 짧은 안내 텀
             currentPhase = BattlePhase.InitiativeCheck;
             yield break;
@@ -255,9 +255,13 @@ public partial class BattleManager
             foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
                 PlayerRoleCost.Instance.SetAmount(role, 0);
 
+        // 동시 전멸(양측 전멸) 시 아군 전멸(패배)을 우선한다 (16-A §2 결과 우선순위 — 프로토타입 임시 계약).
+        bool allAlliesDead = allies.Count > 0 && allies.All(a => a.isDead);
+        bool isVictory     = allEnemiesDead && !allAlliesDead;
+
         // 마지막 처치 연출 호흡(resultPopupDelay)만 두고 결과 화면 표시.
         yield return new WaitForSeconds(resultPopupDelay);
-        if (allEnemiesDead)
+        if (isVictory)
         {
             GameLog.Event("전투에서 승리했다!", LogCategory.Reward);
             Debug.Log("[BattleManager] 전투 승리!");
@@ -286,10 +290,12 @@ public partial class BattleManager
                 ShowEndingPanel("보스 처치\n\n엔딩");
                 yield return new WaitForSeconds(endingDisplayDuration);
 
-                // 런 마감 — 정확히 1회 (16-B §4). 엔딩 패널이 현재의 임시 '보고서 확인' 역할.
-                // P0-05 에서 탐사 보고서 화면 확인 시점으로 FinalizeRun 호출이 이동한다.
-                RunSessionManager.Instance?.FinalizeRun(RunResult.Victory);
-                StartNextRun();
+                // 클리어 탐사 보고서 (P0-05, 16-A §5) — 후면 딤 + 이번 런 요약.
+                // [확인] 시 FinalizeRun 정확히 1회 → 다음 탐사·타이틀 선택.
+                RunReportPanel.Show(RunResult.Victory,
+                    onConfirmed:       () => RunSessionManager.Instance?.FinalizeRun(RunResult.Victory),
+                    onNextExploration: StartNextRun,
+                    onTitle:           () => SceneTransition.Go("GameStartScene"));
             }
             else
             {
@@ -303,7 +309,7 @@ public partial class BattleManager
                         AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
                     };
                     if (observation != null)
-                        PostBattleObservationPanel.Show(observation.title, observation.screenText, returnToMap);
+                        PostBattleObservationPanel.Show(observation.title, observation.screenText, observation.imageName, returnToMap);
                     else
                         returnToMap();
                 });
@@ -318,14 +324,12 @@ public partial class BattleManager
             RunSessionManager.Instance?.RecordBattleResolved(
                 wipeFloor, BuildEnemySummary(), victory: false, soulstoneGained: 0, observationNotebookText: null);
             RunSessionManager.Instance?.RecordRunResolved(victory: false, reachedFloor: wipeFloor);
-            // 게임오버 — 클릭(= 현재의 임시 '보고서 확인') 시 런 마감 후 타이틀로.
-            // 런 상태 초기화·완료 런 수 증가는 FinalizeRun 이 정확히 1회 수행 (16-B §4).
-            // P0-05 에서 탐사 보고서 화면 확인 시점으로 FinalizeRun 호출이 이동한다.
-            BattleResultScreen.ShowDefeat(() =>
-            {
-                RunSessionManager.Instance?.FinalizeRun(RunResult.Defeat);
-                SceneTransition.Go("GameStartScene");
-            });
+            // 전멸 탐사 보고서 (P0-05, 16-A §2·§5) — 임시 게임오버 화면을 실제 보고서로 교체.
+            // 후면 딤 + 이번 런 요약. [확인] 시 FinalizeRun 정확히 1회 → 다음 탐사·타이틀 선택.
+            RunReportPanel.Show(RunResult.Defeat,
+                onConfirmed:       () => RunSessionManager.Instance?.FinalizeRun(RunResult.Defeat),
+                onNextExploration: StartNextRun,
+                onTitle:           () => SceneTransition.Go("GameStartScene"));
         }
     }
 

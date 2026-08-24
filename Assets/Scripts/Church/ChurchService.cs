@@ -64,13 +64,19 @@ public static class ChurchService
 
         SoulstoneManager.Instance.Use(HpCost);
         int totalGained = 0;
+        var recordLines = new System.Collections.Generic.List<string>();
         foreach (var f in alive)
         {
             int maxHp     = f.maxHp > 0 ? f.maxHp : 100;
             int beforeHp  = f.CurrentHp;
             f.CurrentHp   = Mathf.Min(maxHp, beforeHp + HpAmount);
             totalGained  += f.CurrentHp - beforeHp;
+            recordLines.Add($"{f.displayName} HP +{f.CurrentHp - beforeHp} → {f.CurrentHp}");
         }
+        recordLines.Add($"영혼석 -{HpCost} → 보유 {SoulstoneManager.Instance.Amount}");
+
+        // 실제 회복 결과 기록 — 상태 적용과 같은 트랜잭션 (16-A §5, P0-04)
+        RunSessionManager.Instance?.AddRecord(RunRecordType.RecoveryResolved, "교회 — 회복 기도", recordLines);
 
         GameLog.Event($"교회 기도 — {alive.Count}명 HP +{HpAmount} (총 +{totalGained}, 영혼석 -{HpCost}).", LogCategory.Heal);
         return true;
@@ -96,12 +102,17 @@ public static class ChurchService
 
         SoulstoneManager.Instance.Use(StressCost);
         int totalRelieved = 0;
+        var recordLines = new System.Collections.Generic.List<string>();
         foreach (var f in alive)
         {
             int before        = f.currentStress;
             f.currentStress   = Mathf.Max(0, before - StressAmount);
             totalRelieved    += before - f.currentStress;
+            recordLines.Add($"{f.displayName} 스트레스 -{before - f.currentStress} → {f.currentStress}");
         }
+        recordLines.Add($"영혼석 -{StressCost} → 보유 {SoulstoneManager.Instance.Amount}");
+
+        RunSessionManager.Instance?.AddRecord(RunRecordType.RecoveryResolved, "교회 — 안정 기도", recordLines);
 
         GameLog.Event($"교회 기도 — {alive.Count}명 스트레스 -{StressAmount} (총 -{totalRelieved}, 영혼석 -{StressCost}).", LogCategory.Heal);
         return true;
@@ -128,6 +139,15 @@ public static class ChurchService
         }
 
         SoulstoneManager.Instance.Use(cost);
+
+        // 실제 부활 결과 기록 — 상태 적용과 같은 트랜잭션 (16-A §5, P0-04)
+        RunSessionManager.Instance?.AddRecord(RunRecordType.RecoveryResolved, "교회 — 부활",
+            new System.Collections.Generic.List<string>
+            {
+                $"{target.displayName} 부활 ({target.starLevel}★, HP {target.CurrentHp})",
+                $"영혼석 -{cost} → 보유 {SoulstoneManager.Instance.Amount}",
+            });
+
         GameLog.Event($"{target.displayName} 부활! ({target.starLevel}★, 영혼석 -{cost})", LogCategory.Reward);
         return true;
     }

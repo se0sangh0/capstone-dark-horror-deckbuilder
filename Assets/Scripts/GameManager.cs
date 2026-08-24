@@ -306,7 +306,7 @@ public class GameManager : Singleton<GameManager>
                 }
                 else if (wasActive && card.owner != null)
                 {
-                    Debug.Log($"  · [손패 유지] 슬롯 {i} (owner={card.owner.displayName})");
+                    Debug.Log($"  - [손패 유지] 슬롯 {i} (owner={card.owner.displayName})");
                 }
             }
         }

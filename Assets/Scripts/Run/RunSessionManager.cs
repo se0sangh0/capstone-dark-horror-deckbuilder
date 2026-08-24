@@ -53,6 +53,58 @@ public class RunSessionManager : MonoBehaviour
     public const string RunCompletedCountKey = "run_completed_count";
     /// <summary>오프닝 완료 플래그 — P0-06 오프닝 흐름이 사용 (여기서 키만 소유).</summary>
     public const string OpeningCompletedKey = "opening_completed";
+    /// <summary>첫 전투 가이드 표시 플래그 — P0-06 (여기서 키만 소유). 런 초기화로 삭제하지 않는다.</summary>
+    public const string CombatGuideCompletedKey = "combat_guide_completed";
+
+    // ----------------------------------------------------------
+    // [온보딩 영속 플래그] — 오프닝 / 첫 전투 가이드 (P0-06, 16-A §1·§6)
+    //   opening_completed·combat_guide_completed 는 영속 저장이며 런 초기화로
+    //   삭제하지 않는다. 기존 저장 tutorial_completed 는 마이그레이션에만 읽는다.
+    // ----------------------------------------------------------
+
+    /// <summary>
+    /// 오프닝을 완료한 기록인지. opening_completed=1 이면 true.
+    /// 기존 저장에 opening_completed 가 없고 tutorial_completed=1 이면
+    /// 오프닝 완료로 1회 보정 저장한다 (16-A §6 구현 참고).
+    /// </summary>
+    public static bool IsOpeningCompleted()
+    {
+        if (PlayerPrefs.GetInt(OpeningCompletedKey, 0) == 1) return true;
+        if (!PlayerPrefs.HasKey(OpeningCompletedKey)
+            && PlayerPrefs.GetInt(TutorialManager.PrefsKey, 0) == 1)
+        {
+            MarkOpeningCompleted(); // 구 튜토리얼 완료자 → 오프닝 완료로 보정
+            Debug.Log("[RunSession] opening_completed 보정 — tutorial_completed=1 기존 저장");
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>FirstRun 오프닝 완료·스킵 시 호출 — 완료 플래그 저장.</summary>
+    public static void MarkOpeningCompleted()
+    {
+        PlayerPrefs.SetInt(OpeningCompletedKey, 1);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>
+    /// 첫 전투 가이드를 이미 표시(또는 표시 불필요)한 기록인지.
+    /// combat_guide_completed=1 이거나, 기존 저장 tutorial_completed=1 이면 true
+    /// (구 교전 교육 완료자에게는 가이드를 표시하지 않는다 — 16-A §1).
+    /// </summary>
+    public static bool IsCombatGuideCompleted()
+    {
+        if (PlayerPrefs.GetInt(CombatGuideCompletedKey, 0) == 1) return true;
+        if (PlayerPrefs.GetInt(TutorialManager.PrefsKey, 0) == 1) return true;
+        return false;
+    }
+
+    /// <summary>첫 전투 가이드 표시 뒤 호출 — 표시 플래그 저장 (기록당 1회).</summary>
+    public static void MarkCombatGuideCompleted()
+    {
+        PlayerPrefs.SetInt(CombatGuideCompletedKey, 1);
+        PlayerPrefs.Save();
+    }
 
     // prototype_demo_v1 고정 시드 (16-B §2 고정 시드).
     // 초기 파티 성향 재현 등 "매 런 동일 재현" 이 필요한 곳의 시드 원천.
@@ -303,20 +355,49 @@ public class RunSessionManager : MonoBehaviour
             return false;
         }
 
+        // 전투 결과 표기 (12 §1-3·§1-4 / 16-A §5) —
+        //   승리: "{조우 대상} 사살" 처럼 조우와 처리 결과를 한 줄로 통합(별도 "전투 승리" 라벨 폐지).
+        //   전멸: 마지막 전투 사건에 "탐사대 소실"을 기록한다.
+        //   줄 배치는 예시(§1-4) 순서 — 조우·처리 결과 → 사후 관찰 → 조건부 획득.
+        string encounter = string.IsNullOrEmpty(enemySummary) ? "괴이" : enemySummary;
         var entry = new RunRecordEntry
         {
             type  = RunRecordType.BattleResolved,
             floor = floor,
-            title = victory ? "전투 승리" : "전멸",
+            node  = NodeSystem.Current != null ? NodeSystem.Current.CurrentNodeNumber : 0,
+            title = victory ? $"{encounter} 사살" : "탐사대 소실",
         };
-        if (!string.IsNullOrEmpty(enemySummary))
-            entry.lines.Add(enemySummary);
-        if (victory && soulstoneGained > 0)
-            entry.lines.Add($"영혼석 {soulstoneGained}개 획득");
+        if (!victory)
+            entry.lines.Add($"{encounter}와 교전 중 탐사대 소실"); // 조우 맥락 (전멸)
         if (victory && !string.IsNullOrEmpty(observationNotebookText))
-            entry.lines.Add(observationNotebookText); // 사후 관찰 — 표시 전에 기록에 포함
+            entry.lines.Add(observationNotebookText);              // 사후 관찰 — 표시 전에 기록에 포함
+        if (victory && soulstoneGained > 0)
+            entry.lines.Add($"영혼석 {soulstoneGained}개 획득");   // 조건부 획득 줄 (0이면 생략)
 
         return Records.Add(entry, dedupKey: $"battle_F{floor}");
+    }
+
+    /// <summary>
+    /// 장소·사건·서비스 확정 결과 기록 1건 (P0-04 — ChoiceResolved·RecruitmentResolved·RecoveryResolved).
+    /// 상태 적용과 같은 트랜잭션에서 호출한다 (16-A §5). 층은 NodeSystem 에서 자동 결정.
+    /// 활성 런이 없으면(세션 밖 직접 플레이) 기록하지 않는다.
+    /// </summary>
+    public bool AddRecord(RunRecordType type, string title, System.Collections.Generic.List<string> lines, string dedupKey = null)
+    {
+        if (!IsRunActive) return false;
+
+        var entry = new RunRecordEntry
+        {
+            type  = type,
+            floor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0,
+            node  = NodeSystem.Current != null ? NodeSystem.Current.CurrentNodeNumber : 0,
+            title = title,
+        };
+        if (lines != null)
+            foreach (var l in lines)
+                if (!string.IsNullOrEmpty(l)) entry.lines.Add(l);
+
+        return Records.Add(entry, dedupKey);
     }
 
     /// <summary>런 종료 기록 — 클리어/전멸과 최종 도달 구역. 런당 1건만 생성.</summary>

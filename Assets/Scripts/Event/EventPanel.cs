@@ -162,10 +162,13 @@ public class EventPanel : PanelBase
 
         var outcome = EventService.ResolveChoice(_current, choice);
 
-        // 결과 텍스트 표시 (없으면 기본 문구)
+        // 결과 텍스트 + 효과 요약을 결과 창에 표시 (상세 수치는 여기, 조사관 수첩은 기본 양식만).
         string result = outcome != null && !string.IsNullOrEmpty(outcome.resultText)
             ? outcome.resultText
             : "변화 없음.";
+        var eff = EventService.LastEffectSummary;
+        if (eff != null && eff.Count > 0)
+            result += "\n\n" + string.Join("\n", eff);
         if (_bodyText != null) _bodyText.text = result;
 
         // 선택지 숨기고 확인 버튼 노출

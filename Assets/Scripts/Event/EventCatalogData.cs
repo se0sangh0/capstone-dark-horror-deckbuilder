@@ -51,18 +51,24 @@ public static class EventCatalogData
     {
         var list = new List<EventDefinition>(19);
 
-        // EVT-01 식어 있는 야영지
+        // EVT-01 식어 있는 야영지 — P0-04 재작성 (16-A §4 계약 + 16-E §1 T0 문안)
+        //   기존 자원 도박·확률 분기·컵라면 소재 폐기 (16-A: "사용하지 않는다").
+        //   모든 결과는 100% 단일 — 확률 분기 없음. 화면 문장에 수치 노출 금지.
+        //   휴식하기: 생존 전원 HP +30 (화톳불 기본 회복값과 동일 — H2 확정 전 시험값).
+        //             사망 부활 없음, 스트레스·영혼석 불변.
+        //   흩어져서 살펴보기: HP 감소 → 스트레스 증가 → 영혼석 지급 순서 (effects 순서 = 적용 순서).
+        //             HP = max(1, HP-20) 사망 없음 / 스트레스 = min(99, +15) 저항·패닉 미적용 / 영혼석 +15 1회.
+        //   지나치기: 상태·자원 불변.
         list.Add(Def("evt_cold_camp", "식어 있는 야영지",
-            "누군가 급히 떠난 흔적. 식은 컵라면에서, 아주 미세하게, 아직 김이 난다.",
-            Cho("물자를 챙긴다", CT.None, 0,
-                Out(100, "“누군가의 몫이었다. ‘였다’라고 믿기로 했다.”",
-                    Eff(ET.SoulStone, 10, TG.None), Eff(ET.Stress, 10, TG.All))),
-            Cho("흔적을 조사한다", CT.None, 0,
-                Out(50, "“떠난 게 아니라, 데려가진 것이다.”",
-                    Eff(ET.Stress, -5, TG.All), Eff(ET.NarrativeHint, 0, TG.None)),
-                Out(50, "“라면 위로 김이 멈췄다. 방금까지 누가 보고 있었다는 뜻이다.”",
-                    Eff(ET.Stress, 15, TG.All))),
-            Cho("지나친다", CT.None, 0, Nothing())));
+            "협곡 입구에 버려진 야영지가 있다. 꺼진 화덕의 재 아래쪽이 아직 따뜻하고, 말리다 만 약초 다발과 흙을 털지 않은 도구가 흩어져 있다.",
+            Cho("휴식하기", CT.None, 0,
+                Out(100, "일행이 화덕에 새 불을 지피고 짧게 쉰 뒤 진행한다.",
+                    Eff(ET.Hp, 30, TG.All))),
+            Cho("흩어져서 살펴보기", CT.None, 0,
+                Out(100, "일행이 흩어져 물건을 조사하던 중 짐 뒤의 괴생물체를 쫓아낸다. 회수한 물건에서 영혼석을 확보한다.",
+                    Eff(ET.HpLossNoKill, 20, TG.All), Eff(ET.StressCapped, 15, TG.All), Eff(ET.SoulStone, 15, TG.None))),
+            Cho("지나치기", CT.None, 0,
+                Out(100, "일행은 기록에 없는 휴식처를 그대로 지나친다.", Eff(ET.None, 0, TG.None)))));
 
         // EVT-02 임시 상납소
         list.Add(Def("evt_field_altar", "임시 상납소",
