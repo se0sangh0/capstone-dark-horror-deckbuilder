@@ -37,7 +37,17 @@ public class DebugToolPanel : MonoBehaviour
     private GameObject _root;
     private bool _built;
 
+    // 확인 모달 (리셋 오클릭 방지) — Build 에서 1회 생성 후 재사용
+    private GameObject _confirmRoot;
+    private TMP_Text   _confirmText;
+    private Button     _confirmYesButton;
+
     private static readonly Color Gold = new Color(1f, 0.84f, 0.4f, 1f);
+    // 리셋 계열 — 붉은 계열로 시각적 주의 (디버깅 위험 강조)
+    private static readonly Color DangerRed   = new Color(0.72f, 0.15f, 0.15f, 1f); // 버튼 바탕
+    private static readonly Color DangerHi    = new Color(0.95f, 0.30f, 0.30f, 1f); // 라벨/테두리 강조
+    private static readonly Color DangerDim   = new Color(0.30f, 0.06f, 0.06f, 0.97f); // 확인 박스 바탕
+    private static readonly Color WhiteInk    = new Color(0.97f, 0.95f, 0.93f, 1f);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -104,11 +114,61 @@ public class DebugToolPanel : MonoBehaviour
 
     private static void NewRun()
     {
-        // BattleManager.StartNextRunLoop 와 동일 절차 (노드맵에서도 동작하도록 독립 구현)
-        MercenaryService.Instance?.ResetForNewRun();
-        PartyManager.Instance?.ResetGame();
-        SoulstoneManager.Instance?.ResetCurrency();
+        // 새 런 초기화는 RunSessionManager 단일 창구 (16-B §4).
+        // 진행 중이던 런은 포기 처리되며 완료 런 수는 증가하지 않는다.
+        if (RunSessionManager.Instance == null || !RunSessionManager.Instance.StartNewRun())
+        {
+            Debug.LogError("[디버그] 새 런 초기화 실패 — 씬 이동 취소");
+            return;
+        }
         SceneManager.LoadScene("GamePlayScene");
+    }
+
+    // ── 리셋 동작 (기능별) — 확인 모달을 거쳐 호출됨 ──────────────
+    private const string ManaKey = "ManaStone"; // ManastoneManager.SaveKey 와 동일
+
+    /// <summary>온보딩 리셋 — 오프닝·첫 전투 가이드·구 튜토리얼 플래그 삭제 (P0-06 재확인용).</summary>
+    private static void ResetOnboarding()
+    {
+        PlayerPrefs.DeleteKey(RunSessionManager.OpeningCompletedKey);
+        PlayerPrefs.DeleteKey(RunSessionManager.CombatGuideCompletedKey);
+        PlayerPrefs.DeleteKey(TutorialManager.PrefsKey);
+        PlayerPrefs.Save();
+        Debug.Log("[디버그·리셋] 온보딩 — opening/combat_guide/tutorial 플래그 삭제 (다음 [시작하기]에서 오프닝·가이드 재생)");
+    }
+
+    /// <summary>재화 리셋 — 영혼석·마석을 시작값으로.</summary>
+    private static void ResetCurrency()
+    {
+        PlayerPrefs.DeleteKey(SoulstoneManager.PrefsKey);
+        PlayerPrefs.DeleteKey(ManaKey);
+        PlayerPrefs.Save();
+        SoulstoneManager.Instance?.ResetCurrency(); // 라이브 UI 도 시작값으로 갱신
+        ManastoneManager.Instance?.ResetCurrency();
+        Debug.Log("[디버그·리셋] 재화 — 영혼석/마석 시작값 복귀");
+    }
+
+    /// <summary>메타 성장 리셋 — 마석 강화(패시브·스킬) 해금 전부 초기화.</summary>
+    private static void ResetMeta()
+    {
+        MetaPassiveManager.ResetAll();
+        Debug.Log("[디버그·리셋] 메타 성장 — 해금 전체 초기화 (마석 잔액은 재화 리셋에서 별도 처리)");
+    }
+
+    /// <summary>런 기록 리셋 — 완료 런 수 삭제 (탐사 보고서 '제 N차'가 1로 복귀).</summary>
+    private static void ResetRunHistory()
+    {
+        PlayerPrefs.DeleteKey(RunSessionManager.RunCompletedCountKey);
+        PlayerPrefs.Save();
+        Debug.Log("[디버그·리셋] 런 기록 — 완료 런 수 삭제 (제 1차부터 다시)");
+    }
+
+    /// <summary>전체 초기화 — 모든 PlayerPrefs 삭제 (설정·재화·진행 전부). 최후 수단.</summary>
+    private static void ResetAllPrefs()
+    {
+        PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+        Debug.Log("[디버그/리셋] 전체 PlayerPrefs 삭제");
     }
 
     // ── UI 생성 ────────────────────────────────────────────────
@@ -129,8 +189,9 @@ public class DebugToolPanel : MonoBehaviour
         var box = new GameObject("Box", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         box.transform.SetParent(canvasGo.transform, false);
         var brt = (RectTransform)box.transform;
-        brt.anchorMin = brt.anchorMax = new Vector2(1f, 0.5f); brt.pivot = new Vector2(1f, 0.5f);
-        brt.sizeDelta = new Vector2(560, 880); brt.anchoredPosition = new Vector2(-24, 0);
+        // 상단-우측 고정 + 내용 높이 자동 맞춤 (리셋 섹션 추가로 세로가 길어져도 넘치지 않게)
+        brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f); brt.pivot = new Vector2(1f, 1f);
+        brt.sizeDelta = new Vector2(560, 0); brt.anchoredPosition = new Vector2(-24, -24);
         var bimg = box.GetComponent<Image>();
         if (panelSprite != null) { bimg.sprite = panelSprite; bimg.type = Image.Type.Sliced; bimg.color = Color.white; }
         else bimg.color = new Color(0.1f, 0.1f, 0.14f, 0.97f);
@@ -142,6 +203,10 @@ public class DebugToolPanel : MonoBehaviour
         vlg.spacing = 10;
         vlg.childControlWidth = true; vlg.childControlHeight = true;
         vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+
+        var fitter = box.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // 폭은 560 고정
+        fitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize; // 높이는 내용에 맞춤
 
         Label(box.transform, font, "디버그 툴  (F1)", 30, Gold, bold: true);
 
@@ -178,9 +243,105 @@ public class DebugToolPanel : MonoBehaviour
             ("적 랜덤 행동", () => { if (InBattle(out var b)) b.DebugEnemyTurnOnce(); }),
             ("피격 모션", () => { if (InBattle(out var b)) b.DebugHitMotionAll(); }));
 
+        // ── 리셋 (저장 데이터 삭제 — 붉은 계열 주의) ──
+        Label(box.transform, font, "─ 리셋 / 저장 데이터 삭제 ─", 20, DangerHi, bold: true);
+        RowStyled(box.transform, font, btnSprite, DangerRed, WhiteInk,
+            ("온보딩(튜토/오프닝/가이드)", () => Confirm(
+                "온보딩 진행을 리셋합니다.\n오프닝, 첫 전투 가이드, 튜토리얼 완료 플래그가 삭제되어\n다음 [시작하기]에서 오프닝부터 다시 재생됩니다.", ResetOnboarding)),
+            ("재화(영혼석/마석)", () => Confirm(
+                "영혼석/마석을 시작값으로 되돌립니다.", ResetCurrency)));
+        RowStyled(box.transform, font, btnSprite, DangerRed, WhiteInk,
+            ("메타 성장(해금)", () => Confirm(
+                "마석 강화(패시브/스킬) 해금을 전부 초기화합니다.", ResetMeta)),
+            ("런 기록(완료 런 수)", () => Confirm(
+                "완료 런 수를 삭제합니다.\n탐사 보고서의 '제 N차'가 1부터 다시 시작됩니다.", ResetRunHistory)));
+        RowStyled(box.transform, font, btnSprite, new Color(0.55f, 0.08f, 0.08f, 1f), WhiteInk,
+            ("전체 초기화 (PlayerPrefs 전부)", () => Confirm(
+                "모든 PlayerPrefs 를 삭제합니다.\n설정/재화/진행/온보딩 전부 초기화됩니다.\n\n되돌릴 수 없습니다.", ResetAllPrefs)));
+
         Row(box.transform, font, btnSprite, ("닫기 (F1)", () => _root.SetActive(false)));
 
+        BuildConfirmModal(canvasGo.transform, font, btnSprite);
+
         _root.SetActive(false);
+    }
+
+    // ── 확인 모달 (리셋 오클릭 방지) ────────────────────────────
+    /// <summary>메시지 + [리셋 실행]/[취소] 재확인 모달을 띄운다. 실행 시에만 onYes 호출.</summary>
+    private void Confirm(string message, System.Action onYes)
+    {
+        if (_confirmRoot == null) return;
+        if (_confirmText != null) _confirmText.text = message;
+
+        _confirmYesButton.onClick.RemoveAllListeners();
+        var act = onYes;
+        _confirmYesButton.onClick.AddListener(() =>
+        {
+            act?.Invoke();
+            _confirmRoot.SetActive(false);
+        });
+
+        _confirmRoot.transform.SetAsLastSibling(); // 항상 최상단
+        _confirmRoot.SetActive(true);
+    }
+
+    /// <summary>확인 모달 UI 를 1회 생성(기본 비활성). 리셋 실행/취소 버튼 포함.</summary>
+    private void BuildConfirmModal(Transform canvasParent, TMP_FontAsset font, Sprite btnSprite)
+    {
+        _confirmRoot = new GameObject("ConfirmModal", typeof(RectTransform));
+        _confirmRoot.transform.SetParent(canvasParent, false);
+        var crt = (RectTransform)_confirmRoot.transform;
+        crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one; crt.offsetMin = Vector2.zero; crt.offsetMax = Vector2.zero;
+
+        // 전체 딤 — 뒤 버튼 입력 차단 (오클릭 방지). 딤 클릭은 취소.
+        var dim = _confirmRoot.AddComponent<Image>();
+        dim.color = new Color(0f, 0f, 0f, 0.72f);
+        dim.raycastTarget = true;
+        var dimBtn = _confirmRoot.AddComponent<Button>();
+        dimBtn.transition = Selectable.Transition.None;
+        dimBtn.onClick.AddListener(() => _confirmRoot.SetActive(false)); // 딤 클릭 = 취소
+
+        // 중앙 박스 (붉은 테두리)
+        var boxGo = new GameObject("Box", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        boxGo.transform.SetParent(_confirmRoot.transform, false);
+        var brt = (RectTransform)boxGo.transform;
+        brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 0.5f);
+        brt.sizeDelta = new Vector2(560, 340);
+        boxGo.GetComponent<Image>().color = DangerDim;
+        boxGo.GetComponent<Image>().raycastTarget = true; // 박스 클릭이 딤(취소)으로 새지 않게
+        var ol = boxGo.AddComponent<Outline>();
+        ol.effectColor = DangerHi; ol.effectDistance = new Vector2(3, 3); ol.useGraphicAlpha = false;
+
+        var vlg = boxGo.AddComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(28, 28, 24, 24); vlg.spacing = 16;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+
+        Label(boxGo.transform, font, "⚠ 리셋 확인", 28, DangerHi, bold: true);
+
+        _confirmText = new GameObject("Msg", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
+        _confirmText.transform.SetParent(boxGo.transform, false);
+        if (font != null) _confirmText.font = font;
+        _confirmText.fontSize = 20; _confirmText.color = WhiteInk;
+        _confirmText.alignment = TextAlignmentOptions.Center; _confirmText.raycastTarget = false;
+        _confirmText.enableWordWrapping = true;
+        var msgLe = _confirmText.gameObject.AddComponent<LayoutElement>();
+        msgLe.preferredHeight = 150; msgLe.flexibleHeight = 1;
+
+        // [리셋 실행] (붉은) / [취소] (회색)
+        var btnRow = new GameObject("BtnRow", typeof(RectTransform));
+        btnRow.transform.SetParent(boxGo.transform, false);
+        var hlg = btnRow.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 14; hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
+        var rowLe = btnRow.AddComponent<LayoutElement>(); rowLe.preferredHeight = 56; rowLe.minHeight = 52;
+
+        _confirmYesButton = MakeButton(btnRow.transform, font, btnSprite, "리셋 실행", DangerRed, WhiteInk);
+        var cancel = MakeButton(btnRow.transform, font, btnSprite, "취소", new Color(0.28f, 0.28f, 0.32f, 1f), WhiteInk);
+        cancel.onClick.AddListener(() => _confirmRoot.SetActive(false));
+
+        _confirmRoot.SetActive(false);
     }
 
     private static void Label(Transform parent, TMP_FontAsset font, string text, float size, Color color, bool bold)
@@ -195,7 +356,12 @@ public class DebugToolPanel : MonoBehaviour
         t.raycastTarget = false;
     }
 
+    /// <summary>기본 스타일 버튼 행 (흰 바탕 스프라이트 + 금색 라벨).</summary>
     private static void Row(Transform parent, TMP_FontAsset font, Sprite btnSprite, params (string label, System.Action onClick)[] buttons)
+        => RowStyled(parent, font, btnSprite, Color.white, Gold, buttons);
+
+    /// <summary>색상 지정 버튼 행 (리셋 등 주의 계열에 붉은 바탕 사용).</summary>
+    private static void RowStyled(Transform parent, TMP_FontAsset font, Sprite btnSprite, Color btnColor, Color labelColor, params (string label, System.Action onClick)[] buttons)
     {
         var row = new GameObject("Row", typeof(RectTransform));
         row.transform.SetParent(parent, false);
@@ -206,27 +372,34 @@ public class DebugToolPanel : MonoBehaviour
 
         foreach (var (label, onClick) in buttons)
         {
-            var go = new GameObject("Btn_" + label, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            go.transform.SetParent(row.transform, false);
-            var img = go.GetComponent<Image>();
-            if (btnSprite != null) { img.sprite = btnSprite; img.type = Image.Type.Sliced; img.color = Color.white; }
-            else img.color = new Color(0.22f, 0.22f, 0.28f, 1f);
-            var le = go.AddComponent<LayoutElement>();
-            le.preferredHeight = 48; le.minHeight = 44;
-            var btn = go.AddComponent<Button>();
+            var btn = MakeButton(row.transform, font, btnSprite, label, btnColor, labelColor);
             var act = onClick;
             btn.onClick.AddListener(() => act?.Invoke());
-
-            var lt = new GameObject("Label", typeof(RectTransform));
-            lt.transform.SetParent(go.transform, false);
-            var lrt = (RectTransform)lt.transform;
-            lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
-            lrt.offsetMin = Vector2.zero; lrt.offsetMax = Vector2.zero;
-            var t = lt.AddComponent<TextMeshProUGUI>();
-            if (font != null) t.font = font;
-            t.text = label; t.fontSize = 20; t.color = Gold; t.fontStyle = FontStyles.Bold;
-            t.alignment = TextAlignmentOptions.Center; t.raycastTarget = false;
         }
+    }
+
+    /// <summary>버튼 GameObject 1개 생성 후 Button 반환 (Row·확인 모달 공용).</summary>
+    private static Button MakeButton(Transform parent, TMP_FontAsset font, Sprite btnSprite, string label, Color btnColor, Color labelColor)
+    {
+        var go = new GameObject("Btn_" + label, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var img = go.GetComponent<Image>();
+        if (btnSprite != null) { img.sprite = btnSprite; img.type = Image.Type.Sliced; }
+        img.color = btnColor; // 스프라이트가 있으면 틴트, 없으면 단색
+        var le = go.AddComponent<LayoutElement>();
+        le.preferredHeight = 48; le.minHeight = 44;
+        var btn = go.AddComponent<Button>();
+
+        var lt = new GameObject("Label", typeof(RectTransform));
+        lt.transform.SetParent(go.transform, false);
+        var lrt = (RectTransform)lt.transform;
+        lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+        lrt.offsetMin = Vector2.zero; lrt.offsetMax = Vector2.zero;
+        var t = lt.AddComponent<TextMeshProUGUI>();
+        if (font != null) t.font = font;
+        t.text = label; t.fontSize = 20; t.color = labelColor; t.fontStyle = FontStyles.Bold;
+        t.alignment = TextAlignmentOptions.Center; t.raycastTarget = false;
+        return btn;
     }
 }
 #endif

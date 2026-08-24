@@ -47,6 +47,9 @@ public partial class FellowData : ScriptableObject
     [Tooltip("로직 연결용 고유 ID. 예: ally_caster_01")]
     public string id;
 
+    [Tooltip("런타임 인스턴스 고유 ID. 생성 시 RunSessionManager 가 발급 — 런 내 재사용 없음, 다음 런엔 새 ID. (16-B §4)")]
+    public string runtimeFellowId;
+
     [Tooltip("UI 표시 이름. 런타임 이름 생성기로 채워질 수 있음.")]
     public string displayName;
 

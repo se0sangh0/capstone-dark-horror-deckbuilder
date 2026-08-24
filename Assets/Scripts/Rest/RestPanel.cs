@@ -50,17 +50,27 @@ public class RestPanel : PanelBase
         if (nextNodeButton  != null) nextNodeButton.onClick.AddListener(HandleNextNode);
     }
 
-    /// <summary>NodeSystem 이 호출. 화툿불 진입 — 자동 회복 + 페이드 인.</summary>
+    // 이번 노드 방문에서 회복을 이미 적용했는지 — 파티 편집 복귀·패널 재활성화로
+    // 회복이 중복 적용되는 것을 막는다 (16-A §4: 기본 회복을 한 번만 적용).
+    private bool _recoveryAppliedThisVisit;
+    private RestService.RecoveryResult _lastResult;
+
+    /// <summary>NodeSystem 이 호출. 화툿불 진입 — 자동 회복(방문당 1회) + 페이드 인.</summary>
     public void OpenFromNode()
     {
+        _recoveryAppliedThisVisit = false; // 새 방문 — 이번 방문의 1회 회복 허용
         Open();
     }
 
     protected override void OnOpened()
     {
-        // 자동 회복 적용 (사용자 결정 Q2·a)
-        var result = RestService.ApplyRecovery();
-        RefreshRecoveryLabel(result);
+        // 자동 회복 적용 — 방문당 1회만. 파티 편집에서 복귀(Open 재호출) 시 재적용하지 않는다.
+        if (!_recoveryAppliedThisVisit)
+        {
+            _recoveryAppliedThisVisit = true;
+            _lastResult = RestService.ApplyRecovery();
+        }
+        RefreshRecoveryLabel(_lastResult);
     }
 
     private void RefreshRecoveryLabel(RestService.RecoveryResult result)
@@ -74,7 +84,7 @@ public class RestPanel : PanelBase
             return;
         }
         recoveryResultLabel.text =
-            $"휴식 완료 — {result.affectedCount}명에게 HP +{RestService.RecoveryAmount} / 스트레스 -{RestService.RecoveryAmount}";
+            $"휴식 완료 — {result.affectedCount}명에게 HP +{RestService.HpRecoveryAmount} / 스트레스 -{RestService.RecoveryAmount}";
     }
 
     // ----------------------------------------------------------

@@ -1,16 +1,19 @@
 // ============================================================
-// UI/BattleResultScreen.cs  (2026-06-11)
-// 전투 결과 화면 — 승리 팝업(Panel_1 + 획득 재화 + 다음으로) / 패배 게임오버(전체 어둡게 + 빨강 볼드).
+// UI/BattleResultScreen.cs  (2026-06-11 / 기획자 피드백 수정)
+// 전투 결과 화면 — 승리 팝업(Panel_1 + 획득 재화, 아무 키/클릭 진행) / 패배 게임오버.
 // ============================================================
 //
 // 사용:
-//   BattleResultScreen.ShowVictory(영혼석, onNext);          // 다음으로 클릭 시 onNext (전투 보상=영혼석만, 기획 §15)
-//   BattleResultScreen.ShowDefeat(onContinue);             // 클릭 시 onContinue
+//   BattleResultScreen.ShowVictory(영혼석, onNext);   // 아무 키/클릭 시 onNext (탐사 결과 팝업으로)
+//   BattleResultScreen.ShowDefeat(onContinue);        // 클릭 시 onContinue (현재 미사용 — 전멸은 탐사 보고서 직행)
 //   - 씬 배치 불필요(자체 생성, DontDestroyOnLoad). 최상단 오버레이.
+//
+// [기획자 피드백] 승리 팝업의 '다음으로' 버튼 삭제 — 아무 키나 누르면 탐사 결과 팝업이 뜬다.
 // ============================================================
 
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
 
 public class BattleResultScreen : MonoBehaviour
@@ -22,8 +25,9 @@ public class BattleResultScreen : MonoBehaviour
     private TMP_Text    _rewardText;
     private System.Action _onNext, _onContinue;
     private Coroutine _autoRoutine;
+    private float _victoryArmTime; // 이 시각 전 입력 무시 (전투 종료 키 입력이 즉시 넘기는 것 방지)
 
-    // 클릭 없이도 자동 진행 (클릭하면 즉시 스킵) — 사용자 요청 2026-06-11
+    // 패배(미사용) 경로만 자동 진행 유지. 승리는 아무 키/클릭 대기.
     private const float AutoAdvanceDelay = 2.5f;
 
     private static readonly Color Gold = new Color(1f, 0.84f, 0.4f, 1f);
@@ -66,6 +70,7 @@ public class BattleResultScreen : MonoBehaviour
 
         // ── 승리 ──────────────────────────────────────────────
         _victory = NewUI("Victory", canvasGo.transform); Stretch((RectTransform)_victory.transform);
+        // 딤 — 빈 공간 클릭으로는 진행하지 않는다 (뒤 화면 입력만 차단). 진행은 팝업(패널) 클릭·아무 키.
         var vdim = NewImage("Dim", _victory.transform); Stretch(vdim.rectTransform); vdim.color = new Color(0f, 0f, 0f, 0.6f); vdim.raycastTarget = true;
 
         var panel = NewImage("Panel", _victory.transform);
@@ -73,6 +78,9 @@ public class BattleResultScreen : MonoBehaviour
         var p1 = Resources.Load<Sprite>("UI/panel_1");
         if (p1 != null) { panel.sprite = p1; panel.type = Image.Type.Sliced; panel.color = Color.white; }
         else panel.color = new Color(0.12f, 0.12f, 0.16f, 0.98f);
+        // 팝업(패널) 클릭 시 진행 — '다음으로' 버튼 대체 (기획자 피드백: 빈 공간 → 팝업 화면)
+        var panelBtn = panel.gameObject.AddComponent<Button>(); panelBtn.transition = Selectable.Transition.None;
+        panelBtn.onClick.AddListener(ProceedVictory);
 
         var vt = NewText("Title", panel.transform, "전투 승리", font, 50, Gold, FontStyles.Bold);
         var vtr = (RectTransform)vt.transform; vtr.anchorMin = new Vector2(0, 1); vtr.anchorMax = new Vector2(1, 1); vtr.pivot = new Vector2(0.5f, 1); vtr.sizeDelta = new Vector2(-40, 80); vtr.anchoredPosition = new Vector2(0, -44); vt.alignment = TextAlignmentOptions.Center;
@@ -83,9 +91,9 @@ public class BattleResultScreen : MonoBehaviour
         _rewardText = NewText("RewardAmount", panel.transform, "", font, 34, Gold, FontStyles.Bold);
         var rar = (RectTransform)_rewardText.transform; rar.anchorMin = rar.anchorMax = new Vector2(0.5f, 0.5f); rar.pivot = new Vector2(0.5f, 0.5f); rar.sizeDelta = new Vector2(580, 50); rar.anchoredPosition = new Vector2(0, -4); _rewardText.alignment = TextAlignmentOptions.Center;
 
-        var nextBtn = NewButton("NextButton", panel.transform, "다음으로", font);
-        var nbr = (RectTransform)nextBtn.transform.parent; // 버튼 컨테이너
-        nextBtn.onClick.AddListener(ProceedVictory);
+        // '다음으로' 버튼 삭제 (기획자 피드백) — 대신 안내 문구 + 아무 키/클릭 진행.
+        var vhint = NewText("Hint", panel.transform, "아무 키나 누르면 계속됩니다", font, 24, new Color(0.72f, 0.72f, 0.78f), FontStyles.Italic);
+        var vhr = (RectTransform)vhint.transform; vhr.anchorMin = new Vector2(0.5f, 0f); vhr.anchorMax = new Vector2(0.5f, 0f); vhr.pivot = new Vector2(0.5f, 0f); vhr.sizeDelta = new Vector2(560, 36); vhr.anchoredPosition = new Vector2(0, 40); vhint.alignment = TextAlignmentOptions.Center; vhint.raycastTarget = false;
 
         // ── 패배(게임오버) ────────────────────────────────────
         _defeat = NewUI("Defeat", canvasGo.transform); Stretch((RectTransform)_defeat.transform);
@@ -109,7 +117,16 @@ public class BattleResultScreen : MonoBehaviour
         if (_rewardText != null) _rewardText.text = $"영혼석 +{soul}";
         _victory.SetActive(true); _defeat.SetActive(false);
         _group.alpha = 1f; _group.blocksRaycasts = true;
-        RestartAuto(ProceedVictory);
+        // 자동 진행 없음 — 아무 키/클릭 대기. 전투 종료 키 입력이 즉시 넘기지 않게 잠깐 아밍.
+        _victoryArmTime = Time.unscaledTime + 0.4f;
+    }
+
+    // 승리 팝업 표시 중 — 아무 키나 누르면 진행 (기획자 피드백). 클릭은 딤 버튼이 처리.
+    private void Update()
+    {
+        if (_victory == null || !_victory.activeSelf) return;
+        if (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
+            ProceedVictory();
     }
 
     private void _ShowDefeat(System.Action onContinue)
@@ -120,10 +137,11 @@ public class BattleResultScreen : MonoBehaviour
         RestartAuto(ProceedDefeat);
     }
 
-    // 진행 — 버튼 클릭과 자동 진행이 같은 경로를 쓴다 (중복 발화는 activeSelf 가드로 차단)
+    // 진행 — 아무 키/딤 클릭이 같은 경로 (중복은 activeSelf, 표시 직후 잔여 입력은 아밍 시각으로 차단)
     private void ProceedVictory()
     {
         if (_victory == null || !_victory.activeSelf) return;
+        if (Time.unscaledTime < _victoryArmTime) return; // 표시 직후 잔여 키 입력 무시
         var cb = _onNext; Hide(); cb?.Invoke();
     }
 
@@ -175,20 +193,6 @@ public class BattleResultScreen : MonoBehaviour
         t.text = text; t.fontSize = size; t.color = color; t.fontStyle = style;
         t.enableWordWrapping = false; t.raycastTarget = false;
         return t;
-    }
-    private Button NewButton(string name, Transform parent, string label, TMP_FontAsset font)
-    {
-        var go = new GameObject(name + "Box", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform; rt.anchorMin = new Vector2(0.5f, 0f); rt.anchorMax = new Vector2(0.5f, 0f); rt.pivot = new Vector2(0.5f, 0f); rt.sizeDelta = new Vector2(260, 64); rt.anchoredPosition = new Vector2(0, 46);
-        var img = go.GetComponent<Image>();
-        var btnSprite = Resources.Load<Sprite>("Button/default_button");
-        if (btnSprite != null) { img.sprite = btnSprite; img.type = Image.Type.Sliced; img.color = Color.white; }
-        else img.color = new Color(0.20f, 0.20f, 0.26f, 1f);
-        var btn = go.AddComponent<Button>();
-        var lt = NewText(name + "Label", go.transform, label, font, 30, Gold, FontStyles.Bold);
-        var ltr = (RectTransform)lt.transform; Stretch(ltr); lt.alignment = TextAlignmentOptions.Center;
-        return btn;
     }
     private static void Stretch(RectTransform rt)
     {

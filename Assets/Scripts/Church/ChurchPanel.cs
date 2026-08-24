@@ -62,8 +62,11 @@ public class ChurchPanel : PanelBase
         if (nextNodeButton != null) nextNodeButton.onClick.AddListener(HandleNextNode);
     }
 
-    /// <summary>NodeSystem 이 호출. 교회 진입 — 페이드 인 + UI 갱신.</summary>
-    public void OpenFromNode() => Open();
+    /// <summary>
+    /// NodeSystem 이 호출. 교회 진입 — 뒤 화면 캡처·블러 후 페이드 인 + UI 갱신.
+    /// 블러 배경으로 교회 UI 에 시선을 집중시킨다 (닫힐 때 자동 해제).
+    /// </summary>
+    public void OpenFromNode() => PanelBlurBackdrop.CaptureThenOpen(this);
 
     protected override void OnOpened()
     {

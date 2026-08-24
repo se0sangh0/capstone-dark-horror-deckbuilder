@@ -32,7 +32,7 @@ public class TutorialManager : MonoBehaviour
     //   종료(완료/스킵/일반 진입 정리) 시 원래 값으로 원복한다 → 본 게임 경제에 영향 없음 (기획 §15 §5-3).
     public const int TutorialSoulstoneGrant = 400;
     private const string PreTutorialSoulKey = "SoulStone_preTutorial";
-    private const string SoulSaveKey         = "SoulStone"; // SoulstoneManager.SaveKey 와 동일
+    private const string SoulSaveKey         = SoulstoneManager.PrefsKey; // 키 소유는 SoulstoneManager (P0-01)
 
     /// <summary>현재 튜토리얼 모드 진행 중인지. PartyManager/EnemySpawner 등이 분기에 사용.</summary>
     public bool IsTutorial { get; private set; }

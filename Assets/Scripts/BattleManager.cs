@@ -222,6 +222,10 @@ public partial class BattleManager : Singleton<BattleManager>
 
         InitBattle();
         StartCoroutine(BattleLoop());
+
+        // 첫 전투 가이드 — 기록당 첫 전투 진입 시 1회, 비차단 (P0-06, 16-A §1).
+        // 자체 가드(플래그·튜토리얼)로 중복/튜토리얼 진입은 무시된다.
+        CombatGuideController.TryShowOnce();
     }
 
     // ----------------------------------------------------------

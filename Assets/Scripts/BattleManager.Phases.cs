@@ -62,7 +62,7 @@ public partial class BattleManager
         var gm = GameManager.Instance;
         if (gm != null && gm.RemainingDeckCount == 0 && !gm.HasPlayableCards())
         {
-            Debug.Log("[BattleManager] 손패·덱 모두 0 — 자동 턴 진행");
+            Debug.Log("[BattleManager] 손패/덱 모두 0 — 자동 턴 진행");
             yield return new WaitForSeconds(0.6f); // 짧은 안내 텀
             currentPhase = BattlePhase.InitiativeCheck;
             yield break;
@@ -250,15 +250,34 @@ public partial class BattleManager
             yield break;
         }
 
-        // 비-튜토리얼 — 마지막 처치 연출 호흡(resultPopupDelay)만 두고 결과 화면 표시.
+        // 비-튜토리얼 — 전투 종료 상태: 공용 스택 초기화 (실드는 위에서 정리 — 16-A §2 전투 종료 상태)
+        if (PlayerRoleCost.Instance != null)
+            foreach (StackType role in System.Enum.GetValues(typeof(StackType)))
+                PlayerRoleCost.Instance.SetAmount(role, 0);
+
+        // 동시 전멸(양측 전멸) 시 아군 전멸(패배)을 우선한다 (16-A §2 결과 우선순위 — 프로토타입 임시 계약).
+        bool allAlliesDead = allies.Count > 0 && allies.All(a => a.isDead);
+        bool isVictory     = allEnemiesDead && !allAlliesDead;
+
+        // 마지막 처치 연출 호흡(resultPopupDelay)만 두고 결과 화면 표시.
         yield return new WaitForSeconds(resultPopupDelay);
-        if (allEnemiesDead)
+        if (isVictory)
         {
             GameLog.Event("전투에서 승리했다!", LogCategory.Reward);
             Debug.Log("[BattleManager] 전투 승리!");
-            // 보상 — 영혼석만 (기획 §15: 전투 보상=영혼석, 처치 시 즉시 누적. 마석 치환은 런 종료 백로그). 팝업엔 합계 표시.
+            // 보상 — 영혼석만. 처치 시 즉시 누적되어 이미 반영된 상태 (영혼석 먼저 → 기록 — 16-B §3). 팝업엔 합계 표시.
             int soulGained = enemies.Where(e => e != null).Sum(e => e.soulstoneDrop);
             GrantStressRecovery();
+
+            // 현장 관찰 — 지정 인카운터에 예약된 관찰을 1회 소비 (연타·재표시 중복 방지).
+            var observation = RunSessionManager.Instance?.ConsumePendingObservation();
+
+            // 전투 사건 — 전투 한 번당 BattleResolved 정확히 1건 (P0-03, 16-B §3).
+            // 관찰 문안은 표시 전에 사후 관찰 필드로 기록에 포함한다 (16-A §2).
+            int battleFloor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
+            RunSessionManager.Instance?.RecordBattleResolved(
+                battleFloor, BuildEnemySummary(), victory: true,
+                soulstoneGained: soulGained, observationNotebookText: observation?.notebookText);
 
             // 보스 클리어 판정 — 보스 tier 적 + RoomType.Boss 노드 둘 다 만족 시 엔딩.
             bool bossWasInBattle = enemies.Any(e => e != null && e.tier == EnemyTier.Boss);
@@ -267,18 +286,32 @@ public partial class BattleManager
             {
                 GameLog.Event("보스를 쓰러트렸다!", LogCategory.Reward);
                 Debug.Log("[BattleManager] 🎉 보스 클리어 — 엔딩 진입");
+                RunSessionManager.Instance?.RecordRunResolved(victory: true, reachedFloor: battleFloor); // 클리어 기록 (보고서 자료 — P0-05)
                 ShowEndingPanel("보스 처치\n\n엔딩");
                 yield return new WaitForSeconds(endingDisplayDuration);
-                Debug.Log("[BattleManager] 보스 클리어 — 로그라이크 루프: 리셋 후 새 런 시작 (마석 유지)");
-                StartNextRunLoop();
+
+                // 클리어 탐사 보고서 (P0-05, 16-A §5) — 후면 딤 + 이번 런 요약.
+                // [확인] 시 FinalizeRun 정확히 1회 → 다음 탐사·타이틀 선택.
+                RunReportPanel.Show(RunResult.Victory,
+                    onConfirmed:       () => RunSessionManager.Instance?.FinalizeRun(RunResult.Victory),
+                    onNextExploration: StartNextRun,
+                    onTitle:           () => SceneTransition.Go("GameStartScene"));
             }
             else
             {
-                // 승리 결과 팝업 (이미지2) — '다음으로' 클릭 시 노드맵으로 진행 (2026-06-11).
+                // 승리 결과 팝업 — '다음으로' 클릭 시:
+                //   영혼석(반영 완료) → BattleResolved(기록 완료) → 지정 인카운터면 현장 관찰 → 다음 이동 (16-A §2)
                 BattleResultScreen.ShowVictory(soulGained, () =>
                 {
-                    DisplayChange.Instance.ToggleDisplay();
-                    AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+                    System.Action returnToMap = () =>
+                    {
+                        DisplayChange.Instance.ToggleDisplay();
+                        AudioManager.Instance?.PlayBgmById(BgmId.NodeMap);
+                    };
+                    if (observation != null)
+                        PostBattleObservationPanel.Show(observation.title, observation.screenText, observation.imageName, returnToMap);
+                    else
+                        returnToMap();
                 });
             }
         }
@@ -286,15 +319,27 @@ public partial class BattleManager
         {
             GameLog.Event("전원 쓰러졌다…", LogCategory.Death);
             Debug.Log("[BattleManager] 아군 전멸 — 게임오버 화면 후 타이틀 복귀");
-            // 게임오버 — 전체 어둡게 + 중앙 빨강 볼드 '게임오버'. 클릭 시 런 리셋(마석 유지) 후 타이틀로 (QA ⑧, 2026-06-12).
-            // 리셋을 타이틀 진입 전에 끝내는 이유: 타이틀→[시작하기] 경로(MoveScene)는 파티만 재생성하고
-            // 예비대/영혼석은 건드리지 않으므로, 여기서 비우지 않으면 이전 런 상태가 새 런으로 샌다.
-            BattleResultScreen.ShowDefeat(() =>
-            {
-                ResetRunState();
-                SceneTransition.Go("GameStartScene");
-            });
+            // 전멸 기록 — BattleResolved(전멸) + RunResolved(전멸·최종 도달 층) 각 1건 (P0-03).
+            int wipeFloor = NodeSystem.Current != null ? NodeSystem.Current.CurrentFloor : 0;
+            RunSessionManager.Instance?.RecordBattleResolved(
+                wipeFloor, BuildEnemySummary(), victory: false, soulstoneGained: 0, observationNotebookText: null);
+            RunSessionManager.Instance?.RecordRunResolved(victory: false, reachedFloor: wipeFloor);
+            // 전멸 탐사 보고서 (P0-05, 16-A §2·§5) — 임시 게임오버 화면을 실제 보고서로 교체.
+            // 후면 딤 + 이번 런 요약. [확인] 시 FinalizeRun 정확히 1회 → 다음 탐사·타이틀 선택.
+            RunReportPanel.Show(RunResult.Defeat,
+                onConfirmed:       () => RunSessionManager.Instance?.FinalizeRun(RunResult.Defeat),
+                onNextExploration: StartNextRun,
+                onTitle:           () => SceneTransition.Go("GameStartScene"));
         }
+    }
+
+    /// <summary>전투 기록용 조우 대상 요약 — 예: "고블린 2체". 수치 로그는 포함하지 않는다 (16-A §5).</summary>
+    private string BuildEnemySummary()
+    {
+        var groups = enemies.Where(e => e != null)
+            .GroupBy(e => string.IsNullOrEmpty(e.displayName) ? "괴생물체" : e.displayName)
+            .Select(g => $"{g.Key} {g.Count()}체");
+        return string.Join(", ", groups);
     }
 
     /// <summary>
@@ -325,22 +370,22 @@ public partial class BattleManager
     }
 
     /// <summary>
-    /// 로그라이크 메타 루프 (기획 §16) — 보스 클리어/전멸 공통.
-    /// 예비대·파티·영혼석 초기화(마석은 유지) → GamePlayScene 재로드(노드맵 재생성).
-    /// 마석 해금은 노드 화면 우측 상단 [마석 상점] 버튼으로 언제든 연다 (자동 표시 폐지, 2026-06-07).
+    /// 보스 클리어 뒤 다음 탐사 진입 (FinalizeRun 이후에만 호출).
+    /// 초기화는 RunSessionManager.StartNewRun 이 단일 창구로 수행하며 (16-B §4),
+    /// 성공했을 때만 GamePlayScene 을 로드한다. 실패 시 타이틀로 복귀.
     /// </summary>
-    private void StartNextRunLoop()
+    private void StartNextRun()
     {
-        ResetRunState();
-        SceneManager.LoadScene("GamePlayScene");          // 새 런 (노드맵 재생성)
-    }
-
-    /// <summary>런 상태 리셋 — 예비대·파티·영혼석 초기화 (마석은 PlayerPrefs 유지). 보스 클리어 새 런·패배 타이틀행 공통.</summary>
-    private void ResetRunState()
-    {
-        MercenaryService.Instance?.ResetForNewRun();      // 예비대/후보/리롤 초기화
-        PartyManager.Instance?.ResetGame();               // 파티(+사망보관소) 초기화
-        SoulstoneManager.Instance?.ResetCurrency();       // 영혼석 기본값 (마석은 PlayerPrefs 유지)
+        bool ok = RunSessionManager.Instance != null && RunSessionManager.Instance.StartNewRun();
+        if (ok)
+        {
+            SceneManager.LoadScene("GamePlayScene");      // 새 런 (노드맵 재생성)
+        }
+        else
+        {
+            Debug.LogError("[BattleManager] 새 런 초기화 실패 — 1층 입력을 열지 않고 타이틀로 복귀");
+            SceneTransition.Go("GameStartScene");
+        }
     }
 
     // 기획 §스트레스 §기본 회복 — 전투 승리: -10

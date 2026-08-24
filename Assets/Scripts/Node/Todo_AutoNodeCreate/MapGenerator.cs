@@ -3,17 +3,16 @@
 // ============================================================
 //
 // [이 파일이 하는 일]
-//   기획 §12_맵_노드_설계 (MVP) — 6층 고정 시퀀스, 분기 없음.
+//   03. 노드·용병소·보상·메타 §1-1 — P0 6층, 일반 구간 층당 3갈래.
 //
-// [확정 규칙 — 2026-06-09]
-//   MVP 맵 = 6노드 일렬 (layer 0~5):
-//     layer 0 = 시작   (RoomType.Combat — NodeSystem 이 '현재 위치' 마커로 처리, 클릭 불가)
-//     layer 1 = 전투   (Combat)
-//     layer 2 = 용병소 (Shop)
-//     layer 3 = 전투   (Combat)
-//     layer 4 = 화톳불 (Rest)
-//     layer 5 = 보스   (Boss)
-//   분기/랜덤/이벤트 노드 없음 (정식 버전의 분기 설계는 백로그 — 기획 §12 "전체 설계").
+// [구조 — 2026-08-21 (P0-02 대체안: 노드맵 3갈래 방식)]
+//   본편 맵 = 6층 (layer 0~5):
+//     layer 0   = 시작 1노드 (RoomType.Combat — NodeSystem 이 '현재 위치' 마커로 처리, 클릭 불가)
+//     layer 1~3 = 2~4층 3갈래 — 전투 70% / 이벤트(?) 30% 추첨 (03 §1-1 초안)
+//     layer 4   = 화톳불 1노드 (고정 — 가짜 3택 없음)
+//     layer 5   = 보스 1노드 (고정 — 가짜 3택 없음)
+//   이벤트(?) 노드의 실제 결과(용병소/교회/엘리트/선택지 이벤트)는
+//   NodeSystem 이 진입 시 가중 추첨한다 (용병소 40/교회 20/엘리트 10/이벤트 30).
 //
 // [튜토리얼 맵] 4노드 일렬 (Combat→Event(랜덤: 가중치 조작으로 용병소)→Rest→Boss) — 별도 유지.
 //
@@ -40,26 +39,54 @@ public class MapGenerator : MonoBehaviour
         return GenerateMvpMap();
     }
 
+    // ── 일반 구간 노드 타입 비율 (03. 노드·용병소·보상·메타 §1-1 초안) ──
+    //   전투 70% / 이벤트(?) 30%. 밸런스 테스트 후 조정 — 15 에서 관리.
+    private const int CombatWeight = 70;
+    private const int EventWeight  = 30;
+
     /// <summary>
-    /// MVP 맵 — 기획 §12 6노드 고정 일렬 (분기 없음).
-    /// 시작 > 전투 > 용병소 > 전투 > 화톳불 > 보스
+    /// 본편 맵 — 6층, 일반 구간(2~4층)은 층당 3갈래 (P0-02 대체안, 03 §1-1).
+    /// 시작(1층) > 3갈래 ×3 (2~4층) > 화톳불(5층 고정) > 보스(6층 고정).
+    /// 3갈래 노드는 전투 70 / 이벤트 30 으로 추첨. 이벤트(?)의 실제 결과
+    /// (용병소/교회/엘리트/선택지 이벤트)는 NodeSystem 이 진입 시 추첨한다.
+    /// 5·6층은 단일 노드 — 가짜 3택을 제시하지 않는다 (03 §1-1).
     /// </summary>
     private MapData GenerateMvpMap()
     {
-        // layer 0 시작 / 1 전투 / 2 랜덤노드(용병소/교회/엘리트, 발표용 용병소) / 3 전투 / 4 화톳불 / 5 보스
-        var sequence = new[]
+        var layers = new List<RoomType[]>
         {
-            RoomType.Combat, // 0 시작 (NodeSystem 마커 처리)
-            RoomType.Combat, // 1 전투
-            RoomType.Event,  // 2 랜덤노드 (클릭 시 용병소/교회/엘리트 중 1 — 발표용 100/0/0 용병소)
-            RoomType.Combat, // 3 전투
-            RoomType.Rest,   // 4 화톳불
-            RoomType.Boss,   // 5 보스
+            new[] { RoomType.Combat },  // layer 0 = 1층 시작 (NodeSystem 이 '현재 위치' 마커 처리)
+            RollChoiceLayer(),          // layer 1 = 2층 3갈래
+            RollChoiceLayer(),          // layer 2 = 3층 3갈래
+            RollChoiceLayer(),          // layer 3 = 4층 3갈래
+            new[] { RoomType.Rest },    // layer 4 = 5층 화톳불 (고정)
+            new[] { RoomType.Boss },    // layer 5 = 6층 보스 (고정)
         };
 
-        mapData = BuildLinearMap(sequence);
-        Debug.Log("[MapGenerator] MVP 맵 생성 — 6노드 일렬 (시작>전투>랜덤노드>전투>화톳불>보스)");
+        mapData = BuildLayeredMap(layers);
+        Debug.Log("[MapGenerator] 본편 맵 생성 — 6층 (시작 > 3갈래×3 > 화톳불 > 보스)");
         return mapData;
+    }
+
+    /// <summary>
+    /// 일반 구간 한 층의 3갈래를 추첨한다 (전투 70 / 이벤트 30).
+    /// 한 층이 전부 같은 타입이면 1개를 다른 타입으로 교체 —
+    /// 03 §1-1 "같은 타입 3회 이상 연속 시 재시도" 규칙의 층 단위 적용.
+    /// </summary>
+    private static RoomType[] RollChoiceLayer()
+    {
+        var nodes = new RoomType[3];
+        for (int i = 0; i < nodes.Length; i++)
+            nodes[i] = Random.Range(0, CombatWeight + EventWeight) < CombatWeight
+                ? RoomType.Combat
+                : RoomType.Event;
+
+        if (nodes[0] == nodes[1] && nodes[1] == nodes[2])
+        {
+            int flip = Random.Range(0, nodes.Length);
+            nodes[flip] = nodes[flip] == RoomType.Combat ? RoomType.Event : RoomType.Combat;
+        }
+        return nodes;
     }
 
     /// <summary>
@@ -79,7 +106,57 @@ public class MapGenerator : MonoBehaviour
     }
 
     // ============================================================
-    // 고정 일렬 맵 빌더 — 시퀀스 길이만큼 노드 1개씩, 직선 연결.
+    // 층별 다중 노드 맵 빌더 — 층마다 노드 배열, 다음 층 전체와 연결.
+    // (모든 선택은 다음 층에서 다시 합류 — 분기별 장기 맵 없음)
+    // ============================================================
+    private MapData BuildLayeredMap(List<RoomType[]> layers)
+    {
+        var data = new MapData
+        {
+            totalLayers = layers.Count,
+            maxNodesPerLayer = 1,
+        };
+
+        int nextId = 0;
+        var perLayer = new List<List<RoomNode>>();
+        for (int layer = 0; layer < layers.Count; layer++)
+        {
+            int count = layers[layer].Length;
+            data.maxNodesPerLayer = Mathf.Max(data.maxNodesPerLayer, count);
+
+            var list = new List<RoomNode>();
+            for (int i = 0; i < count; i++)
+            {
+                var node = new RoomNode
+                {
+                    id          = nextId++,
+                    layer       = layer,
+                    roomType    = layers[layer][i],
+                    nextNodeIds = new List<int>(),
+                    position    = new Vector2(
+                        count > 1 ? (float)i / (count - 1) : 0.5f,
+                        layers.Count > 1 ? (float)layer / (layers.Count - 1) : 0.5f),
+                };
+                list.Add(node);
+                data.nodes.Add(node);
+            }
+            perLayer.Add(list);
+        }
+
+        // 연결: 각 노드 → 다음 층의 모든 노드 (선 렌더링은 현재 비활성)
+        for (int layer = 0; layer < perLayer.Count - 1; layer++)
+            foreach (var n in perLayer[layer])
+                foreach (var next in perLayer[layer + 1])
+                    n.nextNodeIds.Add(next.id);
+
+        if (data.nodes.Count > 0)
+            data.nodes[0].isAccessible = true;
+
+        return data;
+    }
+
+    // ============================================================
+    // 고정 일렬 맵 빌더 — 시퀀스 길이만큼 노드 1개씩, 직선 연결. (튜토리얼용)
     // ============================================================
     private MapData BuildLinearMap(RoomType[] sequence)
     {

@@ -194,7 +194,21 @@ public class MercenaryService : Singleton<MercenaryService>
             _reserves.Add(candidate);
             Debug.Log($"[Mercenary] 고용 → 예비대 ({candidate.displayName}, -{cost} 영혼석) | 예비대 {_reserves.Count}/{ReservesCapacity}");
         }
+
+        // 실제 고용 결과 기록 — 같은 트랜잭션에서 RecruitmentResolved 1건 (16-A §4·§5, P0-04)
+        RecordRecruitment("용병소 — 고용",
+            $"{candidate.displayName} ({candidate.jobClass} | {candidate.starLevel}★) {(partyHasRoom ? "파티 합류" : "예비대 보관")}",
+            $"영혼석 -{cost} → 보유 {SoulstoneManager.Instance.Amount}");
         return true;
+    }
+
+    /// <summary>모집·교체 결과를 RecruitmentResolved 1건으로 기록 (상태 적용과 같은 트랜잭션).</summary>
+    private static void RecordRecruitment(string title, params string[] lines)
+    {
+        var list = new List<string>();
+        foreach (var l in lines)
+            if (!string.IsNullOrEmpty(l)) list.Add(l);
+        RunSessionManager.Instance?.AddRecord(RunRecordType.RecruitmentResolved, title, list);
     }
 
     // ----------------------------------------------------------
@@ -211,6 +225,7 @@ public class MercenaryService : Singleton<MercenaryService>
 
         _reserves.RemoveAt(reserveIndex);
         PartyManager.Instance.RecruitFellow(f);
+        RecordRecruitment("파티 편성 — 교체", $"{f.displayName} 예비대 → 파티 합류");
         return true;
     }
 
@@ -223,6 +238,7 @@ public class MercenaryService : Singleton<MercenaryService>
 
         PartyManager.Instance.RemoveFellow(partyFellow);
         _reserves.Add(partyFellow);
+        RecordRecruitment("파티 편성 — 교체", $"{partyFellow.displayName} 파티 → 예비대 보관");
         return true;
     }
 
@@ -237,6 +253,7 @@ public class MercenaryService : Singleton<MercenaryService>
         _reserves.RemoveAt(reserveIndex);
         _reserves.Add(partyFellow);
         PartyManager.Instance.RecruitFellow(reserveFellow);
+        RecordRecruitment("파티 편성 — 교체", $"{partyFellow.displayName} ↔ {reserveFellow.displayName} 교체");
         return true;
     }
 
@@ -320,6 +337,10 @@ public class MercenaryService : Singleton<MercenaryService>
     {
         if (fellow == null) return false;
         if (!_reserves.Remove(fellow)) return false;
+
+        // 방출 트랜잭션 기록 (16-A §4: 예비대 방출·판매 시 RecruitmentResolved 한 건)
+        RecordRecruitment("용병소 — 방출", $"{fellow.displayName} ({fellow.jobClass} | {fellow.starLevel}★) 방출 (환급 없음)");
+
         Debug.Log($"[Mercenary] 예비대 방출 — {fellow.displayName} ({fellow.role}·{fellow.starLevel}★) | 예비대 {_reserves.Count}/{ReservesCapacity}");
         return true;
     }
@@ -336,6 +357,12 @@ public class MercenaryService : Singleton<MercenaryService>
         int refund = Mathf.Max(1, fellow.recruitCost / 3);
         if (SoulstoneManager.Instance != null) SoulstoneManager.Instance.Add(refund);
         AudioManager.Instance?.PlaySfxById(SfxId.Sell);
+
+        // 판매 트랜잭션 기록 (16-A §4: 예비대 방출·판매 시 RecruitmentResolved 한 건)
+        RecordRecruitment("용병소 — 판매",
+            $"{fellow.displayName} ({fellow.jobClass} | {fellow.starLevel}★) 판매",
+            $"영혼석 +{refund} → 보유 {SoulstoneManager.Instance?.Amount ?? 0}");
+
         Debug.Log($"[Mercenary] 예비대 판매 — {fellow.displayName} (+{refund} 영혼석) | 예비대 {_reserves.Count}/{ReservesCapacity}");
         return refund;
     }

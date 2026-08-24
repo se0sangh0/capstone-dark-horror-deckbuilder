@@ -38,8 +38,11 @@ public class SoulstoneManager : BaseCurrency<SoulstoneManager>
 
     // ----------------------------------------------------------
     // [SaveKey] — PlayerPrefs 저장 키
+    // 키 문자열의 단일 소유 지점. 외부(RunSessionManager·TutorialManager)는
+    // 반드시 이 상수를 참조한다 — 문자열 중복 선언 금지 (16 §3).
     // ----------------------------------------------------------
-    protected override string SaveKey => "SoulStone";
+    public const string PrefsKey = "SoulStone";
+    protected override string SaveKey => PrefsKey;
 
     // ----------------------------------------------------------
     // [StartingAmount] — 게임 시작 시 기본 영혼석 개수
