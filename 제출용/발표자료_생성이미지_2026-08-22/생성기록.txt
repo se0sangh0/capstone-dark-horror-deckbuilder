@@ -1,0 +1,44 @@
+괴이탐사국 발표자료 v5 사이드뷰·라이트 이미지 생성 기록
+
+생성일: 2026-08-22
+생성 도구: Codex 내장 image_gen
+정확한 모델 ID: 내장 도구에서 미노출
+공개 범위: FILTERED
+목적: 발표장 프로젝터 가독성 개선 및 전투 카메라를 정통 사이드뷰로 교정
+
+---
+
+01_사이드뷰_일반전투_라이트.png
+예정 사용 슬라이드: 22
+선정 상태: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint combat key visual for the Korean dark-horror side-view deckbuilding game 괴이탐사국: INSPECTOR
+Primary request: create a brand-new normal battle scene that clearly communicates cards creating shared role energy and four companions then acting automatically.
+Scene/backdrop: a ruined early-medieval timber-and-stone agricultural sanctuary at the edge of a rift, with dry straw, old masonry, black roots, shallow mist, and weathered practical architecture.
+Subject: exactly four human expedition companions stand on the far left in a single readable row—shield defender, blade fighter, robed observer, cloth-veiled healer. Exactly three hostile FILTERED anomaly silhouettes stand on the far right. Every character is fully visible in side profile and faces the opposing group.
+Style/medium: authentic handcrafted high-density 2D pixel art, crisp square pixels, clean clusters, restrained 16-bit shading, professional presentation concept art.
+Composition/framing: STRICT CLASSIC 2D RPG SIDE VIEW, eye-level orthographic camera, flat horizontal battlefield baseline, party left and enemies right, empty action space in the center, no visible top surfaces, no diagonal ground lanes, no camera tilt, no perspective depth. Leave the upper-left and middle-left visually quiet for slide copy and checkmarks.
+Lighting/mood: projector-friendly midtone exposure with lifted shadows and readable silhouettes; pale fog and weathered stone provide separation; teal rim light on the party, restrained warning-red rim behind enemies, brass earth tones. Dark horror mood without crushed blacks.
+Color palette: warm aged ivory and stone-gray midtones, charcoal outlines, restrained brass, teal, muted red.
+Constraints: public FILTERED perception only; exactly four companions; exactly three enemies; no readable text; no logo; no UI frame; no health bars; no watermark; no modern firearms; no gore; no exposed organs; no extra characters.
+Avoid: isometric view, quarter view, three-quarter camera, elevated camera, top-down view, visible ground plane from above, diagonal staging, smooth digital painting, photorealism, generic mobile RPG splash art, bright spell explosion.
+
+---
+
+02_사이드뷰_전투UI_라이트.png
+예정 사용 슬라이드: 19
+선정 상태: 선정
+
+실제 프롬프트:
+Use case: ui-mockup
+Asset type: 16:9 PowerPoint visual-direction concept for the battle screen of the Korean dark-horror side-view deckbuilding game 괴이탐사국: INSPECTOR
+Primary request: create a polished, projector-readable battle-screen direction image built around a strict classic 2D side-view battlefield.
+Scene/backdrop: a ruined early-medieval timber-and-stone agricultural sanctuary at the edge of a rift, rendered with readable warm stone and mist rather than crushed black shadows.
+Battlefield subject: exactly four small expedition companions on the left and exactly three hostile FILTERED anomalies on the right, all full-body side profiles facing the center on one flat horizontal baseline.
+Style/medium: authentic handcrafted high-density 2D pixel art UI concept, crisp square pixels and clean clusters.
+Composition/framing: exact 16:9 landscape. STRICT EYE-LEVEL ORTHOGRAPHIC SIDE VIEW. No visible top surfaces, no diagonal ground lanes, no camera tilt, no isometric or quarter view. Surround the battlefield with a restrained worn instrument frame: exactly four empty companion status recesses vertically on the left, exactly three empty enemy status recesses vertically on the right, exactly four large blank artifact-card slots along the bottom, and one narrow abstract pressure strip along the top. No readable text or numbers.
+Lighting/mood: light-theme projector-friendly treatment—aged ivory and warm stone outer frame, dark charcoal outlines, restrained brass hardware, pale gray battlefield mist, teal party accents, warning-red enemy accents. Preserve dark-horror tension while keeping all UI hierarchy and silhouettes visible in a bright room.
+Constraints: public FILTERED perception only; exactly four companions; exactly three enemies; exactly four left status recesses; exactly three right status recesses; exactly four bottom card slots; no readable text; no logo; no watermark; no gore; no extra people; no extra slots.
+Avoid: isometric view, quarter view, three-quarter camera, elevated camera, top-down view, visible ground plane from above, diagonal staging, near-black overall image, crushed shadows, glossy sci-fi dashboard, rounded mobile RPG UI, photorealism, smooth 3D render.

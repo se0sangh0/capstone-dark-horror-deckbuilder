@@ -1,0 +1,163 @@
+괴이탐사국 발표자료 v2 생성 이미지 기록
+
+생성일: 2026-08-20
+생성 도구: Codex 내장 image_gen
+정확한 모델 ID: 내장 도구에서 미노출
+공개 범위: FILTERED
+선정 상태: PPT v2 사용 선정
+공통 참고 이미지:
+- 박람회 족자봉 01 · 탐사 진입
+- 박람회 족자봉 02 · 경로 선택
+- 박람회 족자봉 03 · 거두는 자 대치
+- 박람회 족자봉 04 · 찢어진 바구니
+
+---
+
+01_일반전투_공용스택_자동행동_v2.png
+사용 슬라이드: 22
+선정 결과: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint combat key visual for the Korean dark-horror deckbuilding game 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected public FILTERED-layer style references only. Preserve their handcrafted high-density cinematic pixel-art texture, near-black charcoal palette, worn material detail, restrained brass, teal soul-stone glow, and warning red accents. Do not copy their exact scenes.
+Primary request: create a new wide normal-combat scene that communicates “cards create shared role energy, companions then act automatically.”
+Scene/backdrop: a continuous night-time mountain-forest canyon just beyond a rift, with rough timber boundaries, old stone, dry straw, black roots, shallow fog, and no modern buildings.
+Subject: exactly four human expedition companions in practical late-antique to early-medieval field gear occupy the lower-left third in a readable formation: shield defender in front, blade fighter, robed observer, cloth-veiled healer behind. Exactly three hostile FILTERED anomaly silhouettes occupy the upper-right third. The enemies look like corrupted woodland and harvest guardians, threatening but not gory. Full bodies and silhouettes must remain readable.
+Action cues: three restrained abstract energy traces—muted red, cold steel-blue, and teal—flow from the companions toward the center, implying shared dealer/tanker/support resources without becoming literal UI. One companion is mid-action while the others wait, suggesting automatic turn order.
+Composition/framing: cinematic 16:9 landscape, asymmetric left-versus-right staging, broad negative space in the upper-left for a slide title and clean central space for presentation overlays. Strong depth and readable lanes.
+Lighting/mood: low-key moonless darkness, teal lantern rim light on the party, dim warning-red backlight behind enemies, heavy suspense.
+Constraints: public FILTERED perception only; no hidden truth reveal; no readable text; no logo; no UI frame; no health bars; no watermark; no modern firearms; no excessive steampunk machinery; no cathedral; no gore; no exposed organs; no extra characters; no bright fantasy spell explosion.
+Avoid: smooth digital painting, uniform pixelation filter, cute chibi proportions, generic mobile RPG splash art, photorealism.
+
+---
+
+02_조사관_투입공간_v2.png
+사용 슬라이드: 7
+선정 결과: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint player-fantasy visual for 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected public FILTERED-layer style references. Match their handcrafted high-density cinematic pixel-art texture, near-black charcoal, worn metal and stone, restrained brass, teal glow, and tiny warning red.
+Primary request: depict the Bureau's impersonal investigator deployment hall, where people feel like the next assigned resource rather than heroic adventurers.
+Scene/backdrop: a vast austere underground intake chamber combining black industrial steel, riveted brass frames, cracked institutional tile, old stone, cables, pressure gauges, sealed gates, and a top-bound investigator notebook checkpoint. No tavern, no cozy fantasy guild.
+Subject: exactly four human investigators in practical late-antique to early-medieval field gear wait in a controlled line on the right half, seen mostly from behind or three-quarter view. A faceless clerk silhouette behind safety glass and mechanical assignment slots imply bureaucracy without readable forms. One distant sealed rift door glows faint teal.
+Composition/framing: cinematic 16:9 landscape; main subjects on the right two-thirds; dark uncluttered negative space on the left for Korean slide copy; strong vertical architecture and clear silhouettes.
+Lighting/mood: cold overhead steel light, dim brass practical lamps, one teal system glow, oppressive quiet.
+Constraints: public FILTERED perception only; no readable text, numbers, logos, UI, watermark, modern firearms, body fusion, gore, exposed organs, cathedral, warm tavern, heroic celebration, extra characters.
+Avoid: smooth painting, photorealism, glossy sci-fi spaceship, generic cyberpunk neon, steampunk excess, cute proportions.
+
+검수 메모:
+- 결과에는 대기 인원이 네 명보다 많아 보이지만, 슬라이드 7은 파티 인원 설명이 아니라 기관의 집단 투입 분위기를 설명하는 장면이므로 사용 선정했습니다.
+
+---
+
+03_동료_편성_4인_v2.png
+사용 슬라이드: 11
+선정 결과: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint formation lineup visual for 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected public FILTERED-layer style references. Match their handcrafted high-density cinematic pixel-art texture, dark charcoal palette, worn practical materials, restrained brass and teal accents.
+Primary request: create a clean full-body lineup of exactly four expedition companions that instantly communicates formation and role differences.
+Subject: four humans evenly spaced from left to right against one continuous dark stone-and-timber field staging area: (1) shield defender with round shield and sturdy stance, (2) blade fighter with practical short sword, (3) robed observer/caster holding a simple staff and top-bound notebook, (4) cloth-veiled healer with a medicine satchel and lantern. Late-antique to early-medieval practical clothing, layered leather, modest metal reinforcement. Each has one tiny Bureau inventory tag and a very small teal soul-stone coupling, never fused to skin.
+Composition/framing: cinematic 16:9 landscape, all four full bodies visible, equal visual weight, readable silhouettes, generous spacing between characters, eye-level three-quarter view. Dark neutral negative space above for a slide title. No enemies and no environment clutter.
+Lighting/mood: low-key neutral studio-like field light within the world, soft teal rim light, restrained brass edge light.
+Constraints: exactly four people; no duplicated character; no extra limbs; no readable text; no logo; no UI; no watermark; no modern firearms; no sexualization; no body horror; no monster transformation; no ornate high-fantasy armor.
+Avoid: character-select screen UI, glossy 3D render, anime splash art, chibi proportions, smooth digital painting, bright saturated colors.
+
+---
+
+04_스트레스_안정_패닉_v2.png
+사용 슬라이드: 13
+선정 결과: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint stress-system background for 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected public FILTERED-layer style references. Preserve their high-density cinematic pixel-art surface, near-black palette, worn stone and timber, restrained teal and warning red.
+Primary request: visualize the same investigator moving from stable control to panic without physical mutation.
+Scene/backdrop: one continuous dim corridor near a rift, rough stone, black roots, cracked institutional tiles and distant fog. The middle third remains dark and uncluttered for a presentation stress gauge.
+Subject: on the far left, one investigator stands steady under calm teal lantern light, controlled posture, face mostly shadowed. On the far right, the same investigator crouches defensively under warning-red backlight, breathing hard, with elongated distorted shadows and slight visual echo suggesting panic. Human anatomy and clothing remain unchanged; fear is psychological, not bodily transformation.
+Composition/framing: cinematic 16:9 landscape, mirrored left/right emotional states, empty center, full or three-quarter body readable, strong symmetrical tension.
+Lighting/mood: teal calm on left gradually fading into cold black, red pressure on right; oppressive and restrained.
+Constraints: same person on both sides; no gore; no injuries; no monster face; no body fusion; no readable text; no UI; no logo; no watermark; no extra characters; public FILTERED layer only.
+Avoid: split-screen border, medical infographic, bright magic, photorealism, smooth painting, generic horror scream close-up.
+
+---
+
+05_런_중간거점_3종_v2.png
+사용 슬라이드: 17
+선정 결과: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint run-services triptych for 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected public FILTERED-layer style references. Match their handcrafted high-density cinematic pixel-art texture, dark charcoal palette, worn practical materials, restrained brass, teal, and warning red.
+Primary request: create one coherent wide triptych showing the three quiet decisions between battles, without any text or UI.
+Scene/backdrop: three vertical spaces connected by the same black-metal-and-old-stone Bureau expedition facility, separated naturally by heavy pillars rather than graphic panel borders.
+Left scene: a cold night field camp with a modest fire, bedrolls, medical kit, and one resting companion; calm amber light.
+Center scene: an austere mercenary assignment room with practical gear racks and two human recruits being evaluated by an investigator; restrained teal system glow, no tavern or guild banners.
+Right scene: an institutional chapel and treatment station with worn stone altar, medical apparatus, sealed lanterns, and one healer assisting a companion; dim violet-teal light, no cathedral grandeur.
+Composition/framing: cinematic 16:9 landscape, three scenes equally readable, shared horizon and material language, dark negative space along the top for a slide title.
+Lighting/mood: quiet tension between combats; amber left, teal center, violet-teal right, all low saturation.
+Constraints: public FILTERED layer only; no readable text, signs, logos, UI, watermark, gore, corpses, body fusion, modern firearms, cozy fantasy tavern, ornate cathedral, extra dramatic combat.
+Avoid: comic panel outlines, infographic labels, smooth painting, photorealism, generic MMORPG hub, bright neon cyberpunk.
+
+---
+
+06_전투_UI_비주얼목표_v2.png
+사용 슬라이드: 19
+선정 결과: 수정 후 선정
+
+초기 실제 프롬프트:
+Use case: ui-mockup
+Asset type: 16:9 PowerPoint visual-direction concept for the battle screen of 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected style references. Preserve high-density cinematic pixel-art surfaces, near-black charcoal, worn black steel, brass rivets, cracked glass, restrained teal artifact glow and warning red.
+Primary request: create a polished concept image of the intended battle-screen visual hierarchy, clearly a design concept rather than an actual shipped screenshot.
+Scene/backdrop: center battlefield is a dark mountain-forest canyon with four small companions on the lower-left and three hostile FILTERED anomalies upper-right, separated by clear action space.
+Diegetic frame: a thin black-steel and brass instrument frame surrounds the scene. Left side has four portrait-shaped empty status recesses and abstract stress bars; right side has three enemy recesses; bottom has four large artifact-card silhouettes; top has a narrow pressure-gauge strip. Use only abstract marks and blank shapes, no readable text, numbers, logos, or copied UI.
+Composition/framing: exact 16:9 landscape, strong central battlefield, readable left/center/right/bottom hierarchy, symmetrical outer frame but asymmetrical combat staging.
+Lighting/mood: dark, oppressive, teal party rim light, warning-red enemy backlight, subtle cracked-glass reflections.
+Constraints: public FILTERED layer only; no readable text; no real product logo; no watermark; no tiny illegible pseudo-text; no fantasy gold filigree; no excessive neon; no fake Steam branding; no gore.
+Avoid: generic mobile RPG HUD, glossy sci-fi dashboard, rounded casual UI, smooth 3D render, photorealism, cluttered icon soup.
+
+수정 실제 프롬프트:
+Use case: precise-object-edit
+Asset type: corrected 16:9 battle-screen visual-direction concept for 괴이탐사국: INSPECTOR
+Input image: Image 1 is the edit target.
+Primary request: change only the companion count in the lower-left battlefield from five people to exactly four people.
+Required formation: exactly four readable full-body expedition silhouettes—shield defender in front-left, blade fighter, robed observer, cloth-veiled healer with teal lantern—spaced clearly as one party.
+Invariants: keep the entire black-steel/brass instrument frame, top pressure strip, left and right empty portrait recesses, four bottom blank artifact-card slots, central canyon battlefield, exactly three enemies, lighting, palette, pixel-art texture, crop, and all other geometry unchanged.
+Constraints: no readable text, numbers, logo, watermark, gore, extra people, duplicated limbs, or additional UI.
+Change only the party count and spacing; keep everything else unchanged.
+
+최종 수정 실제 프롬프트:
+Use case: precise-object-edit
+Asset type: final corrected 16:9 battle-screen visual-direction concept for 괴이탐사국: INSPECTOR
+Input image: Image 1 is the edit target.
+Primary request: change only the left-side companion status recess count from three to exactly four vertically stacked recesses.
+Required counts: exactly four empty companion status recesses on the left; exactly three empty enemy status recesses on the right; exactly four blank artifact-card slots along the bottom; exactly four expedition companions in the lower-left battlefield; exactly three enemies in the upper-right battlefield.
+Invariants: keep the black-steel/brass instrument frame, top teal-to-red pressure strip, central canyon battlefield, all characters, lighting, palette, cracked glass, four bottom card slots, right-side three enemy recesses, crop, and composition unchanged.
+Constraints: no readable text, numbers, logo, watermark, gore, extra people, duplicated limbs, extra slots, or additional UI.
+Change only the left status column so it contains four evenly sized, evenly spaced empty recesses.
+
+---
+
+07_전략플레이어_조사관_v2.png
+사용 슬라이드: 6
+선정 결과: 선정
+
+실제 프롬프트:
+Use case: stylized-concept
+Asset type: 16:9 PowerPoint target-player hero visual for 괴이탐사국: INSPECTOR
+Input images: Images 1–3 are selected public FILTERED-layer style references. Match their high-density cinematic pixel-art craft, near-black charcoal, worn stone and timber, restrained brass, teal and red.
+Primary request: show the strategic fantasy of a player who plans a dangerous turn rather than directly attacking.
+Scene/backdrop: a dark rift observation platform with a top-bound investigator notebook open on a rough metal table. Three blank artifact cards and three small role-energy traces—muted red, cold steel-blue and teal—lie beside a simple formation sketch made only of abstract marks, no readable writing.
+Subject: one investigator in practical worn field gear stands on the right half, studying the notebook and cards while four distant companion silhouettes wait near a sealed gate. The investigator's posture is thoughtful and tense, not heroic.
+Composition/framing: cinematic 16:9 landscape; main subject and table on the right two-thirds; clean dark negative space on the left for slide copy; clear tabletop focal point; no close-up face.
+Lighting/mood: teal notebook glow, dim brass task lamp, distant warning red at the gate.
+Constraints: no readable text, numbers, logos, UI, watermark, modern firearms, body horror, gore, extra characters; public FILTERED layer only.
+Avoid: poker table, casino mood, wizard spellbook, sci-fi hologram, glossy card game ad, smooth painting, photorealism, bright saturated colors.
