@@ -5,7 +5,7 @@
 - 생성일: 2026-08-30
 - 이미지: `Battle_Forest_StyleAnchor_v1.png`
 - Notion 미리보기: `Battle_Forest_StyleAnchor_v1_preview.svg`
-- Git 기준 폴더: `docs/assets/graphics-remake/style-anchors/`
+- Git 기준 폴더: `art/production/graphics-remake/style-anchors/`
 - 크기: 1672×941 · RGB PNG · 알파 없음
 - SHA-256: `6dee84c2d0f0f4b0943454b02a5a85a351396daaf0ec42ece830a37ff7109361`
 

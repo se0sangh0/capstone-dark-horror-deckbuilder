@@ -11,8 +11,8 @@
 한 페이지에서 바꾸는 자체 포함형 시안입니다. 영상과 일부 삽화 자리는 설명용
 문구로 남아 있습니다.
 
-브랜드 정본은 `docs/assets/brand/`, 그래픽 검토 원본은
-`docs/assets/graphics-remake/`에 유지합니다. 사이트에서는 정본을 직접 수정하지
+브랜드 정본은 `art/brand/`, 그래픽 검토 원본은
+`art/production/graphics-remake/`에 유지합니다. 사이트에서는 정본을 직접 수정하지
 않고 웹용 파생본을 `site/assets/`에 만듭니다.
 
 실제 배포 전에는 승인된 리소스, `/inspector/` 기본 경로, 공유 이미지,

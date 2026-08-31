@@ -3,7 +3,7 @@
 > 상태: **최초 파티 4역할 외형 승인 완료 · 런타임 스프라이트 아님 · Unity 미연결**
 > 제작일: 2026-08-30
 > 생성 방식: Codex built-in `image_gen`
-> 시각 기준: `docs/assets/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.png`
+> 시각 기준: `art/production/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.png`
 
 ## 1. 이번 결과의 범위
 

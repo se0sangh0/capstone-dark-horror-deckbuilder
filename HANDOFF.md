@@ -39,15 +39,15 @@
 - 환경·단서·사건: 고밀도 시네마틱 픽셀 호러. 차콜·젖은 돌·죽은 갈색 식생·무광 청동, 제한적인 청록 보조광을 사용합니다.
 - 캐릭터·아이콘: 엄격한 16비트 픽셀 스프라이트. 64×64 아이콘 공통 캔버스, Point 필터, 투명 PNG를 기본으로 합니다.
 - 최초 테마의 환경·캐릭터에 톱니·밸브·증기관·기계 장치를 넣지 않습니다. 목석·가죽·사슬·비늘 재질이 기준입니다.
-- 생성 원본·검토본·생성 기록은 `docs/assets/graphics-remake/`에 두고 Git으로 추적합니다. 반려한 중간 결과만 `_workspace/graphics-remake/rejected/`에 분리하며, 승인 Unity 최종본은 `Assets/Resources/RemakeV1/`에 둡니다.
+- 생성 원본·검토본·생성 기록은 `art/production/graphics-remake/`에 두고 Git으로 추적합니다. 반려한 중간 결과만 `_workspace/graphics-remake/rejected/`에 분리하며, 승인 Unity 최종본은 `Assets/Resources/RemakeV1/`에 둡니다.
 - 승인 전 기존 파일을 덮어쓰거나 삭제하지 않습니다. GUID·소비 경로 전환과 1280×720·1920×1080 플레이 검증이 끝날 때까지 구 자산을 보존합니다.
 - 제작 수량·파동·완료 조건은 [08 그래픽 전면 재제작 마스터](운영/프로젝트관리/08_프로토타입_그래픽_전면_재제작_마스터.md)만 보면 됩니다.
 
 ### 현재 생성된 스타일 앵커
 
-- Git 원본 PNG: `docs/assets/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.png`
-- Notion용 SVG: `docs/assets/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1_preview.svg`
-- 생성 기록·최종 프롬프트: `docs/assets/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.md`
+- Git 원본 PNG: `art/production/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.png`
+- Notion용 SVG: `art/production/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1_preview.svg`
+- 생성 기록·최종 프롬프트: `art/production/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.md`
 - 해상도: `1672×941`, RGB PNG, 알파 없음
 - SHA-256: `6dee84c2d0f0f4b0943454b02a5a85a351396daaf0ec42ece830a37ff7109361`
 - 생성 방식: Codex built-in `image_gen`
@@ -59,7 +59,7 @@
 - 기준 페이지: [16-G. 프로토타입 그래픽 전면 재제작 마스터](https://app.notion.com/p/3cc6aef5baac81a5a228f2d8562cf292)
 - 본문·수량·Wave·QA 결과는 Notion에 반영됐습니다.
 - 사용자는 2026-08-30에 원본 PNG 직접 업로드 대신 기존 방식대로 `Battle_Forest_StyleAnchor_v1_preview.svg` 320×180 미리보기를 유지하기로 했습니다.
-- 원본 PNG·SVG·생성 기록은 `docs/assets/graphics-remake/style-anchors/`에 두며 Git 추적 대상입니다. Notion 본문에도 이 경로를 기준으로 적습니다.
+- 원본 PNG·SVG·생성 기록은 `art/production/graphics-remake/style-anchors/`에 두며 Git 추적 대상입니다. Notion 본문에도 이 경로를 기준으로 적습니다.
 - 원본 PNG를 Notion에 따로 올리지 않는 것은 현재 결정입니다. 미완료 업로드로 처리하지 않습니다.
 
 ### 현재 Wave A 진행 순서
@@ -74,7 +74,7 @@
 ### 2026-08-30 Wave A 외형 앵커 진행 상태
 
 - 최초 파티 4역할은 `Caster / Offender / Defender / Priest`, 표시명은 `원소술사 / 척살자 / 봉쇄병 / 치유사`입니다.
-- 중립 대기 외형 후보 4장을 `docs/assets/graphics-remake/wave-a/character-anchors/`에 생성했습니다.
+- 중립 대기 외형 후보 4장을 `art/production/graphics-remake/wave-a/character-anchors/`에 생성했습니다.
 - 선택 후보는 `Caster_Filtered_IdleAnchor_v2.png`, `Offender_Filtered_IdleAnchor_v2.png`, `Defender_Filtered_IdleAnchor_v1.png`, `Priest_Filtered_IdleAnchor_v1.png`입니다.
 - 외형 승인 상태: 원소술사 v2·척살자 v2·봉쇄병 v1·치유사 v1 모두 2026-08-30 사용자 승인 완료입니다.
 - 네 파일은 실제 알파 채널이 있는 투명 PNG이며 Unity에는 연결하지 않았습니다.
@@ -90,23 +90,23 @@
 - 각 칸의 발 기준선과 캐릭터 크기를 고정하고, 관측봉·사냥창·방패·치료 도구가 칸 밖으로 잘리지 않게 합니다.
 - 캐릭터·무기만 시트에 넣고 광탄·표적선·봉쇄선·치료 프레임은 별도 VFX로 남깁니다.
 - `Sprite / Multiple`, Point 필터를 전제로 하며 Unity 연결·슬라이스는 시트 승인 뒤 진행합니다.
-- 원소술사 `Idle`·`원소탄` v2 시트를 `docs/assets/graphics-remake/wave-a/character-sheets/caster/`에 생성했습니다.
+- 원소술사 `Idle`·`원소탄` v2 시트를 `art/production/graphics-remake/wave-a/character-sheets/caster/`에 생성했습니다.
 - 두 시트는 `1536×512` RGBA, `384×512` 4칸이며 프레임 경계 침범이 없습니다. 2026-08-30 사용자 승인 완료입니다.
-- 척살자 `Idle`·`표적 관통` v2 시트를 `docs/assets/graphics-remake/wave-a/character-sheets/offender/`에 생성했습니다.
+- 척살자 `Idle`·`표적 관통` v2 시트를 `art/production/graphics-remake/wave-a/character-sheets/offender/`에 생성했습니다.
 - 두 척살자 시트도 `1536×512` RGBA, `384×512` 4칸이며 프레임 조각 혼입을 제거했습니다. 2026-08-30 사용자 승인 완료입니다.
-- 봉쇄병 `Idle`·`방벽 전개` 시트를 `docs/assets/graphics-remake/wave-a/character-sheets/defender/`에 생성했습니다.
+- 봉쇄병 `Idle`·`방벽 전개` 시트를 `art/production/graphics-remake/wave-a/character-sheets/defender/`에 생성했습니다.
 - 봉쇄병 Idle은 투명 추출에 실패한 RGB 결과를 버리고, 방벽 전개 RGBA의 중립 자세 두 장을 교차 배치한 정적 루프입니다. 방벽 전개 v2는 방패·체격 크기를 네 칸에 맞췄으며 2026-08-30 사용자 승인 완료입니다.
-- 치유사 `Idle`·`응급 처치` v1 시트를 `docs/assets/graphics-remake/wave-a/character-sheets/priest/`에 생성했습니다.
+- 치유사 `Idle`·`응급 처치` v1 시트를 `art/production/graphics-remake/wave-a/character-sheets/priest/`에 생성했습니다.
 - 두 치유사 시트는 `1536×512` RGBA, `384×512` 4칸이며 치료 도구와 발 기준선을 맞췄습니다. 2026-08-30 사용자 승인 완료입니다.
 - 최초 파티 4역할의 외형 앵커와 `Idle·첫 스킬` 시트 승인을 모두 완료했습니다.
-- 고블린·약탈자 중립 대기 외형 후보를 `docs/assets/graphics-remake/wave-a/enemy-anchors/`에 생성했습니다.
+- 고블린·약탈자 중립 대기 외형 후보를 `art/production/graphics-remake/wave-a/enemy-anchors/`에 생성했습니다.
 - 고블린은 얼굴이 지워진 성인 채집 괴이와 융합 바구니·녹슨 단검, 약탈자는 협곡 봉쇄 주민이 거친 두건·한 손 도끼를 든 모습으로 왜곡했습니다.
 - 두 파일은 실제 알파 채널이 있는 RGBA PNG이며 Unity에는 연결하지 않았습니다.
 - 고블린 v1은 인간 느낌이 강해 사용자 반려됐습니다. v2는 낮고 압축된 자세, 목이 사라진 직조 공동, 등바구니·어깨의 일체화, 덩굴에 감긴 사지를 사용해 채집 괴이 인상을 강화했으며 2026-08-30 사용자 승인 완료입니다.
 - 약탈자 v1도 2026-08-30 사용자 승인했습니다. 고블린 v2·약탈자 v1 외형 승인을 모두 완료했으며 다음 단계는 `Idle·기본 공격` 시트입니다.
-- 고블린 `Idle`·`단검 휘두르기` v1 시트를 `docs/assets/graphics-remake/wave-a/enemy-sheets/goblin/`에 생성했습니다.
+- 고블린 `Idle`·`단검 휘두르기` v1 시트를 `art/production/graphics-remake/wave-a/enemy-sheets/goblin/`에 생성했습니다.
 - 두 고블린 시트는 `1536×512` RGBA, `384×512` 4칸이며 2026-08-30 사용자 승인 완료입니다.
-- 약탈자 `Idle`·`도끼 휘두르기` v1 시트를 `docs/assets/graphics-remake/wave-a/enemy-sheets/raider/`에 생성했습니다.
+- 약탈자 `Idle`·`도끼 휘두르기` v1 시트를 `art/production/graphics-remake/wave-a/enemy-sheets/raider/`에 생성했습니다.
 - 두 약탈자 시트는 `1536×512` RGBA, `384×512` 4칸이며 현재 사용자 시트 검토 대기입니다.
 
 ### Notion·문서 반영 완료
@@ -130,7 +130,7 @@
 
 - 기존 작업 트리는 이미 dirty 상태입니다. `.mcp.json`, Packages, ProjectSettings와 과거 서사·코어 문서 변경은 이번 그래픽 작업에서 만들지 않은 사용자 변경이므로 되돌리지 않습니다.
 - 현재 신규 문서·시안·QA는 미추적 상태일 수 있습니다. 임의로 정리·삭제·커밋·push하지 않습니다.
-- 원본 스타일 앵커·시트와 생성 기록은 `docs/assets/graphics-remake/`에서 보존합니다. 반려본과 QA·동기화 증거만 `_workspace/`에 둡니다.
+- 원본 스타일 앵커·시트와 생성 기록은 `art/production/graphics-remake/`에서 보존합니다. 반려본과 QA·동기화 증거만 `_workspace/`에 둡니다.
 
 ## 0D. 2026-08-30 1챕터 흐름·핵심 단서 UI 결정 인계
 
@@ -156,7 +156,7 @@
 - CH1-U01은 6층 전 `성소` 조기 노출 제거로 확정했습니다. R04-A 화면은 `길 안쪽`, 수첩은 `한 방향으로 이어진 바퀴 자국과 운반 흔적`, 5층 버튼은 `다음 구역으로 향한다`로 쓰고, `성소`는 6층 진입에서 처음 공개합니다. 내부 ID `OBS_SHRINE_WHEEL_TRACKS`는 유지합니다.
 - CH1-U06·U08은 경로 카드 9장 개별 제작과 시연·6층 프로토타입 노출 그래픽 전면 재제작으로 확정했습니다. 배경·맵·단서·사건·아이콘·카드·상태·캐릭터·적·보스·UI 표면을 새 통합 스타일로 바꿉니다.
 - CH1-U10에 따라 전투 VFX는 별도 작업으로 분리합니다. 그래픽 본 범위는 최소 118개 제작 단위이며, VFX는 별도 10세트·현재 구조 기준 183프레임입니다.
-- 첫 환경 스타일 앵커의 Git 검토본은 `docs/assets/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.png`에 보존합니다. 기존 런타임 자산은 승인·Unity 플레이 검증 전까지 덮어쓰지 않습니다.
+- 첫 환경 스타일 앵커의 Git 검토본은 `art/production/graphics-remake/style-anchors/Battle_Forest_StyleAnchor_v1.png`에 보존합니다. 기존 런타임 자산은 승인·Unity 플레이 검증 전까지 덮어쓰지 않습니다.
 - 현재 `RunReportPanel`은 전멸 보고서에도 `탐사 구역: 야생림—협곡—성소`를 표시합니다. 구현할 때 6층 미도달 전멸 보고서에서는 이 예정 경로 문구를 제거하거나 실제 도달 구역만 표시해야 합니다.
 - 현재 Unity는 2·3·4층 Combat/Event 70/30 생성, Event 안의 40/20/10/30 재추첨과 19종 사건 추첨을 사용합니다. 위 고정 흐름은 아직 구현되지 않았습니다.
 - 현재 `PostBattleObservationPanel`은 중앙 팝업과 실제 `계속` 버튼을 사용합니다. 핵심 단서 차단 자막·우측 하단 `계속하기`·화면 클릭 계약은 아직 구현되지 않았습니다.

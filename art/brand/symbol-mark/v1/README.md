@@ -8,7 +8,7 @@
 ## 제작 정보
 
 - 안정 자산 ID: `BRAND-SYMBOL-001`
-- Git 기준 경로: `docs/assets/brand/symbol-mark/v1/`
+- Git 기준 경로: `art/brand/symbol-mark/v1/`
 - 제작 방식: 사용자 선택 래스터를 기준으로 패스를 직접 재구성한 결정적 SVG
 - 기준 PNG SHA-256: `ba8f11a402accd336a5caf4b747be8d7f74dca9d55a638462e7b183b9771827c`
 - Master SHA-256: `e96639f48ba4016d8a64072f5d604104c7b86e131cb07f34dc6ac87f65ac24b0`
