@@ -84,7 +84,7 @@ public class InvestigatorNotebookController : MonoBehaviour
         lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.offsetMin = Vector2.zero; lrt.offsetMax = Vector2.zero;
         var label = labelGo.AddComponent<TextMeshProUGUI>();
         if (font != null) label.font = font;
-        label.text = "조사관 수첩"; label.fontSize = 24; label.color = Ink;
+        label.text = Loc.Tr("조사관 수첩"); label.fontSize = 24; label.color = Ink;
         label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
     }
 
@@ -114,6 +114,7 @@ public class InvestigatorNotebookController : MonoBehaviour
         RebuildPages();
         _pageIndex = 0;
         _root.SetActive(true);
+        Loc.Localize(_root); // 이전/다음/닫기 등 정적 라벨을 현재 언어로 (본문·헤더는 Tr로 이미 현재 언어)
         _group.alpha = 1f; _group.blocksRaycasts = true;
         ShowPage(0, animate: true);
     }
@@ -143,7 +144,7 @@ public class InvestigatorNotebookController : MonoBehaviour
 
         if (entries == null || entries.Count == 0)
         {
-            _pages.Add("아직 기록된 조사 내용이 없다.");
+            _pages.Add(Loc.Tr("아직 기록된 조사 내용이 없다."));
             return;
         }
 
@@ -174,11 +175,11 @@ public class InvestigatorNotebookController : MonoBehaviour
     private static string FormatEntry(RunRecordEntry e)
     {
         var sb = new StringBuilder();
-        string floorPart = e.floor > 0 ? $"{e.floor}층" : "-";
-        string zonePart  = e.node  > 0 ? $"제 {e.node}구역" : "현장 기록";
-        sb.AppendLine($"[{floorPart} | {zonePart}]");
+        sb.AppendLine(e.node > 0
+            ? Loc.Tr("[{0}층 | 제 {1}구역]", e.floor, e.node)
+            : Loc.Tr("[{0}층 | 현장 기록]", e.floor));
         if (!string.IsNullOrEmpty(e.title))
-            sb.AppendLine(e.title);          // 전투: "고블린 2체 사살" 등 (§1-4)
+            sb.AppendLine(e.title);          // 전투: "고블린 2체 사살"/"Slew ..." 등 (§1-4)
         foreach (var line in e.lines)
             sb.AppendLine(line);             // 항목당 한 줄 (§1-5)
         return sb.ToString();
@@ -191,7 +192,7 @@ public class InvestigatorNotebookController : MonoBehaviour
 
         int run = RunSessionManager.Instance != null ? RunSessionManager.Instance.CurrentRunNumber : 1;
         if (_headerText != null)
-            _headerText.text = $"조사관 수첩 — 제 {run}차 탐사   ({_pageIndex + 1}/{_pages.Count})";
+            _headerText.text = Loc.Tr("조사관 수첩 — 제 {0}차 탐사   ({1}/{2})", run, _pageIndex + 1, _pages.Count);
 
         string body = _pages.Count > 0 ? _pages[_pageIndex] : "";
         if (_bodyText != null)

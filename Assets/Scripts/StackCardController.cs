@@ -219,10 +219,11 @@ public class StackCardController : MonoBehaviour
         // 설명 텍스트 업데이트 — 폰트 작게(숫자 강조), 색 유지. (2026-06-09)
         if (descText != null)
         {
-            descText.text  = number > 0 ? "스택 증가" : "스택 감소";
+            descText.text  = number > 0 ? Loc.Tr("스택 증가") : Loc.Tr("스택 감소");
             descText.color = CardDescColor;
-            descText.enableAutoSizing = false;
-            descText.fontSize         = 18f;
+            descText.enableAutoSizing = false; // 먼저 고정 해제
+            descText.fontSize = 18f;           // 기준(한국어) 크기 18
+            Loc.AutoFit(descText);             // 영어("Stack Down" 등)가 더 길어도 카드 안에 맞게 자동 축소
         }
 
         // 카드 상태 초기화

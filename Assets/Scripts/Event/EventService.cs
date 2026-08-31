@@ -73,11 +73,11 @@ public static class EventService
 
         var lines = new List<string>
         {
-            $"확인 장소: {(evt != null ? evt.title : "미상")}",
-            $"조치: {choice.label}",
+            Loc.Tr("확인 장소: {0}", evt != null ? Loc.Tr(evt.title) : Loc.Tr("미상")),
+            Loc.Tr("조치: {0}", Loc.Tr(choice.label)),
         };
         if (!string.IsNullOrEmpty(outcome.resultText))
-            lines.Add($"결과: {outcome.resultText}");
+            lines.Add(Loc.Tr("결과: {0}", Loc.Tr(outcome.resultText)));
 
         // 표제는 비운다 — 헤더 [O층 | 제 N구역] 아래 확인 장소/조치/결과 항목만 표시.
         session.AddRecord(RunRecordType.ChoiceResolved, "", lines,
@@ -147,7 +147,7 @@ public static class EventService
                 if (eff.value > 0) { SoulstoneManager.Instance?.Add(eff.value); GameLog.Event($"영혼석 +{eff.value}", LogCategory.Reward); }
                 else if (eff.value < 0) { SoulstoneManager.Instance?.Use(-eff.value); GameLog.Event($"영혼석 {eff.value}", LogCategory.Reward); }
                 if (eff.value != 0)
-                    _effectSummary.Add($"영혼석 {(eff.value > 0 ? "+" : "")}{eff.value}");
+                    _effectSummary.Add(Loc.Tr("영혼석 {0}", (eff.value > 0 ? "+" : "") + eff.value));
                 break;
 
             case EventEffectType.Stress:
@@ -207,7 +207,7 @@ public static class EventService
         if (targets.Count == 0) return;
         foreach (var f in targets) f.currentStress += delta;
         string sign = delta >= 0 ? "+" : "";
-        _effectSummary.Add($"{TargetLabel(target, targets.Count)} 스트레스 {sign}{delta}");
+        _effectSummary.Add(Loc.Tr("{0} 스트레스 {1}", TargetLabel(target, targets.Count), sign + delta));
         GameLog.Event($"{targets.Count}명 스트레스 {sign}{delta}", LogCategory.Status);
     }
 
@@ -219,7 +219,7 @@ public static class EventService
         if (targets.Count == 0) return;
         foreach (var f in targets) f.CurrentHp += delta;
         string sign = delta >= 0 ? "+" : "";
-        _effectSummary.Add($"{TargetLabel(target, targets.Count)} HP {sign}{delta}");
+        _effectSummary.Add(Loc.Tr("{0} HP {1}", TargetLabel(target, targets.Count), sign + delta));
         GameLog.Event($"{targets.Count}명 HP {sign}{delta}", delta >= 0 ? LogCategory.Heal : LogCategory.Damage);
     }
 
@@ -232,7 +232,7 @@ public static class EventService
         if (targets.Count == 0) return;
         foreach (var f in targets)
             f.CurrentHp = Mathf.Max(1, f.CurrentHp - amount); // setter 가 0 도달 시 사망 처리하므로 최소 1 보장
-        _effectSummary.Add($"{TargetLabel(target, targets.Count)} HP -{amount} (사망 없음)");
+        _effectSummary.Add(Loc.Tr("{0} HP -{1} (사망 없음)", TargetLabel(target, targets.Count), amount));
         GameLog.Event($"{targets.Count}명 HP -{amount} (사망 없음)", LogCategory.Damage);
     }
 
@@ -246,13 +246,13 @@ public static class EventService
         if (targets.Count == 0) return;
         foreach (var f in targets)
             f.currentStress = Mathf.Min(99, f.currentStress + amount);
-        _effectSummary.Add($"{TargetLabel(target, targets.Count)} 스트레스 +{amount}");
+        _effectSummary.Add(Loc.Tr("{0} 스트레스 +{1}", TargetLabel(target, targets.Count), amount));
         GameLog.Event($"{targets.Count}명 스트레스 +{amount}", LogCategory.Status);
     }
 
-    /// <summary>효과 대상 표기 — 전원/1명 등 집계 라벨 (결과 창 요약용).</summary>
+    /// <summary>효과 대상 표기 — 전원/1명 등 집계 라벨 (결과 창 요약용, 현재 언어).</summary>
     private static string TargetLabel(EventTarget target, int count)
-        => target == EventTarget.All ? "생존 동료" : $"동료 {count}명";
+        => target == EventTarget.All ? Loc.Tr("생존 동료") : Loc.Tr("동료 {0}명", count);
 
     /// <summary>효과 대상 동료 목록. ChosenOne 은 (선택 UI 미구현) RandomOne 으로 폴백.</summary>
     private static List<FellowData> ResolveTargets(EventTarget target)

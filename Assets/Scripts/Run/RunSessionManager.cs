@@ -359,20 +359,20 @@ public class RunSessionManager : MonoBehaviour
         //   승리: "{조우 대상} 사살" 처럼 조우와 처리 결과를 한 줄로 통합(별도 "전투 승리" 라벨 폐지).
         //   전멸: 마지막 전투 사건에 "탐사대 소실"을 기록한다.
         //   줄 배치는 예시(§1-4) 순서 — 조우·처리 결과 → 사후 관찰 → 조건부 획득.
-        string encounter = string.IsNullOrEmpty(enemySummary) ? "괴이" : enemySummary;
+        string encounter = string.IsNullOrEmpty(enemySummary) ? Loc.Tr("괴이") : enemySummary;
         var entry = new RunRecordEntry
         {
             type  = RunRecordType.BattleResolved,
             floor = floor,
             node  = NodeSystem.Current != null ? NodeSystem.Current.CurrentNodeNumber : 0,
-            title = victory ? $"{encounter} 사살" : "탐사대 소실",
+            title = victory ? Loc.Tr("{0} 사살", encounter) : Loc.Tr("탐사대 소실"),
         };
         if (!victory)
-            entry.lines.Add($"{encounter}와 교전 중 탐사대 소실"); // 조우 맥락 (전멸)
+            entry.lines.Add(Loc.Tr("{0}와 교전 중 탐사대 소실", encounter)); // 조우 맥락 (전멸)
         if (victory && !string.IsNullOrEmpty(observationNotebookText))
-            entry.lines.Add(observationNotebookText);              // 사후 관찰 — 표시 전에 기록에 포함
+            entry.lines.Add(Loc.Tr(observationNotebookText));                // 사후 관찰 — 표시 전에 기록에 포함
         if (victory && soulstoneGained > 0)
-            entry.lines.Add($"영혼석 {soulstoneGained}개 획득");   // 조건부 획득 줄 (0이면 생략)
+            entry.lines.Add(Loc.Tr("영혼석 {0}개 획득", soulstoneGained));   // 조건부 획득 줄 (0이면 생략)
 
         return Records.Add(entry, dedupKey: $"battle_F{floor}");
     }
@@ -409,8 +409,9 @@ public class RunSessionManager : MonoBehaviour
         {
             type  = RunRecordType.RunResolved,
             floor = reachedFloor,
-            title = victory ? "클리어" : "전멸",
-            lines = { $"최종 도달: {reachedFloor}층" },
+            node  = NodeSystem.Current != null ? NodeSystem.Current.CurrentNodeNumber : 0,
+            title = Loc.Tr(victory ? "클리어" : "전멸"),
+            lines = { Loc.Tr("최종 도달: {0}층", reachedFloor) },
         }, dedupKey: "run_resolved");
     }
 

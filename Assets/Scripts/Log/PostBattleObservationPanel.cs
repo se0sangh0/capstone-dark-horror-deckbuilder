@@ -87,6 +87,7 @@ public class PostBattleObservationPanel : MonoBehaviour
         LayoutBox(sprite);
 
         _root.SetActive(true);
+        Loc.Localize(_root); // 제목·설명·계속 버튼을 현재 언어로 (관찰 문안은 표에 등록됨)
         _group.alpha = 1f;
         _group.blocksRaycasts = true;
     }
