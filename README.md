@@ -23,8 +23,9 @@
 | 용어·디자인·생성 이력 | Notion [용어 사전](https://app.notion.com/p/229e9a1f30df495d996a0eb52abc1525) · [디자인 가이드](https://app.notion.com/p/e749c2ad0b9a417f91ec85ce1641c73a) · [AI 디자인 생성 기록](https://app.notion.com/p/5c53f3ac5a5d47359d6c8e8c419254a1) |
 | 실제 구현 | `Assets/`, `Packages/`, `ProjectSettings/`와 직접 확인한 테스트 결과 |
 | 현재 구현 인수인계 | `HANDOFF.md` |
-| 과거 기획·디자인 기록 | `기획/`, `기획_통합/`, `디자인_UI/`, `archive/` |
-| 제출 패키지 | `제출용/` |
+| 과거 기획·디자인 기록 | `archive/2026-08-01_Notion_이전/` |
+| 비런타임 컨셉 아트 | `art/` |
+| 제출·행정 자료 | 로컬 전용 `private/` · Git 추적 제외 |
 
 ## 저장소 구조
 
@@ -32,9 +33,10 @@
 - `Packages/`, `ProjectSettings/` — Unity 패키지와 프로젝트 설정
 - `운영/` — Git, 회의, 코드 작성 등 저장소 협업 규칙
 - `회의록/`, `주간_체크리스트/` — 팀 운영 기록
-- `docs/` — 구현 인수인계 이력과 병합 기록
-- `기획/`, `기획_통합/`, `디자인_UI/` — 읽기 전용 과거 자료
-- `archive/` — 병합·제출·체크리스트 보관본
+- `docs/` — 구현 인수인계 이력, 병합 기록과 Git 보존용 검토·브랜드 자산
+- `art/` — Unity에 직접 연결하지 않는 컨셉 아트·박람회 원본
+- `archive/` — 읽기 전용 과거 기획·디자인·인수인계 기록
+- `private/` — 발표자료·지원사업 서류·폰트·비공개 참고자료 · Git 추적 제외
 
 ## 협업 원칙
 
@@ -46,5 +48,5 @@
 
 ## Git 추적 범위
 
-- 추적: `Assets/`, `Packages/`, `ProjectSettings/`, 팀 공통 문서와 규칙
-- 비추적: `Library/`, `Temp/`, `Obj/`, `Build/`, `Logs/`, `UserSettings/`, IDE 생성 파일과 개인 도구 상태
+- 추적: `Assets/`, `Packages/`, `ProjectSettings/`, `art/` 원본, `archive/`, 팀 공통 문서와 규칙
+- 비추적: `private/`, `art/_exports/`, Unity·IDE 생성 파일과 개인 도구 상태

@@ -450,7 +450,7 @@ public partial class BattleManager : Singleton<BattleManager>
     //     };
     // }
 
-    /// <summary>스택 소비량이 음수가 되지 않도록 clamp. (stackMin=0, 기획/SO스키마 §CombatTuning)</summary>
+    /// <summary>스택 소비량이 음수가 되지 않도록 clamp. (stackMin=0, archive/2026-08-01_Notion_이전/기획/시스템/01_데이터_테이블_SO_스키마.md §CombatTuning)</summary>
     // private void ConsumeStackForRole(StackType role, int amount)
     // {
     //     switch (role)
