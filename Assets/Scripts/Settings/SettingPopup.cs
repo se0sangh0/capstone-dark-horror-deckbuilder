@@ -63,6 +63,11 @@ public class SettingPopup : PanelBase
     [Tooltip("TMP_Dropdown — Resolutions 배열에서 자동으로 채움 (\"1920x1080\" 등).")]
     [SerializeField] private TMP_Dropdown resolutionDropdown;
 
+    [Header("언어 (Language)")]
+    [Tooltip("TMP_Dropdown — 비워 두면 화면모드 드롭다운을 복제해 런타임에 자동 생성합니다.")]
+    [SerializeField] private TMP_Dropdown languageDropdown;
+    private TMP_Dropdown _langDrop; // 실제 사용 핸들 (인스펙터 값 또는 런타임 복제)
+
     [Header("버튼")]
     [SerializeField] private Button toMainButton;
     [SerializeField] private Button closeButton;
@@ -76,12 +81,14 @@ public class SettingPopup : PanelBase
             if (sfxSlider != null) sfxSlider.SetValueWithoutNotify(AudioManager.Instance.SfxVolume);
         }
 
+        EnsureLanguageDropdown(); // 언어 드롭다운 준비 (BindListeners 전에)
+
         if (screenModeDropdown != null)
         {
-            // 옵션을 매번 다시 채워서 prefab 에 옵션이 비어 있어도 안전.
+            // 옵션을 매번 다시 채워서 prefab 에 옵션이 비어 있어도 안전. 라벨은 현재 언어로.
             screenModeDropdown.ClearOptions();
             var opts = new List<TMP_Dropdown.OptionData>(ScreenModeLabels.Length);
-            foreach (var label in ScreenModeLabels) opts.Add(new TMP_Dropdown.OptionData(label));
+            foreach (var label in ScreenModeLabels) opts.Add(new TMP_Dropdown.OptionData(Loc.Tr(label)));
             screenModeDropdown.AddOptions(opts);
 
             int savedIdx = PlayerPrefs.GetInt(KEY_SCREEN_MODE, ResolveCurrentScreenModeIndex());
@@ -111,11 +118,52 @@ public class SettingPopup : PanelBase
             if (!isMainScene)
             {
                 var label = toMainButton.GetComponentInChildren<TMP_Text>(true);
-                if (label != null) label.text = "메인화면으로";
+                if (label != null) label.text = Loc.Tr("메인화면으로");
             }
         }
 
         BindListeners(true);
+
+        // 프리팹 정적 라벨(음량·화면 모드 등)을 현재 언어로 교체
+        Loc.Localize(gameObject);
+    }
+
+    // ── 언어 드롭다운 준비 (인스펙터 미배선 시 화면모드 드롭다운 복제) ──
+    private void EnsureLanguageDropdown()
+    {
+        if (_langDrop == null)
+        {
+            if (languageDropdown != null)
+            {
+                _langDrop = languageDropdown;
+            }
+            else if (screenModeDropdown != null)
+            {
+                var clone = Instantiate(screenModeDropdown.gameObject, screenModeDropdown.transform.parent);
+                clone.name = "LanguageDropdown";
+                clone.transform.SetSiblingIndex(screenModeDropdown.transform.GetSiblingIndex()); // 화면모드 위
+                _langDrop = clone.GetComponent<TMP_Dropdown>();
+                _langDrop.onValueChanged.RemoveAllListeners(); // 복제된 화면모드 리스너 제거
+
+                // 레이아웃 그룹이 없으면 겹치지 않게 위로 살짝 올림
+                if (screenModeDropdown.transform.parent.GetComponent<LayoutGroup>() == null)
+                {
+                    var rt  = (RectTransform)_langDrop.transform;
+                    var src = (RectTransform)screenModeDropdown.transform;
+                    rt.anchoredPosition = src.anchoredPosition + new Vector2(0f, src.rect.height + 16f);
+                }
+            }
+        }
+        if (_langDrop == null) return;
+
+        _langDrop.ClearOptions();
+        _langDrop.AddOptions(new List<TMP_Dropdown.OptionData>
+        {
+            new TMP_Dropdown.OptionData("한국어"),
+            new TMP_Dropdown.OptionData("English"),
+        });
+        _langDrop.SetValueWithoutNotify((int)LocalizationManager.Current);
+        _langDrop.RefreshShownValue();
     }
 
     // ── 닫히기 직전 리스너 해제 ────────────────────────────────────
@@ -142,6 +190,11 @@ public class SettingPopup : PanelBase
         {
             resolutionDropdown.onValueChanged.RemoveListener(OnResolutionChanged);
             if (subscribe) resolutionDropdown.onValueChanged.AddListener(OnResolutionChanged);
+        }
+        if (_langDrop != null)
+        {
+            _langDrop.onValueChanged.RemoveListener(OnLanguageChanged);
+            if (subscribe) _langDrop.onValueChanged.AddListener(OnLanguageChanged);
         }
         if (toMainButton != null)
         {
@@ -179,6 +232,12 @@ public class SettingPopup : PanelBase
         var res = Resolutions[idx];
         Screen.SetResolution(res.x, res.y, Screen.fullScreenMode);
         PlayerPrefs.SetInt(KEY_RESOLUTION, idx);
+    }
+
+    // 언어 변경 — 0=한국어 / 1=영어. 즉시 전 화면 재번역 (LocalizationManager).
+    private void OnLanguageChanged(int idx)
+    {
+        LocalizationManager.SetLanguage((Language)Mathf.Clamp(idx, 0, 1));
     }
 
     private Vector2Int GetCurrentResolution()

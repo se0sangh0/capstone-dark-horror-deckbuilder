@@ -146,14 +146,17 @@ public class OpeningFlowController : MonoBehaviour
         var (title, body) = Documents[_docIndex];
 
         if (_titleText != null) _titleText.text = title;
+        if (_bodyText  != null) _bodyText.text  = body;
         if (_hintText  != null)
             _hintText.text = _docIndex < Documents.Length - 1
                 ? "계속하려면 아무 키나 누르십시오"
                 : (_mode == OnboardingEntryMode.Review ? "아무 키나 누르면 타이틀로 돌아갑니다" : "아무 키나 누르면 현장으로 이동합니다");
 
+        // 정적 문안(제목·본문·안내)을 현재 언어로 교체한 뒤 타자기 연출 시작
+        Loc.Localize(_root);
+
         if (_bodyText != null)
         {
-            _bodyText.text = body;
             _bodyText.ForceMeshUpdate();
             if (_typeRoutine != null) StopCoroutine(_typeRoutine);
             _typeRoutine = StartCoroutine(TypeReveal(_bodyText.textInfo.characterCount));

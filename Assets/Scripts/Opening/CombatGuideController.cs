@@ -82,6 +82,7 @@ public class CombatGuideController : MonoBehaviour
     {
         // 비차단 — blocksRaycasts 는 계속 false (전투 입력을 막지 않는다)
         _root.SetActive(true);
+        Loc.Localize(_root); // 가이드 문구를 현재 언어로
         _group.alpha = 0f;
 
         yield return new WaitForSeconds(AppearDelay);

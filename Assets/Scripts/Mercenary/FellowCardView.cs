@@ -161,7 +161,7 @@ public class FellowCardView : MonoBehaviour
 
         // ── 텍스트 ──
         if (nameLabel != null)     nameLabel.text     = !string.IsNullOrEmpty(fellow.displayName) ? fellow.displayName : fellow.id;
-        if (affinityLabel != null) affinityLabel.text = fellow.AffinityLabel;
+        if (affinityLabel != null) affinityLabel.text = Loc.Tr(fellow.AffinityLabel);
         if (starLabel != null)     starLabel.text     = new string('★', Mathf.Clamp(fellow.starLevel, 1, 3));
         if (hpLabel != null)       hpLabel.text       = $"HP {fellow.maxHp}";
         if (skillsLabel != null)
@@ -272,7 +272,7 @@ public class FellowCardView : MonoBehaviour
         {
             actionButton.gameObject.SetActive(keepAction);
             if (actionButtonLabel != null)
-                actionButtonLabel.text = keepAction ? "+ 동료 선택" : string.Empty;
+                actionButtonLabel.text = keepAction ? Loc.Tr("+ 동료 선택") : string.Empty;
         }
         if (removeButton != null) removeButton.gameObject.SetActive(false);
     }
@@ -287,21 +287,21 @@ public class FellowCardView : MonoBehaviour
 
     private static string ShortRoleLabel(CompanionRole role) => role switch
     {
-        CompanionRole.Dealer  => "딜러",
-        CompanionRole.Tanker  => "탱커",
-        CompanionRole.Support => "서포터",
+        CompanionRole.Dealer  => Loc.Tr("딜러"),
+        CompanionRole.Tanker  => Loc.Tr("탱커"),
+        CompanionRole.Support => Loc.Tr("서포터"),
         _                     => "?",
     };
 
     private static string ActionLabelForMode(FellowCardMode mode, int cost) => mode switch
     {
-        FellowCardMode.Recruit        => $"고용 ({cost})",
-        FellowCardMode.Reserve        => "선택",
-        FellowCardMode.PartySlot      => "선택",
-        FellowCardMode.SynthesizeSlot => "선택",
-        FellowCardMode.Sell           => $"판매 (+{cost})",
-        FellowCardMode.Revive         => $"부활 ({cost})",
-        _                             => "선택",
+        FellowCardMode.Recruit        => Loc.Tr("고용 ({0})", cost),
+        FellowCardMode.Reserve        => Loc.Tr("선택"),
+        FellowCardMode.PartySlot      => Loc.Tr("선택"),
+        FellowCardMode.SynthesizeSlot => Loc.Tr("선택"),
+        FellowCardMode.Sell           => Loc.Tr("판매 (+{0})", cost),
+        FellowCardMode.Revive         => Loc.Tr("부활 ({0})", cost),
+        _                             => Loc.Tr("선택"),
     };
 
     /// <summary>보유 스킬을 "이름 (코스트N)" 형식으로 줄바꿈 결합. 스킬 없으면 빈 문자열.</summary>

@@ -70,8 +70,9 @@ public class ChurchPanel : PanelBase
 
     protected override void OnOpened()
     {
-        if (titleLabel != null) titleLabel.text = "교회";
+        if (titleLabel != null) titleLabel.text = Loc.Tr("교회");
         RefreshAll();
+        Loc.Localize(gameObject); // 정적 라벨(버튼·안내)을 현재 언어로
 
         if (SoulstoneManager.Instance != null) SoulstoneManager.Instance.OnCurrencyChanged += OnCurrencyChanged;
         if (PartyManager.Instance     != null) PartyManager.Instance.OnPartyChanged        += RefreshAll;
@@ -89,9 +90,9 @@ public class ChurchPanel : PanelBase
     {
         int balance = SoulstoneManager.Instance != null ? SoulstoneManager.Instance.Amount : 0;
 
-        if (soulstoneLabel    != null) soulstoneLabel.text    = $"영혼석 {balance}";
-        if (hpButtonLabel     != null) hpButtonLabel.text     = $"HP +{ChurchService.HpAmount} (영혼석 {ChurchService.HpCost})";
-        if (stressButtonLabel != null) stressButtonLabel.text = $"스트레스 -{ChurchService.StressAmount} (영혼석 {ChurchService.StressCost})";
+        if (soulstoneLabel    != null) soulstoneLabel.text    = Loc.Tr("영혼석 {0}", balance);
+        if (hpButtonLabel     != null) { hpButtonLabel.text     = Loc.Tr("HP +{0} (영혼석 {1})", ChurchService.HpAmount, ChurchService.HpCost);       Loc.AutoFit(hpButtonLabel); }
+        if (stressButtonLabel != null) { stressButtonLabel.text = Loc.Tr("스트레스 -{0} (영혼석 {1})", ChurchService.StressAmount, ChurchService.StressCost); Loc.AutoFit(stressButtonLabel); }
         if (hpButton          != null) hpButton.interactable     = balance >= ChurchService.HpCost;
         if (stressButton      != null) stressButton.interactable = balance >= ChurchService.StressCost;
 
