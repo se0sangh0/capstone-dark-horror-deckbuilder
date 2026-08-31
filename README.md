@@ -1,6 +1,13 @@
-# 괴이탐사국
+# INSPECTOR · 괴이탐사국
 
-다크 호러 로그라이크 탐험과 공용 카드 스택 기반 자동 전투를 결합한 Unity 캡스톤 프로젝트입니다.
+카드로 공용 역할 스택을 만들고 영혼석 동료의 자동 행동을 유도하는
+다크 호러 로그라이크 덱빌딩 오토배틀러입니다.
+
+[![Deploy GitHub Pages](https://github.com/se0sangh0/inspector/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/se0sangh0/inspector/actions/workflows/deploy-pages.yml)
+
+- 게임명: 한국어 `괴이탐사국` · 중국어 번체 `怪異探查局` · 영어 `INSPECTOR`
+- 랜딩 페이지: [https://se0sangh0.github.io/inspector/](https://se0sangh0.github.io/inspector/)
+- 저장소: [https://github.com/se0sangh0/inspector](https://github.com/se0sangh0/inspector)
 
 > 현재 기획의 기준은 **Notion**입니다. 이 저장소의 과거 기획 문서는 2026-08-01 이전 기록을 보존하는 아카이브이며, 최신 기획으로 사용하지 않습니다.
 
@@ -46,6 +53,17 @@
 - 구조나 파일 이름을 바꾸면 README, [로컬 프로젝트 허브](00_프로젝트_허브.md), 관련 링크를 함께 점검합니다.
 - 상세 규칙은 [협업 운영 규칙](운영/00_협업_운영_규칙.md)과 [Unity C# 코드 작성 규칙](운영/01_코드_작성_규칙.md)을 따릅니다.
 - 사람과 자동화 작업자는 공통으로 [AGENTS.md](AGENTS.md)의 기준 문서·변경 안전·검증 원칙을 따릅니다.
+
+## GitHub Pages
+
+- 배포 원본: `site/preview/`
+- 배포 워크플로: [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+- 자동 배포: `main`의 `site/preview/**` 또는 배포 워크플로가 바뀔 때
+- 수동 배포: GitHub Actions의 `Run workflow`
+- 언어: 한 페이지에서 한국어·영어·중국어 번체 전환
+
+현재 공개 페이지는 개발 중 콘셉트 비주얼을 사용하는 시안입니다. 영상과 일부
+전시 정보는 정식 리소스가 준비될 때 교체합니다.
 
 ## Git 추적 범위
 

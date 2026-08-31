@@ -1,4 +1,33 @@
-<div id="inspector-expo-mockup" lang="zh-Hant">
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="怪異探查局 · INSPECTOR — 以卡牌引導靈魂石同伴自動行動的黑暗恐怖牌組構築遊戲開發預覽">
+  <meta name="theme-color" content="#0f1115">
+  <link rel="canonical" href="https://se0sangh0.github.io/inspector/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://se0sangh0.github.io/inspector/">
+  <meta property="og:title" content="怪異探查局 · INSPECTOR">
+  <meta property="og:description" content="以卡牌累積全隊共用職能，並引導靈魂石同伴自動行動的黑暗恐怖牌組構築遊戲。">
+  <meta property="og:locale" content="zh_TW">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="ko_KR">
+  <title>怪異探查局 · INSPECTOR</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <style>
+    html {
+      color-scheme: dark;
+      background: #0f1115;
+    }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background: #0f1115;
+    }
+  </style>
   <style>
     #inspector-expo-mockup {
       --inspector-bg: #0f1115;
@@ -527,6 +556,23 @@
       border: 0;
     }
 
+    #inspector-expo-mockup .inspector-skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 100;
+      padding: 10px 14px;
+      color: var(--inspector-bg);
+      background: var(--inspector-brass);
+      text-decoration: none;
+      transform: translateY(-160%);
+      transition: transform 160ms ease;
+    }
+
+    #inspector-expo-mockup .inspector-skip-link:focus {
+      transform: translateY(0);
+    }
+
     @media (max-width: 900px) {
       #inspector-expo-mockup .inspector-shell {
         width: min(100% - 30px, 720px);
@@ -701,6 +747,11 @@
     }
   </style>
 
+</head>
+<body>
+<div id="inspector-expo-mockup" lang="zh-Hant">
+  <a class="inspector-skip-link" href="#inspector-main" data-copy="skipToContent">跳至主要內容</a>
+
   <div class="inspector-copy-layer">
     <header class="inspector-shell">
       <nav class="inspector-nav" data-copy-aria="primaryNav" aria-label="主要導覽">
@@ -716,7 +767,7 @@
       </nav>
     </header>
 
-    <main>
+    <main id="inspector-main" tabindex="-1">
       <section class="inspector-shell inspector-hero" id="inspector-hero">
         <div class="inspector-hero-copy">
           <h1 data-copy="heroTitle">用卡牌指揮隊伍</h1>
@@ -822,10 +873,10 @@
             <p class="inspector-section-intro" data-copy="eventBody">事件迫使調查員在情報、資源與風險之間做出選擇，並帶著結果繼續深入。</p>
           </div>
           <figure>
-            <div class="inspector-resource-slot" role="img" aria-label="EVT-01 전용 삽화 배치 예정 영역">
-              <span>EVT-01 전용 삽화 배치 예정</span>
+            <div class="inspector-resource-slot" role="img" data-copy-aria="eventArtAlt" aria-label="EVT-01 專用插畫預定區域">
+              <span data-copy="eventArtPlaceholder">EVT-01 專用插畫預定</span>
             </div>
-            <figcaption>정식 시안에서는 EVT-01 삽화로 교체합니다.</figcaption>
+            <figcaption data-copy="eventArtCaption">正式版本將替換為 EVT-01 插畫。</figcaption>
           </figure>
         </div>
       </section>
@@ -834,8 +885,8 @@
         <div class="inspector-shell">
           <h2 data-copy="videoTitle">用 30 秒看見核心玩法</h2>
           <p class="inspector-section-intro" data-copy="videoBody">正式頁面將依序呈現卡牌輸入、自動戰鬥、事件選擇與收割者概念畫面。</p>
-          <div class="inspector-theater" role="img" aria-label="30초 시연 영상 연결 예정 영역">
-            <div class="inspector-theater-copy">30초 시연 영상 연결 예정</div>
+          <div class="inspector-theater" role="img" data-copy-aria="videoPlaceholderAlt" aria-label="30 秒展示影片預定區域">
+            <div class="inspector-theater-copy" data-copy="videoPlaceholder">30 秒展示影片預定</div>
           </div>
         </div>
       </section>
@@ -877,6 +928,8 @@
       const copy = {
         zh: {
           lang: "zh-Hant",
+          documentTitle: "怪異探查局 · INSPECTOR",
+          skipToContent: "跳至主要內容",
           brand: "怪異探查局",
           primaryNav: "主要導覽",
           gameFlowAria: "遊戲流程",
@@ -918,8 +971,13 @@
           raiderLabel: "掠奪者",
           eventTitle: "每次探索都要取捨",
           eventBody: "事件迫使調查員在情報、資源與風險之間做出選擇，並帶著結果繼續深入。",
+          eventArtAlt: "EVT-01 專用插畫預定區域",
+          eventArtPlaceholder: "EVT-01 專用插畫預定",
+          eventArtCaption: "正式版本將替換為 EVT-01 插畫。",
           videoTitle: "用 30 秒看見核心玩法",
           videoBody: "正式頁面將依序呈現卡牌輸入、自動戰鬥、事件選擇與收割者概念畫面。",
+          videoPlaceholderAlt: "30 秒展示影片預定區域",
+          videoPlaceholder: "30 秒展示影片預定",
           developmentNotice: "本頁使用開發中的概念視覺呈現遊戲氛圍與系統方向，並不代表最終遊戲畫面。",
           formatLabel: "形式",
           formatValue: "大學專題遊戲",
@@ -932,6 +990,8 @@
         },
         en: {
           lang: "en",
+          documentTitle: "INSPECTOR · Dark Horror Deckbuilding Autobattler",
+          skipToContent: "Skip to main content",
           brand: "INSPECTOR",
           primaryNav: "Primary navigation",
           gameFlowAria: "Game flow",
@@ -973,8 +1033,13 @@
           raiderLabel: "Raider",
           eventTitle: "Every expedition demands a choice",
           eventBody: "Events force the Investigator to weigh information, resources, and risk, then carry the result deeper into the rift.",
+          eventArtAlt: "Reserved area for the EVT-01 illustration",
+          eventArtPlaceholder: "EVT-01 illustration coming soon",
+          eventArtCaption: "The final version will use the EVT-01 illustration.",
           videoTitle: "See the core loop in 30 seconds",
           videoBody: "The final page will show card input, automatic combat, an event choice, and the Reaper concept in sequence.",
+          videoPlaceholderAlt: "Reserved area for the 30-second demo video",
+          videoPlaceholder: "30-second demo video coming soon",
           developmentNotice: "This page uses work-in-progress concept visuals to present the game's atmosphere and system direction, not final gameplay footage.",
           formatLabel: "Format",
           formatValue: "University capstone game",
@@ -987,6 +1052,8 @@
         },
         ko: {
           lang: "ko",
+          documentTitle: "괴이탐사국 · INSPECTOR",
+          skipToContent: "본문으로 건너뛰기",
           brand: "괴이탐사국",
           primaryNav: "주요 탐색",
           gameFlowAria: "게임 흐름",
@@ -1028,8 +1095,13 @@
           raiderLabel: "약탈자",
           eventTitle: "탐사마다 선택의 대가가 따른다",
           eventBody: "사건은 정보, 자원, 위험 사이의 선택을 요구합니다. 조사관은 그 결과를 안고 균열 안쪽으로 나아갑니다.",
+          eventArtAlt: "EVT-01 전용 삽화가 들어갈 예정 영역",
+          eventArtPlaceholder: "EVT-01 전용 삽화 배치 예정",
+          eventArtCaption: "정식 페이지에서는 EVT-01 삽화로 교체합니다.",
           videoTitle: "30초로 보는 핵심 플레이",
           videoBody: "정식 페이지에서는 카드 입력, 자동 전투, 사건 선택, 거두는 자 콘셉트를 순서대로 보여 줍니다.",
+          videoPlaceholderAlt: "30초 시연 영상이 연결될 예정 영역",
+          videoPlaceholder: "30초 시연 영상 연결 예정",
           developmentNotice: "이 페이지의 이미지는 게임의 분위기와 시스템 방향을 보여 주는 개발 중 콘셉트 비주얼이며, 최종 게임 화면이 아닙니다.",
           formatLabel: "형식",
           formatValue: "대학 캡스톤 게임",
@@ -1045,6 +1117,8 @@
       const updateCopy = (language) => {
         const selected = copy[language] || copy.zh;
         root.setAttribute("lang", selected.lang);
+        document.documentElement.lang = selected.lang;
+        document.title = selected.documentTitle;
         root.querySelectorAll("[data-copy]").forEach((element) => {
           const key = element.getAttribute("data-copy");
           if (selected[key] !== undefined) element.textContent = selected[key];
@@ -1079,3 +1153,5 @@
     })();
   </script>
 </div>
+</body>
+</html>
