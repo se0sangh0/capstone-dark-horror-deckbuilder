@@ -5,7 +5,7 @@
 
 - `preview/`: GitHub Pages에 공개하는 개발 시안
 - `preview/assets/`: 사이트 전용 파생 이미지 · 실제 제작을 시작할 때 생성
-- 공개 주소: [https://se0sangh0.github.io/inspector/](https://se0sangh0.github.io/inspector/)
+- 공개 주소: [https://davi-dev.uk/](https://davi-dev.uk/)
 - 배포 방식: GitHub Actions가 `preview/`를 GitHub Pages 아티팩트로 배포
 - 워크플로: [`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)
 

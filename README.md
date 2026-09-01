@@ -6,7 +6,7 @@
 [![Deploy GitHub Pages](https://github.com/se0sangh0/inspector/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/se0sangh0/inspector/actions/workflows/deploy-pages.yml)
 
 - 게임명: 한국어 `괴이탐사국` · 중국어 번체 `怪異探查局` · 영어 `INSPECTOR`
-- 랜딩 페이지: [https://se0sangh0.github.io/inspector/](https://se0sangh0.github.io/inspector/)
+- 랜딩 페이지: [https://davi-dev.uk/](https://davi-dev.uk/)
 - 저장소: [https://github.com/se0sangh0/inspector](https://github.com/se0sangh0/inspector)
 
 > 현재 기획의 기준은 **Notion**입니다. 이 저장소의 과거 기획 문서는 2026-08-01 이전 기록을 보존하는 아카이브이며, 최신 기획으로 사용하지 않습니다.
