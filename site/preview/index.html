@@ -15,6 +15,9 @@
   <meta property="og:locale:alternate" content="ko_KR">
   <title>怪異探查局 · INSPECTOR</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     html {
       color-scheme: dark;
@@ -40,6 +43,8 @@
       --inspector-muted: #b5ada0;
       --inspector-dim: #8a8f98;
       --inspector-danger: #b3263e;
+      --inspector-font-display: "Space Grotesk", "Noto Sans TC", "PingFang TC", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+      --inspector-font-mono: "JetBrains Mono", "Noto Sans TC", "PingFang TC", "Noto Sans KR", "Apple SD Gothic Neo", ui-monospace, monospace;
       width: 100%;
       overflow: hidden;
       color: var(--inspector-text);
@@ -85,8 +90,9 @@
     #inspector-expo-mockup .inspector-wordmark {
       color: var(--inspector-text);
       text-decoration: none;
+      font-family: var(--inspector-font-display);
       font-size: clamp(17px, 2.2vw, 24px);
-      font-weight: 500;
+      font-weight: 700;
       letter-spacing: 0.04em;
       white-space: nowrap;
     }
@@ -116,7 +122,9 @@
       border-radius: 2px;
       color: var(--inspector-bg);
       background: var(--inspector-brass);
+      font-family: var(--inspector-font-mono);
       font-weight: 500;
+      letter-spacing: 0.02em;
       white-space: nowrap;
       cursor: pointer;
       transition: transform 150ms ease, background-color 150ms ease;
@@ -154,10 +162,11 @@
 
     #inspector-expo-mockup h1 {
       max-width: 9em;
+      font-family: var(--inspector-font-display);
       font-size: clamp(42px, 6.3vw, 76px);
       line-height: 1.06;
-      letter-spacing: -0.045em;
-      font-weight: 500;
+      letter-spacing: -0.03em;
+      font-weight: 700;
       text-wrap: balance;
     }
 
@@ -259,10 +268,11 @@
 
     #inspector-expo-mockup .inspector-section h2 {
       max-width: 13em;
+      font-family: var(--inspector-font-display);
       font-size: clamp(34px, 5vw, 60px);
       line-height: 1.12;
-      letter-spacing: -0.038em;
-      font-weight: 500;
+      letter-spacing: -0.02em;
+      font-weight: 700;
       text-wrap: balance;
     }
 
@@ -310,8 +320,10 @@
 
     #inspector-expo-mockup .inspector-flow-step strong {
       display: block;
+      font-family: var(--inspector-font-mono);
       font-size: 19px;
       font-weight: 500;
+      letter-spacing: 0.02em;
     }
 
     #inspector-expo-mockup .inspector-flow-step span {
@@ -403,6 +415,8 @@
       background: transparent;
       border: 1px solid var(--inspector-line);
       border-radius: 2px;
+      font-family: var(--inspector-font-mono);
+      letter-spacing: 0.02em;
       cursor: pointer;
       transition:
         color 160ms ease,
@@ -523,10 +537,11 @@
     }
 
     #inspector-expo-mockup .inspector-closing-title {
+      font-family: var(--inspector-font-display);
       font-size: clamp(48px, 8vw, 96px);
       line-height: 1;
-      letter-spacing: -0.05em;
-      font-weight: 500;
+      letter-spacing: -0.03em;
+      font-weight: 700;
     }
 
     #inspector-expo-mockup .inspector-closing-copy {
